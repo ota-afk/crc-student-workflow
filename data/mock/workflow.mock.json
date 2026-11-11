@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "is_mock": true,
+  "as_of": "2026-11-12",
+  "student_profile": {
+    "student_id": "demo_001",
+    "institution": "Cosumnes River College",
+    "visa_type": "F-1",
+    "arrival_date": "2026-11-09",
+    "has_ssn": false,
+    "completed_tasks": ["task_i94_retrieval", "task_sevis_fee"]
+  },
+  "workflow": [
+    {
+      "id": "task_i94_retrieval",
+      "title": "Retrieve your I-94 record",
+      "status": "Completed",
+      "priority": "Required"
+    },
+    {
+      "id": "task_sevis_fee",
+      "title": "Pay the SEVIS I-901 fee",
+      "status": "Completed",
+      "priority": "Required"
+    },
+    {
+      "id": "task_school_checkin",
+      "title": "Complete CRC international student check-in",
+      "status": "Ready",
+      "priority": "Required",
+      "prerequisites": ["task_i94_retrieval", "task_sevis_fee"],
+      "next_action": {
+        "task_id": "task_school_checkin",
+        "text": "Sample next step for check-in (sample)"
+      }
+    },
+    {
+      "id": "task_proof_of_residency",
+      "title": "Gather proof of California residency",
+      "status": "In Progress",
+      "priority": "Required"
+    },
+    {
+      "id": "task_dmv_id",
+      "title": "Apply for California REAL ID",
+      "status": "Blocked",
+      "priority": "Recommended",
+      "prerequisites": ["task_school_checkin", "task_proof_of_residency"],
+      "missing_prerequisites": ["task_school_checkin", "task_proof_of_residency"],
+      "next_action": {
+        "task_id": "task_school_checkin",
+        "text": "Sample next step: finish school check-in first (sample)"
+      },
+      "blockers": [
+        {
+          "type": "timing",
+          "rule_id": "rule_dmv_timing_sample",
+          "unlocks_on": "2026-11-19",
+          "verification_status": "needs_verification",
+          "explanation": "Sample timing rule. Confirm with the DMV and the CRC office before showing it (sample)"
+        }
+      ],
+      "before_you_go": {
+        "required_documents": ["Passport (sample)", "Form I-20 (sample)", "I-94 record (sample)"],
+        "fees": "$00.00 (sample)",
+        "hours": "8:00 AM - 5:00 PM (sample)",
+        "appointment_rules": "Walk-ins and appointments (sample)",
+        "phone": null,
+        "official_url": "https://www.dmv.ca.gov/portal/driver-licenses-id-cards/real-id/",
+        "warnings": ["Sample warning text (sample)"]
+      },
+      "sources": [
+        {"rule_id": "rule_dmv_timing_sample", "url": null, "last_verified": null}
+      ]
+    },
+    {
+      "id": "task_bank_account",
+      "title": "Open a U.S. bank account",
+      "status": "Blocked",
+      "priority": "Optional",
+      "prerequisites": ["task_school_checkin"],
+      "missing_prerequisites": ["task_school_checkin"],
+      "next_action": {
+        "task_id": "task_school_checkin",
+        "text": "Sample next step: finish school check-in first (sample)"
+      }
+    }
+  ]
+}
