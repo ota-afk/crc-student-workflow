@@ -20,7 +20,7 @@ Supporting source text for the second condition:
 
 ### Important exception (FOOTNOTE)
 
-Students who enroll on or after July 25 will not be dropped for non-payment. However, unpaid fees remianing after the term ends will result in a hold on future enrollment until payment is received.
+Students who enroll on or after July 25 will not be dropped for non-payment. However, unpaid fees remaining after the term ends will result in a hold on future enrollment until payment is received.
 
 ### Agreed demo scenario
 
