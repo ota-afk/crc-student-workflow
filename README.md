@@ -13,7 +13,7 @@ Install [Git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/). uv ins
 Python 3.12 for you.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/crc-student-workflow.git
+git clone https://github.com/ota-afk/crc-student-workflow.git
 cd crc-student-workflow
 uv sync --locked
 cp .env.example .env
@@ -79,6 +79,16 @@ scripts/check_no_sample.py    pre-recording check
 tests/                        pytest tests
 .github/workflows/ci.yml      CI: ruff check and pytest
 ```
+
+## How we work
+
+- Tickets: `STU-D01-BE` means Day 1, backend. One branch per ticket, named
+  `feature/<ticket-id>`.
+- Never push to `main`. Open a small pull request, get one review, and merge the same day once
+  CI is green.
+- The API's request and response shapes are in [docs/contract.md](docs/contract.md). Change
+  `contract.py`, the mock and `docs/contract.md` together in one pull request, and tell everyone.
+- Done means: merged and reviewed, tests pass, runs from this README, demoable in 30 seconds.
 
 ## Adding dependencies
 
