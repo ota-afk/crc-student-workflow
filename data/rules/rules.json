@@ -1,0 +1,31 @@
+{
+  "tasks": [
+    {
+      "id": "task_crc_fee_payment",
+      "title": "Pay CRC tuition and fees",
+      "priority": "Required",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_crc_fall_2026_payment_deadline"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "rule_crc_fall_2026_payment_deadline",
+      "statement": "For CRC Fall 2026 students who enroll on or after July 25, 2026, payment is due the next day after enrollment. These students are not dropped for non-payment, but unpaid fees after the term ends result in a hold on future enrollment until payment is received.",
+      "layer": "school",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines",
+      "source_sentence": "The next day after enrollment date",
+      "last_checked": "2026-11-11",
+      "last_verified": null,
+      "confirmed_by": "Hayley Nguyen",
+      "second_checker": "Ryan Mejia",
+      "second_check_date": "2026-11-12",
+      "changed": null,
+      "verification_status": "needs_verification"
+    }
+  ]
+}
