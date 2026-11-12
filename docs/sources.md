@@ -7,7 +7,7 @@
 - Date checked: 2026-11-11
 - Checked by: Hayley Nguyen
 - Second checker: Ryan Mejia
-- Second check date: 11/12/26
+- Second check date: 2026-11-12
 
 ### Rule
 
