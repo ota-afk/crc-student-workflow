@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0",
   "is_mock": true,
-  "as_of": "2026-11-12",
+  "as_of": "2026-08-14",
   "student_profile": {
     "student_id": "demo_001",
     "institution": "Cosumnes River College",
     "visa_type": "F-1",
-    "arrival_date": "2026-11-09",
+    "arrival_date": "2026-08-11",
     "has_ssn": false,
     "completed_tasks": ["task_i94_retrieval", "task_sevis_fee"]
   },
@@ -55,7 +55,7 @@
         {
           "type": "timing",
           "rule_id": "rule_dmv_timing_sample",
-          "unlocks_on": "2026-11-19",
+          "unlocks_on": "2026-08-21",
           "verification_status": "needs_verification",
           "explanation": "Sample timing rule. Confirm with the DMV and the CRC office before showing it (sample)"
         }
