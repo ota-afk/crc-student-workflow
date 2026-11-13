@@ -129,19 +129,27 @@ def source_is_verified(source: dict[str, Any]) -> bool:
 
 
 def has_unverified_blocker(task: dict[str, Any]) -> bool:
+    # Anything other than an explicit 'verified' counts as unverified.
     return any(
-        blocker.get('verification_status') == 'needs_verification'
+        blocker.get('verification_status') != 'verified'
         for blocker in task.get('blockers') or []
     )
 
 
 def has_unverified_source(task: dict[str, Any]) -> bool:
-    return any(not source_is_verified(s) for s in task.get('sources') or [])
+    sources = task.get('sources') or []
+    # An empty list proves nothing, so it counts as unverified too.
+    return not sources or any(not source_is_verified(s) for s in sources)
+
+
+def source_gap_label(task: dict[str, Any]) -> str:
+    if not task.get('sources'):
+        return 'No source on file'
+    return 'Source link or date missing'
 
 
 def has_unverified(task: dict[str, Any]) -> bool:
-    sources = task.get('sources') or []
-    return not sources or has_unverified_blocker(task) or has_unverified_source(task)
+    return has_unverified_blocker(task) or has_unverified_source(task)
 
 
 def last_verified_date(task: dict[str, Any]) -> str | None:
@@ -153,12 +161,11 @@ def last_verified_date(task: dict[str, Any]) -> str | None:
 
 
 def verification_note(task: dict[str, Any]) -> str:
-    if has_unverified(task):
-        return NOT_VERIFIED
+    """A date only when nothing about the task is unverified."""
     verified_on = last_verified_date(task)
-    if verified_on:
-        return f'Last verified: {verified_on}'
-    return NOT_VERIFIED
+    if has_unverified(task) or not verified_on:
+        return NOT_VERIFIED
+    return f'Last verified: {verified_on}'
 
 
 profile_tab, workflow_tab, readiness_tab = st.tabs(['Profile', 'Workflow', 'Readiness'])
@@ -199,6 +206,8 @@ with workflow_tab:
 
             if has_unverified(task):
                 st.markdown(unverified_badge(), unsafe_allow_html=True)
+            else:
+                st.caption(verification_note(task))
 
             action = task.get('next_action') or {}
             if action.get('text'):
@@ -207,8 +216,6 @@ with workflow_tab:
             prerequisites = [title_of(p) for p in task.get('prerequisites') or []]
             if prerequisites:
                 st.caption('Prerequisites: ' + ', '.join(prerequisites))
-
-            st.caption(verification_note(task))
 
 
 def render_readiness() -> None:
@@ -234,16 +241,15 @@ def render_readiness() -> None:
                 st.markdown(f'**Why:** {reason}')
                 if blocker.get('unlocks_on'):
                     st.info(f'Unlocks on {blocker["unlocks_on"]}')
-                if blocker.get('verification_status') == 'needs_verification':
+                if blocker.get('verification_status') != 'verified':
                     st.markdown(unverified_badge(), unsafe_allow_html=True)
 
             if has_unverified_source(task):
                 st.markdown(
-                    unverified_badge('Source link or date missing'),
+                    unverified_badge(source_gap_label(task)),
                     unsafe_allow_html=True,
                 )
-            if task.get('sources'):
-                st.caption(verification_note(task))
+            st.caption(verification_note(task))
 
             # Day 3 pattern. The endpoint name and shape are still to be agreed
             # with BE, so do not build against this URL yet.
