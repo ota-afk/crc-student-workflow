@@ -1,9 +1,10 @@
 """Manual live API smoke test. Uses a synthetic request and incurs API usage."""
 
+import os
 from pathlib import Path
 from typing import Literal
 
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 from openai import APIError, OpenAI
 from pydantic import BaseModel
 
@@ -15,12 +16,12 @@ class RequestType(BaseModel):
 
 
 def main() -> int:
-    config = dotenv_values(ROOT / ".env")
-    key = config.get("OPENAI_API_KEY")
-    model = config.get("OPENAI_MODEL")
+    load_dotenv(ROOT / ".env", override=False)
+    key = os.getenv("OPENAI_API_KEY")
+    model = os.getenv("OPENAI_MODEL")
 
     if not key or not model:
-        print("FAIL: Set OPENAI_API_KEY and OPENAI_MODEL in .env.")
+        print("FAIL: Set OPENAI_API_KEY and OPENAI_MODEL in the environment or .env.")
         return 1
 
     try:
@@ -39,7 +40,7 @@ def main() -> int:
                 max_output_tokens=200,
                 store=False,
             )
-    except (APIError, ValueError, ImportError) as error:
+    except (APIError, ValueError) as error:
         print("FAIL:", type(error).__name__)
         print("HTTP status:", getattr(error, "status_code", "N/A"))
         print("Error code:", getattr(error, "code", "N/A"))
