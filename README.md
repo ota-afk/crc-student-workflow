@@ -45,12 +45,36 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 
 | Name | Default | What it does |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | none | Your OpenAI key. Not used by the Day 1 code yet. |
-| `OPENAI_MODEL` | empty | Model name for the AI layer. Not used by the Day 1 code yet. |
+| `OPENAI_API_KEY` | none | Required for the manual OpenAI smoke test. Set it in the environment or local `.env`; never commit the key. |
+| `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
 | `USE_MOCK` | `true` | `true` serves the mock file. `false` returns 501 until the live engine exists. |
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
+
+## Manual OpenAI smoke test
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` in your environment or local `.env`.
+Existing environment variables take precedence over `.env`.
+
+The tested model is `gpt-6-luna`. The script uses the Responses API,
+Structured Outputs, and `reasoning={"effort": "none"}`. Other models may
+require changes to these settings.
+
+Run manually from the repository root:
+
+```bash
+uv run --locked python scripts/smoke_test_openai.py
+```
+
+This makes a real, paid API request. It is not part of pytest or CI.
+It sends one fixed synthetic request, uses `store=False`, a 30-second
+timeout, zero automatic retries, and a 200-token output limit.
+
+Success prints `PASS: API connection, schema validation, and classification.`
+
+The test verifies API connectivity and one structured classification.
+It does not verify application-wide AI integration or privacy enforcement.
 
 ## Run the tests
 

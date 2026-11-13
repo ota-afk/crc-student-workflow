@@ -20,3 +20,6 @@
   review items for blocker-aware verification notes, oldest evidence date display,
   unsourced task verification states, contextual gap labels, whitespace cleanup,
   dynamic test counts, and regression tests.
+- STU-D01-AI-followup (Nov 13 2026): ChatGPT assisted with the README smoke-test
+  instructions, environment-variable support, student ID policy clarification,
+  and cleanup following PR #8 review.
