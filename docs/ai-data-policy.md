@@ -10,6 +10,7 @@ throughout the application.
 ## Never include in model input
 
 - Real student names.
+- Real student IDs (`student_id`). Use synthetic IDs in tests.
 - Passport numbers, real SEVIS IDs, or SSN numbers.
 - Passport, visa, I-20, or other personal document files or images.
 - Personal email addresses, phone numbers, or home addresses.
@@ -48,7 +49,9 @@ Run manually from the repository root:
 
     uv run --locked python scripts/smoke_test_openai.py
 
-The test reads credentials from the local .env file.
+The test reads credentials and model settings from environment variables,
+falling back to the local .env file. Existing environment variables take precedence.
+The tested model is gpt-6-luna with reasoning effort set to none.
 It uses a synthetic request, store=False, a 30-second timeout,
 zero automatic retries, and a 200-token output limit.
 It prints the parsed result or error identifiers, never the API key.
