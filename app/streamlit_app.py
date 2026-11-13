@@ -1,4 +1,4 @@
-"""Day 1 dashboard: Profile, Workflow and Readiness views (read-only, mock-first)."""
+"""Dashboard: Profile, Workflow and Readiness views (read-only, mock-first)."""
 
 import html
 import os
