@@ -1,4 +1,4 @@
-"""Dashboard: Profile, Workflow and Readiness views (read-only, mock-first)."""
+"""Student dashboard with task details and a mock-first assistant preview."""
 
 import html
 import os
@@ -7,6 +7,9 @@ from typing import Any
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+
+from student_workflow.frontend import safe_url, source_verified
+from student_workflow.frontend_views import render_assistant, render_task_details
 
 load_dotenv()
 API_URL = os.getenv('API_URL', 'http://localhost:8000').rstrip('/')
@@ -74,9 +77,7 @@ def status_badge(status: Any) -> str:
 
 def safe_link(url: Any) -> str | None:
     """Return an http(s) URL, or None, so odd values never become links."""
-    if isinstance(url, str) and url.startswith(('https://', 'http://')):
-        return url
-    return None
+    return safe_url(url)
 
 
 def yes_no(value: Any) -> str:
@@ -125,7 +126,7 @@ def title_of(task_id: str) -> str:
 
 def source_is_verified(source: dict[str, Any]) -> bool:
     """A source counts as evidence only with both an official URL and a date."""
-    return bool(source.get('url') and source.get('last_verified'))
+    return source_verified(source)
 
 
 def has_unverified_blocker(task: dict[str, Any]) -> bool:
@@ -168,7 +169,9 @@ def verification_note(task: dict[str, Any]) -> str:
     return f'Last verified: {verified_on}'
 
 
-profile_tab, workflow_tab, readiness_tab = st.tabs(['Profile', 'Workflow', 'Readiness'])
+profile_tab, workflow_tab, readiness_tab, detail_tab, assistant_tab = st.tabs(
+    ['Profile', 'Workflow', 'Readiness', 'Task details', 'Assistant']
+)
 
 with profile_tab:
     st.subheader('Student profile')
@@ -322,3 +325,9 @@ def render_readiness() -> None:
 
 with readiness_tab:
     render_readiness()
+
+with detail_tab:
+    selected_task = render_task_details(tasks, bool(data.get('is_mock')))
+
+with assistant_tab:
+    render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'))

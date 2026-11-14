@@ -1,5 +1,9 @@
 # Credits: third-party code, AI-assisted code, and reused patterns
 
+- STU-D03-FE (Nov 13 2026): Codex assisted with task details, session-only document
+  checkboxes, dated sources, a sample assistant preview and proposed API adapter,
+  interaction tests, and documentation. Live BE/AI integration remains pending.
+
 - Day 1 skeleton (Nov 11 2026): the files were created from the team's Final Repo Setup Guide
   with AI assistance (Claude Code), which ran the setup commands and wrote the README.
 - STU-D01-BE (Nov 12 2026): AI assistance (Claude Code) drafted `docs/contract.md`, the README's

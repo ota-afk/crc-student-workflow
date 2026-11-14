@@ -41,6 +41,25 @@ uv run streamlit run app/streamlit_app.py
 
 Open <http://localhost:8501>. It should show the sample-data warning and six tasks.
 
+### Day 3: task details and assistant
+
+Open **Task details**, choose **Apply for California REAL ID**, and check a document.
+The missing-document list updates immediately. Switch to another task and back:
+your choices remain for this browser session. Checking every document does not
+unlock a blocked task, mark it completed, or establish eligibility. Visit details
+and source links retain their verification warnings and dates.
+
+Open **Assistant** and enter a question. By default it shows a fixed, explicitly
+labeled sample response: no LLM request is made. **Clear conversation** removes
+chat history without clearing document selections. Neither is written to disk;
+a new browser session starts fresh. Do not enter personal identifiers in chat.
+
+`ASSISTANT_MODE=live` opts into the **proposed** `POST /api/assistant/ask` integration.
+That endpoint does not exist on current main. Keep mock mode until BE/AI agree on
+and implement [the frontend adapter contract](docs/day-3-frontend.md).
+Failures display a retry message and leave the checklist usable. Live requests
+may invoke a paid model through the backend; the frontend never calls an LLM directly.
+
 ## Environment variables
 
 | Name | Default | What it does |
@@ -51,6 +70,7 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
+| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview; `live` uses the proposed assistant endpoint once implemented. |
 
 ## Manual OpenAI smoke test
 

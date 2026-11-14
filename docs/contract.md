@@ -5,6 +5,14 @@ This file is the agreement between the API (BE) and the dashboard (FE). The Pyda
 (`data/mock/workflow.mock.json`) and this file change together in one pull request, and everyone
 is told.
 
+**Plan clarification (Nov 13, STU-D03-FE):** the owner confirmed the five-day
+build plan. Its Day 3 FE scope is task details, readiness checkboxes, visit
+information, dated sources and chat. The Streamlit/session-state architecture
+below reflects the current repository and setup guide, not that plan's original
+React/SQLite design. The proposed action endpoints below are not yet live.
+See [Day 3 frontend integration](day-3-frontend.md) for the assistant proposal
+and the remaining BE/AI handoff.
+
 Status labels used below:
 
 - **Live**: exists in the code on `main` today.
@@ -13,7 +21,8 @@ Status labels used below:
 
 ## Ground rules that shape the API
 
-From the build plan:
+Current repository/setup-guide decisions (different from the five-day plan's
+original server-session design):
 
 - **Nothing is stored on the server.** No database, no session store. The dashboard keeps the
   student's profile in `st.session_state` and sends it with every request.
@@ -235,12 +244,11 @@ Both take the same request body as `POST /workflow` and return the updated Workf
 
 ## Answers to FE's Day 1 questions
 
-1. **Task status updates: PATCH or POST?** POST. The build plan names "two POST endpoints
-   (resolve a blocker, mark a task done)" on Day 3, not Day 2. Neither the build plan nor the
-   setup guide mentions
-   `PATCH /api/tasks/{task_id}/status`. The guide's `/tasks/{id}/resolve` is marked as an
-   example, so the names above are proposed. The client never sets a status directly, because
-   code decides status. The request and response are in "Day 3 task actions" above.
+1. **Task status updates: PATCH or POST?** The current repository proposes POST.
+   The confirmed five-day plan instead names `PATCH /api/tasks/{task_id}/status`.
+   The setup guide's `/tasks/{id}/resolve` is an example, so the POST names above
+   remain proposals requiring BE/FE agreement. Code decides dependency status;
+   the frontend must not mark blocked tasks ready merely because an email was drafted.
 2. **Session identity?** There is none on the server. No `session_id`, no server memory, no
    SQLite. `st.session_state` keeps the profile across Streamlit reruns in the same browser tab.
    A page refresh or a new tab starts a new session, so the student onboards again, which is
@@ -261,6 +269,10 @@ Both take the same request body as `POST /workflow` and return the updated Workf
   POST endpoints are built.
 
 ## Changelog
+
+- 2026-11-13, STU-D03-FE: correct five-day-plan attribution and distinguish the
+  existing Streamlit setup from the original React/SQLite design. Link the
+  proposed assistant adapter; no backend contract/model change in this ticket.
 
 - 2026-11-12, STU-D01-BE second review: label the `POST /workflow` request shape as proposed
   (FE has not agreed it yet) and point the enrollment-date question to the rule in `rules.json`.
