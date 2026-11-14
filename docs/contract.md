@@ -37,6 +37,7 @@ original server-session design):
 | --- | --- | --- |
 | `GET /health` | Live | Returns `{"status": "ok"}`. |
 | `GET /workflow` | Live | Returns the fixed demo workflow (the mock while `USE_MOCK=true`). Kept for the tests and `scripts/check_no_sample.py`. |
+| `GET /schools?q=&limit=20` | Day 2 | Searches ENG's California F-1 school CSV by name or city. Returns 503 until that file is available. |
 | `POST /workflow` | Planned, built Day 3 (request shape proposed) | Takes a profile, returns that student's computed workflow. |
 | `POST /tasks/{task_id}/resolve` | Proposed, Day 3 | "Resolve blocker": drafts the email and marks the task as awaiting a reply. |
 | `POST /tasks/{task_id}/complete` | Proposed, Day 3 | "Mark done": adds the task to the student's completed tasks. |
@@ -76,6 +77,16 @@ it to `"1.0"`.
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
 | `completed_tasks` | array of strings (task IDs) | `[]` |
+| `school_id` | string or null | `null` |
+| `school_verified` | boolean, computed by the resolver | `false` |
+
+`school_id` is the stable identifier shared by the school directory and school-specific
+rules. `institution` stays the display name; the resolver never guesses an ID from that name.
+**Proposed, pending ENG agreement:** this branch uses `crc` as the internal identifier for
+the existing CRC rule. It is not an official SEVP code.
+The resolver recomputes `school_verified` rather than trusting a value sent by a client.
+It is true only when every school step the student sees comes from that school's own rules
+and all of those rules are verified. If any task falls back to the generic steps, it is false.
 
 `visa_type` is a string in the current model; `"F-1"` in the examples is not an enforced
 list of allowed values.
@@ -131,6 +142,16 @@ list of allowed values.
 | `rule_id` | string | Required |
 | `url` | string or null | `null` |
 | `last_verified` | date string or null | `null` |
+| `verification_status` | string: `verified`, `needs_verification`, or null | `null` |
+
+`verification_status: null` means no verification state was supplied and must be treated as
+unverified. A source's date may describe an earlier check even when the rule now needs
+verification; a URL and date alone never establish that it is currently verified.
+
+**Pending FE integration:** the current dashboard checks source URLs and dates but does not
+yet read `Source.verification_status`. FE needs to apply that check before live workflows are
+enabled, so an unverified rule cannot look verified after its timing blocker expires. This
+branch carries the verification state in the response; the dashboard change remains FE's work.
 
 ### Missing values and verification
 
@@ -146,7 +167,10 @@ list of allowed values.
   date is missing. FE shows "Not verified" for that missing evidence.
 - Empty arrays mean no items were supplied, not proof that there are no requirements.
 - A non-null value can still be unverified, as in the mock. Check `is_mock` and each blocker's
-  `verification_status`; never treat a sample value as a verified rule.
+  and source's `verification_status`; never treat a sample value as a verified rule.
+- `student_profile.school_verified: false` means we have not verified this school's own
+  steps. The plan has FE label generic tasks "Not verified for your school" with a prompt to
+  confirm with the DSO (FE's Day 2 work).
 
 ## POST /workflow (planned for Day 3; request shape proposed)
 
@@ -168,6 +192,7 @@ Request:
   "student_profile": {
     "student_id": "demo_001",
     "institution": "Cosumnes River College",
+    "school_id": "crc",
     "visa_type": "F-1",
     "arrival_date": "2026-08-11",
     "has_ssn": false,
@@ -175,6 +200,8 @@ Request:
   }
 }
 ```
+
+The request leaves out `school_verified`: the resolver computes it, and ignores any value sent.
 
 Planned response: `200` with a Workflow (above). The example below is **sample data**, trimmed
 to one task. Its check-in task, priority, prerequisites, and status are illustrative and
@@ -189,6 +216,8 @@ and must visibly label any unverified facts.
   "student_profile": {
     "student_id": "demo_001",
     "institution": "Cosumnes River College",
+    "school_id": "crc",
+    "school_verified": false,
     "visa_type": "F-1",
     "arrival_date": "2026-08-11",
     "has_ssn": false,
@@ -242,6 +271,156 @@ Both take the same request body as `POST /workflow` and return the updated Workf
     so AI and BE agree on them on Day 3.
 - `404` if `task_id` is not a task in the workflow.
 
+## The rules file: `data/rules/rules.json` (Live, Day 2)
+
+ENG writes this file; BE's resolver reads it. `src/student_workflow/rules.py` is the code version
+of this section. Loading the file **rejects unknown keys**, so a typo like `"timming"` fails
+loudly instead of being ignored. A new field is added here, in `rules.py`, and in the file in the
+same pull request.
+
+The file has two lists: `tasks` and `rules`.
+
+### Rules-file task
+
+| Field | JSON type | Required or default |
+| --- | --- | --- |
+| `id` | string, unique | Required |
+| `title` | string | Required |
+| `priority` | string: `Required`, `Recommended`, or `Optional` | Required |
+| `prerequisites` | array of task IDs from this file | `[]` |
+| `rule_ids` | array of rule IDs from this file, at least one | Required |
+
+### Rule
+
+| Field | JSON type | Required or default |
+| --- | --- | --- |
+| `rule_id` | string, unique | Required |
+| `statement` | string: the rule in plain words | Required |
+| `layer` | string: `federal`, `california`, or `school` | Required |
+| `school_id` | string or null | `null` |
+| `high_risk` | boolean | Required |
+| `verification_status` | string: `verified` or `needs_verification` | Required |
+| `source_url` | string or null | `null` |
+| `evidence` | string or null: the sentence on the source page | `null` |
+| `last_checked` | date string or null | `null` |
+| `last_verified` | date string or null | `null` |
+| `verified_by` | string or null | `null` |
+| `second_checker` | string or null | `null` |
+| `second_check_date` | date string or null | `null` |
+| `changed` | boolean or null (Day 4 source checker) | `null` |
+| `timing` | Timing object or null (**Proposed**, below) | `null` |
+
+`high_risk` is required, not defaulted, because a missing flag must never quietly mean "safe".
+School rules require a nonblank `school_id`. Use `_generic` for generic check-in guidance.
+Federal and California rules require `school_id: null`.
+
+Every task cites at least one rule, so nothing appears on screen without a source. Unfinished
+research still gets a rule, marked `needs_verification`. A task can cite both a generic rule
+and a school's own rule for the same step, for example
+`"rule_ids": ["rule_generic_checkin", "rule_crc_checkin"]`; see the resolver section below.
+
+A rule can only be `verified` when `source_url`, `evidence`, `last_verified`, `verified_by` and
+`second_checker` are all filled in (the plan's "Rules start as `needs_verification` and change
+only when all of these are filled"). Loading fails otherwise.
+Whitespace-only evidence and checker names count as missing. The two checker names must
+identify different people; matching names after whitespace and case normalization are rejected.
+
+### Timing (Proposed, pending ENG agreement)
+
+A rule with `timing` blocks its task until a date worked out from the student's profile:
+
+```json
+{"timing": {"from": "arrival_date", "days": 10}}
+```
+
+| Field | JSON type | Required or default |
+| --- | --- | --- |
+| `from` | string: `arrival_date` (the only profile date today) | Required |
+| `days` | whole number, 0 or more | Required |
+
+The unlock date is `from` + `days`. A rule without `timing` never blocks on its own. The 10 days
+above is an example, not a verified rule. `enrollment_date` can be added to `from` once the team
+decides on that profile field (see open questions).
+
+## School search (Day 2)
+
+The endpoint path, query parameters, CSV columns, and internal IDs below are BE's implemented
+proposal for FE and ENG to review together; the build plan does not specify their exact names.
+
+`GET /schools?q=&limit=20` returns an array of school objects with `school_id`, `institution`,
+`city`, `state` (`CA`), and the computed `school_verified` flag. Search matches part of the
+name or city, ignoring case and surrounding whitespace. An empty query lists schools in file
+order. `limit` is between 1 and 100; `q` is at most 100 characters. No matches returns `[]`.
+
+ENG supplies `data/schools/sevp_schools_ca.csv`, or sets `SCHOOLS_PATH` to another file.
+Its exact columns are `school_id,institution,city,state`. Rows must already be filtered to
+California schools approved for F-1 students from the official SEVP list. IDs must be unique;
+`_generic` is reserved for rules and cannot identify a directory entry. Being on this list
+does not mean we have verified the school's check-in requirements.
+
+The CSV is not in the repo yet. No records are invented to fill that gap. Missing or invalid
+school data or rules returns `503`; invalid query parameters return `422`. The endpoint makes
+no external requests. ENG must add and credit the sourced directory before statewide search
+is available.
+
+## Dependency resolver (Live, Day 2; not wired to the API until Day 3)
+
+`src/student_workflow/engine.py`:
+
+```python
+resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow
+```
+
+`as_of` is always passed in (the plan's injected "as of" date), so the demo can say "arrived
+3 days ago" and tests repeat. `rules.load_rules(path=None)` reads the rules file; with no path it
+uses `RULES_PATH`, default `data/rules/rules.json`.
+
+How each task's status is decided (code decides status, never the AI):
+
+First, select the applicable rules, **task by task**:
+
+- Federal and California rules always apply.
+- If the task cites a rule for the student's `school_id`, that school's rules apply and the
+  task's `_generic` rules do not. Otherwise the task's `_generic` rules apply.
+- Another school's rules never apply.
+- A task with no applicable rules is not part of this student's workflow.
+
+So a school's own rule replaces the generic step only for that one task; its other tasks keep
+their generic steps until ENG adds a school version. Task IDs are the same for every school,
+so prerequisites such as "DMV needs check-in" work everywhere. If a task in the workflow needs
+a task that is not, the resolver fails instead of dropping that prerequisite. A completed task
+must belong to the selected workflow. No applicable tasks raises `ValueError`. Generic check-in
+content is supplied by ENG in the rules file; the resolver invents none when it is absent. A
+profile with no school ID (or `_generic`) gets only shared and generic steps.
+
+1. In `completed_tasks` → `Completed`.
+2. Otherwise `missing_prerequisites` = its prerequisites that are not completed, in file order.
+3. For each of its rules with `timing`: if `as_of` is before the unlock date, add a `timing`
+   blocker with that `unlocks_on`, the rule's `verification_status`, and its `statement` as the
+   explanation. On the unlock date itself, the task is no longer blocked.
+4. Any missing prerequisite or timing blocker → `Blocked`; otherwise `Ready`.
+5. `In Progress` is never produced yet: it needs the Day 3 "awaiting reply" state.
+
+Other fields on each task:
+
+- `next_action`: for a task blocked by a missing prerequisite, points at the first one with the
+  text `Finish "<title>" first.`; otherwise `null`.
+- `sources`: one per applicable rule, with its `source_url`, `last_verified`, and explicit
+  `verification_status`, including after a timing blocker expires or a task is completed.
+- `before_you_go`: `null` (the rules file has no visit details yet).
+
+The result is a Workflow with `schema_version: "1.0"` and `is_mock: false`, tasks in file order.
+It passes the same consistency checks as the mock.
+
+Invalid rules or profiles raise `ValueError`, so bad input fails loudly. Loading a missing or
+unreadable rules file raises the corresponding file error.
+
+- Rules file: an unknown key, a duplicate task or rule ID, a task with no rules, a prerequisite
+  or `rule_id` that does not exist, a prerequisite loop (A needs B, B needs A), invalid school
+  scope, or a `verified` rule with missing evidence or identical checkers.
+- Profile: a `completed_tasks` ID that is not in the rules file, or a task marked completed
+  before its prerequisites, no applicable tasks, or a dependency unavailable for that school.
+
 ## Answers to FE's Day 1 questions
 
 1. **Task status updates: PATCH or POST?** The current repository proposes POST.
@@ -262,8 +441,8 @@ Both take the same request body as `POST /workflow` and return the updated Workf
   student gives us: school, state, visa type, arrival date, and whether they have an SSN. Adding
   `enrollment_date: date | None` (`None` = not given, so no deadline is shown) widens that list,
   so the team decides first.
-- **State.** The ground rules list "state" as an input, but `student_profile` has no state field.
-  The Day 2 school-list change (`school_id`, `school_verified`) may cover it.
+- **State.** School search currently accepts California rows only. The profile has no state
+  field; support for other states still requires a contract decision.
 - **Unknown keys.** Pydantic ignores keys it does not know, so a typo like `"enrolment_date"`
   disappears silently. BE proposes making request models reject unknown keys (a `422`) when the
   POST endpoints are built.
@@ -274,6 +453,16 @@ Both take the same request body as `POST /workflow` and return the updated Workf
   existing Streamlit setup from the original React/SQLite design. Link the
   proposed assistant adapter; no backend contract/model change in this ticket.
 
+- 2026-11-14, STU-D02-BE review fixes (PR #13): choose school or generic rules per task, so one
+  school rule no longer hides the generic steps for that school's other tasks; `school_verified`
+  is false while any task uses generic steps. Every task must cite at least one rule.
+- 2026-11-13, STU-D02-BE: document the rules-file shape the resolver reads (unknown keys
+  rejected; `verified` needs full evidence from two different checkers; school rules need a
+  `school_id`), propose the `timing` field, and document the dependency resolver with school
+  scoping and ENG's `_generic` fallback. Add `school_id` and `school_verified` to the profile and
+  `verification_status` to Source, in the contract and the mock. Add school search, pending
+  ENG's sourced CSV. Proposed, pending agreement: the internal ID `crc` (ENG) and reading
+  `Source.verification_status` in the dashboard (FE). The Workflow API stays mock-only.
 - 2026-11-12, STU-D01-BE second review: label the `POST /workflow` request shape as proposed
   (FE has not agreed it yet) and point the enrollment-date question to the rule in `rules.json`.
   Documentation only.
