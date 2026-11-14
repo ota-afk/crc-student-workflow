@@ -6,6 +6,7 @@ keywords. Saved HTML snapshots permit offline reproduction and source review.
 
 import argparse
 import csv
+from datetime import date
 import hashlib
 import json
 import re
@@ -95,7 +96,7 @@ def page_url(number):
     return SOURCE + ("&page=" + str(number) if number else "")
 
 
-def read_page(path):
+def read_page(path, source_checked):
     tree = BeautifulSoup(path.read_bytes(), "html.parser")
     total = int(tree.select_one("#results-total").get_text())
     state = [
@@ -173,7 +174,7 @@ def read_page(path):
                 "education_type": "Higher Education",
                 "school_detail_url": detail,
                 "source_url": SOURCE,
-                "source_checked": "2026-11-13",
+                "source_checked": source_checked,
             }
         )
     return total, rows, tree
@@ -248,7 +249,7 @@ def group_schools(campuses):
                     (AFFILIATION_SOURCES[k] for k in keys if k in AFFILIATION_SOURCES),
                     CODE_GUIDE,
                 ),
-                "source_checked": "2026-11-13",
+                "source_checked": members[0]["source_checked"],
             }
         )
     schools.sort(key=lambda r: (r["school_name"].casefold(), r["school_group_key"]))
@@ -274,7 +275,13 @@ def main():
         "--scope", type=Path, help="Reviewed three-category institution allowlist"
     )
     parser.add_argument("--download", action="store_true")
+    parser.add_argument("--snapshot-date", type=date.fromisoformat, help="YYYY-MM-DD retrieval date for existing snapshots")
     args = parser.parse_args()
+    if args.download and args.snapshot_date:
+        parser.error("--snapshot-date is for offline snapshots; downloads use today")
+    if not args.download and args.snapshot_date is None:
+        parser.error("offline runs require --snapshot-date YYYY-MM-DD")
+    source_checked = (date.today() if args.download else args.snapshot_date).isoformat()
     args.snapshots.mkdir(parents=True, exist_ok=True)
 
     def fetch(number):
@@ -290,7 +297,7 @@ def main():
 
     if args.download:
         fetch(0)
-    total, first, _ = read_page(args.snapshots / "page-000.html")
+    total, first, _ = read_page(args.snapshots / "page-000.html", source_checked)
     if not first:
         raise ValueError("Empty first result page")
     page_count = (total + len(first) - 1) // len(first)
@@ -301,7 +308,7 @@ def main():
     hashes = {}
     for number in range(page_count):
         path = args.snapshots / f"page-{number:03}.html"
-        page_total, page_rows, _ = read_page(path)
+        page_total, page_rows, _ = read_page(path, source_checked)
         if page_total != total:
             raise ValueError("Result count changed during download; retry the snapshot")
         rows.extend(page_rows)
@@ -398,7 +405,7 @@ def main():
     summary = {
         "scope": "Community colleges, public universities, and private colleges/universities only; linked California F-1 campuses",
         "source_url": SOURCE,
-        "source_checked": "2026-11-13",
+        "source_checked": source_checked,
         "campus_rows": len(rows),
         "unfiltered_dhs_higher_education_campus_rows": source_campus_count,
         "institution_type_counts": {
@@ -440,7 +447,7 @@ def main():
             "Internal school_id values are pinned in institution_scope.csv; CRC is crc. Source group keys and SEVP campus codes remain separate.",
             "BE's four-column directory contains one row per school, using its sourced main-campus city. Other campus cities remain in the campus table.",
             "Certification is separate from verification of a school's workflow.",
-            "November live search snapshot; not historical August certification evidence.",
+            "Dated source snapshot; not historical August certification evidence.",
         ],
     }
     args.output.with_suffix(".source.json").write_text(
