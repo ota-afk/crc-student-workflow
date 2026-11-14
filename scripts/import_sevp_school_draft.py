@@ -54,6 +54,7 @@ PROGRAM_CAMPUS = re.compile(
 )
 FIELDS = [
     "school_group_key",
+    "school_id",
     "school_name",
     "source_school_name",
     "campus_name",
@@ -74,6 +75,7 @@ FIELDS = [
 ]
 SCHOOL_FIELDS = [
     "school_group_key",
+    "school_id",
     "school_name",
     "institution_type",
     "classification_source_url",
@@ -267,6 +269,7 @@ def main():
     parser.add_argument("--snapshots", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--campuses-output", type=Path)
+    parser.add_argument("--directory-output", type=Path)
     parser.add_argument(
         "--scope", type=Path, help="Reviewed three-category institution allowlist"
     )
@@ -317,6 +320,11 @@ def main():
         for r in scope_rows
     ):
         raise ValueError("Scope allowlist contains an unapproved institution category")
+    app_ids = [r.get("school_id", "").strip() for r in scope_rows]
+    if not all(app_ids) or len(set(app_ids)) != len(app_ids) or "_generic" in app_ids:
+        raise ValueError("Scope must supply unique, nonblank internal school IDs")
+    if scope.get("SFR214F00786", {}).get("school_id") != "crc":
+        raise ValueError("CRC's internal school_id must be crc to match the rules")
     rows = [
         r
         for r in rows
@@ -332,6 +340,7 @@ def main():
         )
     for school in schools:
         evidence = scope[school["school_group_key"]]
+        school["school_id"] = evidence["school_id"]
         for field in (
             "institution_type",
             "classification_source_url",
@@ -339,6 +348,8 @@ def main():
             "ipeds_unitid",
         ):
             school[field] = evidence[field]
+    for campus in rows:
+        campus["school_id"] = scope[campus["school_group_key"]]["school_id"]
     rows.sort(
         key=lambda r: (
             r["school_name"].casefold(),
@@ -352,10 +363,38 @@ def main():
         "sevp_campuses_ca_draft.csv"
     )
     campuses_output.parent.mkdir(parents=True, exist_ok=True)
-    if args.output.resolve() == campuses_output.resolve():
-        raise ValueError("School and campus outputs must use different paths")
+    directory_output = args.directory_output or args.output.with_name(
+        "sevp_schools_ca.csv"
+    )
+    directory_output.parent.mkdir(parents=True, exist_ok=True)
+    if (
+        len({p.resolve() for p in (args.output, campuses_output, directory_output)})
+        != 3
+    ):
+        raise ValueError(
+            "School metadata, campus and BE directory outputs must use different paths"
+        )
+    campuses_by_code = {r["sevp_campus_code"]: r for r in rows}
+    directory = []
+    for school in schools:
+        main = campuses_by_code.get(school["main_campus_code"])
+        if main is None or main["school_id"] != school["school_id"] or not main["city"]:
+            raise ValueError(
+                f"A sourced main-campus city is required for {school['school_id']}"
+            )
+        directory.append(
+            {
+                "school_id": school["school_id"],
+                "institution": school["school_name"],
+                "city": main["city"],
+                "state": main["state"],
+            }
+        )
     write_csv(args.output, SCHOOL_FIELDS, schools)
     write_csv(campuses_output, FIELDS, rows)
+    write_csv(
+        directory_output, ["school_id", "institution", "city", "state"], directory
+    )
     summary = {
         "scope": "Community colleges, public universities, and private colleges/universities only; linked California F-1 campuses",
         "source_url": SOURCE,
@@ -378,6 +417,9 @@ def main():
         ),
         "school_file": args.output.name,
         "campus_file": campuses_output.name,
+        "be_directory_file": directory_output.name,
+        "be_directory_columns": ["school_id", "institution", "city", "state"],
+        "crc_school_id": "crc",
         "distinct_source_school_names": len({r["source_school_name"] for r in rows}),
         "result_pages": page_count,
         "snapshot_sha256": hashes,
@@ -395,7 +437,8 @@ def main():
             "SEVIS campus suffix groups form the initial draft hierarchy; distinct colleges sharing a district name remain separate schools.",
             "APU's San Diego site is grouped under Azusa Pacific University using its official campus page; SJSU's separate International Gateways program is excluded by the narrowed scope.",
             "Campus codes are preserved from official profile URL paths; irregular lengths are listed for review, not silently corrected.",
-            "school_group_key is a draft import join key; application school_id format remains to be aligned with BE.",
+            "Internal school_id values are pinned in institution_scope.csv; CRC is crc. Source group keys and SEVP campus codes remain separate.",
+            "BE's four-column directory contains one row per school, using its sourced main-campus city. Other campus cities remain in the campus table.",
             "Certification is separate from verification of a school's workflow.",
             "November live search snapshot; not historical August certification evidence.",
         ],

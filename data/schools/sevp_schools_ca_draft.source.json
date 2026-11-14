@@ -10,7 +10,7 @@
     "public_university": 32
   },
   "institution_scope_file": "institution_scope.csv",
-  "institution_scope_sha256": "7b7433ac9a32d1a84bb0744861335862c01cdd6b88e7d2834400c144f61a2ad7",
+  "institution_scope_sha256": "157161853855b8dd2d3afc36885d955e872f5dcee323859df19778ce91594068",
   "relationship_hold_codes": [
     "SFR214F00608014"
   ],
@@ -19,6 +19,14 @@
   "school_options_without_main_in_filtered_results": 0,
   "school_file": "sevp_schools_ca_draft.csv",
   "campus_file": "sevp_campuses_ca_draft.csv",
+  "be_directory_file": "sevp_schools_ca.csv",
+  "be_directory_columns": [
+    "school_id",
+    "institution",
+    "city",
+    "state"
+  ],
+  "crc_school_id": "crc",
   "distinct_source_school_names": 183,
   "result_pages": 12,
   "snapshot_sha256": {
@@ -47,7 +55,8 @@
     "SEVIS campus suffix groups form the initial draft hierarchy; distinct colleges sharing a district name remain separate schools.",
     "APU's San Diego site is grouped under Azusa Pacific University using its official campus page; SJSU's separate International Gateways program is excluded by the narrowed scope.",
     "Campus codes are preserved from official profile URL paths; irregular lengths are listed for review, not silently corrected.",
-    "school_group_key is a draft import join key; application school_id format remains to be aligned with BE.",
+    "Internal school_id values are pinned in institution_scope.csv; CRC is crc. Source group keys and SEVP campus codes remain separate.",
+    "BE's four-column directory contains one row per school, using its sourced main-campus city. Other campus cities remain in the campus table.",
     "Certification is separate from verification of a school's workflow.",
     "November live search snapshot; not historical August certification evidence."
   ]
