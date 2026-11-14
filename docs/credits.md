@@ -23,6 +23,15 @@
 - STU-D01-AI-followup (Nov 13 2026): ChatGPT assisted with the README smoke-test
   instructions, environment-variable support, student ID policy clarification,
   and cleanup following PR #8 review.
+
+- STU-D02-ENG (Nov 13 2026): school/campus research uses the official
+  [DHS SEVP School Search](https://studyinthestates.dhs.gov/school-search)
+  and the [NCES IPEDS HD2024 directory](https://nces.ed.gov/ipeds/datacenter/data/HD2024.zip).
+  Classification crosswalks also use the official college/district sources listed in
+  `docs/school-list-notes.md` and the inclusion file.
+  ChatGPT/Codex assisted with the importer, source crosswalks, data preparation,
+  documentation and validation. Human review and school-specific workflow verification
+  remain pending; AI assistance does not count as a human source checker.
 - STU-D02-BE (Nov 13 2026): AI assistance (Claude Code) drafted the rules-file models
   (`src/student_workflow/rules.py`), the dependency resolver (`src/student_workflow/engine.py`),
   their tests (`tests/test_engine.py`), and the matching `docs/contract.md` sections.

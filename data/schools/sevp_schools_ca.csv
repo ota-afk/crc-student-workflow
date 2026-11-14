@@ -1,0 +1,196 @@
+school_id,institution,city,state
+allan_hancock_college,Allan Hancock College,Santa Maria,CA
+alliant_international_university,Alliant International University,San Diego,CA
+american_jewish_university,American Jewish University,Los Angeles,CA
+american_river_college,American River College,Sacramento,CA
+antelope_valley_college,Antelope Valley College,Lancaster,CA
+azusa_pacific_university,Azusa Pacific University,Azusa,CA
+bakersfield_college,Bakersfield College,Bakersfield,CA
+barstow_college,Barstow College,Barstow,CA
+berkeley_city_college,Berkeley City College,Berkeley,CA
+bethesda_university,Bethesda University,Anaheim,CA
+biola_university,Biola University,La Mirada,CA
+butte_college,Butte College,Oroville,CA
+cabrillo_community_college,Cabrillo Community College,Aptos,CA
+cal_poly_humboldt,Cal Poly Humboldt,Arcata,CA
+california_baptist_university,California Baptist University,Riverside,CA
+california_institute_of_integral_studies,California Institute of Integral Studies,San Francisco,CA
+california_institute_of_technology,California Institute of Technology,Pasadena,CA
+california_lutheran_university,California Lutheran University,Thousand Oaks,CA
+california_polytechnic_state_university_san_luis_obispo,"California Polytechnic State University, San Luis Obispo",San Luis Obispo,CA
+california_state_polytechnic_university_pomona,California State Polytechnic University Pomona,Pomona,CA
+california_state_university_channel_islands,California State University Channel Islands,Camarillo,CA
+california_state_university_fullerton,California State University Fullerton,FULLERTON,CA
+california_state_university_long_beach,California State University Long Beach,Long Beach,CA
+california_state_university_maritime_academy,California State University Maritime Academy,Vallejo,CA
+california_state_university_monterey_bay,California State University Monterey Bay,Seaside,CA
+california_state_university_san_marcos,California State University San Marcos,San Marcos,CA
+california_state_university_bakersfield,"California State University, Bakersfield",Bakersfield,CA
+california_state_university_chico,"California State University, Chico",CHICO,CA
+california_state_university_dominguez_hills,"California State University, Dominguez Hills",Carson,CA
+california_state_university_east_bay,"California State University, East Bay",Hayward,CA
+california_state_university_fresno,"California State University, Fresno",Fresno,CA
+california_state_university_los_angeles,"CALIFORNIA STATE UNIVERSITY, LOS ANGELES",LOS ANGELES,CA
+california_state_university_northridge,"California State University, Northridge",Northridge,CA
+california_state_university_sacramento,"California State University, Sacramento",Sacramento,CA
+california_state_university_san_bernardino,"California State University, San Bernardino",SAN BERNARDINO,CA
+california_state_university_stanislaus,"California State University, Stanislaus",Turlock,CA
+canada_college,Canada College,Redwood City,CA
+cerritos_college,CERRITOS COLLEGE,NORWALK,CA
+cerro_coso_community_college,Cerro Coso Community College,Ridgecrest,CA
+chabot_college,Chabot College,Hayward,CA
+chaffey_college,Chaffey College,Rancho Cucamonga,CA
+chapman_university,Chapman University,Orange,CA
+citrus_college,Citrus College,Glendora,CA
+city_college_of_san_francisco,City College of San Francisco,SAN FRANCISCO,CA
+claremont_mckenna_college,Claremont McKenna College,Claremont,CA
+coalinga_college,Coalinga College,Coalinga,CA
+coastline_community_college,Coastline Community College,Fountain Valley,CA
+college_of_alameda,College of Alameda,Alameda,CA
+college_of_marin,College of Marin,Kentfield,CA
+college_of_san_mateo,College of San Mateo,San Mateo,CA
+college_of_the_canyons,College of the Canyons,SANTA CLARITA,CA
+college_of_the_desert,College of the Desert,Palm Desert,CA
+college_of_the_redwoods,College of the Redwoods,EUREKA,CA
+college_of_the_sequoias,College of the Sequoias,Visalia,CA
+college_of_the_siskiyous,College of the Siskiyous,Weed,CA
+columbia_college,Columbia College,SONORA,CA
+concordia_university,Concordia University,Irvine,CA
+contra_costa_college,Contra Costa College,San Pablo,CA
+crc,Cosumnes River College,Sacramento,CA
+crafton_hills_college,Crafton Hills College,Yucaipa,CA
+cuesta_college,Cuesta College,San Luis Obispo,CA
+cuyamaca_college,Cuyamaca College,El Cajon,CA
+cypress_college,Cypress College,Cypress,CA
+de_anza_college,De Anza College,Cupertino,CA
+deep_springs_college,Deep Springs College,Big Pine,CA
+diablo_valley_college,Diablo Valley College,Pleasant Hill,CA
+dominican_university_of_california,Dominican University of California,San Rafael,CA
+east_los_angeles_college,East Los Angeles College,MONTEREY PARK,CA
+el_camino_community_college,El Camino Community College,Torrance,CA
+evergreen_valley_college,Evergreen Valley College,San Jose,CA
+feather_river_college,Feather River College,Quincy,CA
+folsom_lake_college,Folsom Lake College,Folsom,CA
+foothill_college,Foothill College,Los Altos Hills,CA
+fresno_city_college,Fresno City College,Fresno,CA
+fresno_pacific_university,Fresno Pacific University,Fresno,CA
+fullerton_college,Fullerton College,Fullerton,CA
+gavilan_joint_community_college,Gavilan Joint Community College,Gilroy,CA
+glendale_community_college,Glendale Community College,Glendale,CA
+golden_gate_university,Golden Gate University,San Francisco,CA
+golden_west_college,Golden West College,HUNTINGTON BEACH,CA
+grossmont_college,Grossmont College,El Cajon,CA
+hartnell_college,Hartnell College,Salinas,CA
+harvey_mudd_college,Harvey Mudd College,Claremont,CA
+hope_international_university,Hope International University,FULLERTON,CA
+humphreys_university,Humphreys University,Stockton,CA
+imperial_valley_college,Imperial Valley College,Imperial,CA
+irvine_valley_college,Irvine Valley College,Irvine,CA
+la_sierra_university,La Sierra University,Riverside,CA
+lake_tahoe_community_college,Lake Tahoe Community College,So. Lake Tahoe,CA
+laney_college,Laney College,Oakland,CA
+las_positas_college,Las Positas College,Livermore,CA
+lassen_community_college,Lassen Community College,Susanville,CA
+laurus_college,Laurus College,San Luis Obispo,CA
+lemoore_college,Lemoore College,Lemoore,CA
+life_pacific_university,Life Pacific University,San Dimas,CA
+loma_linda_university_llu,Loma Linda University (LLU),LOMA LINDA,CA
+long_beach_city_college,Long Beach City College,Long Beach,CA
+los_angeles_city_college,Los Angeles City College,Los Angeles,CA
+los_angeles_harbor_college,Los Angeles Harbor College,Wilmington,CA
+los_angeles_mission_college,Los Angeles Mission College,Sylmar,CA
+los_angeles_pacific_college,Los Angeles Pacific College,LOS ANGELES,CA
+los_angeles_pierce_college,Los Angeles Pierce College,Woodland Hills,CA
+los_angeles_southwest_college,Los Angeles Southwest College,LOS ANGELES,CA
+los_angeles_trade_technical_college,Los Angeles Trade-Technical College,Los Angeles,CA
+los_angeles_valley_college,Los Angeles Valley College,Valley Glen,CA
+los_medanos_college,Los Medanos College,Pittsburg,CA
+loyola_marymount_university,Loyola Marymount University,Los Angeles,CA
+mendocino_college,Mendocino College,UKIAH,CA
+merced_community_college,Merced Community College,Merced,CA
+merritt_college,Merritt College,Oakland,CA
+minerva_university,Minerva University,SAN FRANCISCO,CA
+miracosta_college,MiraCosta College,Oceanside,CA
+mission_college,Mission College,SANTA CLARA,CA
+modesto_junior_college,Modesto Junior College,Modesto,CA
+monterey_peninsula_college,Monterey Peninsula College,Monterey,CA
+moorpark_college,Moorpark College,Moorpark,CA
+mount_saint_mary_s_university,Mount Saint Mary's University,Los Angeles,CA
+mt_san_antonio_community_college,Mt. San Antonio Community College,Walnut,CA
+napa_valley_community_college,Napa Valley Community College,Napa,CA
+notre_dame_de_namur_university,Notre Dame de Namur University,Belmont,CA
+occidental_college,Occidental College,Los Angeles,CA
+ohlone_college,Ohlone College,Fremont,CA
+orange_coast_college,Orange Coast College,Costa Mesa,CA
+oxnard_college,Oxnard College,Oxnard,CA
+pacific_oaks_college,Pacific Oaks College,PASADENA,CA
+pacific_union_college,Pacific Union College,Angwin,CA
+palo_verde_college,Palo Verde College,Blythe,CA
+palomar_college,Palomar College,San Marcos,CA
+pasadena_city_college,Pasadena City College,Pasadena,CA
+pepperdine_university,Pepperdine University,Malibu,CA
+pitzer_college,Pitzer College,Claremont,CA
+point_loma_nazarene_university,Point Loma Nazarene University,San Diego,CA
+pomona_college,Pomona College,Claremont,CA
+porterville_college,Porterville College,Porterville,CA
+providence_christian_college,Providence Christian College,PASADENA,CA
+reedley_college,Reedley College,Reedley,CA
+rio_hondo_college,Rio Hondo College,Whittier,CA
+riverside_city_college,Riverside City College,Riverside,CA
+sacramento_city_college,Sacramento City College,Sacramento,CA
+saddleback_college,Saddleback College,Mission Viejo,CA
+saint_mary_s_college_of_california,Saint Mary's College of California,MORAGA,CA
+san_bernardino_valley_college,San Bernardino Valley College,San Bernardino,CA
+san_diego_christian_college,San Diego Christian College,SANTEE,CA
+san_diego_city_college,San Diego City College,San Diego,CA
+san_diego_mesa_college,San Diego Mesa College,San Diego,CA
+san_diego_miramar_college,San Diego Miramar College,San Diego,CA
+san_diego_state_university,San Diego State University,San Diego,CA
+san_francisco_state_university_sfsu,San Francisco State University (SFSU),San Francisco,CA
+san_joaquin_delta_college,San Joaquin Delta College,Stockton,CA
+san_jose_city_college,San Jose City College,San Jose,CA
+san_jose_state_university,San Jose State University,San Jose,CA
+santa_ana_college,Santa Ana College,Santa Ana,CA
+santa_barbara_city_college,Santa Barbara City College,Santa Barbara,CA
+santa_clara_university,SANTA CLARA UNIVERSITY,SANTA CLARA,CA
+santa_monica_college,Santa Monica College,Santa Monica,CA
+santa_rosa_junior_college,Santa Rosa Junior College,Santa Rosa,CA
+santiago_canyon_college,Santiago Canyon College,Orange,CA
+scripps_college,Scripps College,Claremont,CA
+shasta_college,Shasta College,Redding,CA
+sierra_college,Sierra College,ROCKLIN,CA
+simpson_university,Simpson University,Redding,CA
+skyline_college,Skyline College,San Bruno,CA
+soka_university_of_america,Soka University of America,Aliso Viejo,CA
+solano_community_college,Solano Community College,Fairfield,CA
+sonoma_state_university,Sonoma State University,Rohnert Park,CA
+southwestern_college,Southwestern College,Chula Vista,CA
+stanford_university,Stanford University,Stanford,CA
+taft_college,Taft College,Taft,CA
+thomas_aquinas_college,Thomas Aquinas College,Santa Paula,CA
+university_of_california_at_berkeley,University of California at Berkeley,BERKELEY,CA
+university_of_california_san_diego,University of California San Diego,La Jolla,CA
+university_of_california_davis,"University of California, Davis",Davis,CA
+university_of_california_irvine,"UNIVERSITY OF CALIFORNIA, IRVINE",Irvine,CA
+university_of_california_los_angeles,"University of California, Los Angeles",Los Angeles,CA
+university_of_california_merced,"University of California, Merced",Merced,CA
+university_of_california_riverside,"University of California, Riverside",Riverside,CA
+university_of_california_santa_barbara,"University of California, Santa Barbara",Santa Barbara,CA
+university_of_california_santa_cruz,"University of California, Santa Cruz",Santa Cruz,CA
+university_of_la_verne,University of La Verne,La Verne,CA
+university_of_redlands,University of Redlands,Redlands,CA
+university_of_san_diego,University of San Diego,San Diego,CA
+university_of_san_francisco,University of San Francisco,San Francisco,CA
+university_of_silicon_valley,University of Silicon Valley,San Jose,CA
+university_of_southern_california,University of Southern California,Los Angeles,CA
+university_of_the_pacific,University of the Pacific,Stockton,CA
+university_of_the_west,University of the West,Rosemead,CA
+vanguard_university_of_southern_california,Vanguard University of Southern California,Costa Mesa,CA
+ventura_college,Ventura College,Ventura,CA
+victor_valley_community_college,Victor Valley Community College,Victorville,CA
+west_los_angeles_college,West Los Angeles College,Culver City,CA
+west_valley_college,West Valley College,Saratoga,CA
+westmont_college,Westmont College,Santa Barbara,CA
+whittier_college,Whittier College,Whittier,CA
+william_jessup_university,William Jessup University,Rocklin,CA
+woodbury_university,Woodbury University,Burbank,CA

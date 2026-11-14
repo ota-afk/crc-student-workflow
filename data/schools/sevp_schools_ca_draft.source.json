@@ -1,0 +1,63 @@
+{
+  "scope": "Community colleges, public universities, and private colleges/universities only; linked California F-1 campuses",
+  "source_url": "https://studyinthestates.dhs.gov/school-search?field_location_state_value=33&field_education_level_value=1&field_f_1_school_value%5B1%5D=1",
+  "source_checked": "2026-11-13",
+  "campus_rows": 330,
+  "unfiltered_dhs_higher_education_campus_rows": 669,
+  "institution_type_counts": {
+    "community_college": 106,
+    "private_college_university": 57,
+    "public_university": 32
+  },
+  "institution_scope_file": "institution_scope.csv",
+  "institution_scope_sha256": "157161853855b8dd2d3afc36885d955e872f5dcee323859df19778ce91594068",
+  "relationship_hold_codes": [
+    "SFR214F00608014"
+  ],
+  "school_options": 195,
+  "school_options_with_multiple_campuses": 73,
+  "school_options_without_main_in_filtered_results": 0,
+  "school_file": "sevp_schools_ca_draft.csv",
+  "campus_file": "sevp_campuses_ca_draft.csv",
+  "be_directory_file": "sevp_schools_ca.csv",
+  "be_directory_columns": [
+    "school_id",
+    "institution",
+    "city",
+    "state"
+  ],
+  "crc_school_id": "crc",
+  "distinct_source_school_names": 183,
+  "result_pages": 12,
+  "snapshot_sha256": {
+    "page-000.html": "7a8829059e35cb77093e0dbc2c7add2687c1a2e44cb9b71d5dcf0aa1d7db6b17",
+    "page-001.html": "19383bbf3557e9afd6de91d7dae87d24ef48232eb6b42c7b8393ae0b46345c16",
+    "page-002.html": "4592f7462a04b76a12d69cadb60c0e0b051ad4e8af56725e58cfe421d4764825",
+    "page-003.html": "1c1ee00f5be5f900e74dc88c5d52088047a2105df869aa699f5dcedee0e35e73",
+    "page-004.html": "7edda8f432a828d59275f7ed11bb780537ba9a01b408b68d55ec0cfb6ae4dc7e",
+    "page-005.html": "6f086dd9edba498f1a99e1db8d49d4da46955201e3d050b8f126b047c6c78685",
+    "page-006.html": "87eecf32b5b087ccbf6883ab69fad9513cb128395d9276509c02a76994f7c88a",
+    "page-007.html": "ab5994785b82a030c87c5ad74b8fede514bbc0c03a3770b72e80459d9b72d332",
+    "page-008.html": "bfd9940eab1dc68bd349e4a1055cd68b2b6eb8882563e12e7018585b28239c97",
+    "page-009.html": "d7648b629f028b4a52c2679fd5bb87036d1d79f7a40354d28edd17f14221e605",
+    "page-010.html": "8a323d260d012451b1e46fb3f795c3fcb6e7c9d0df7469b4773f12f56536e8db",
+    "page-011.html": "5625782001bebd37c7508f890d69e065e87c6c4b6bc575410c159c8eb0c66b72"
+  },
+  "verification_status": "needs_verification",
+  "nonstandard_code_lengths": [],
+  "notes": [
+    "DHS supplies F-1 eligibility; a reviewed evidence-linked allowlist supplies the three-category product scope.",
+    "Classification draws on the dated IPEDS HD2024 directory and explicit college/district sources; it is separate from current SEVP certification.",
+    "Unresolved institutional classifications remain outside the active selector; this is not a claim of complete statewide coverage.",
+    "Standalone graduate/professional/arts/religious/training institutions and separate extension/language programs are excluded from this product scope.",
+    "One school selector entry per school group; campuses reference their parent school_group_key.",
+    "DHS main-campus markers are preserved; program affiliation is recorded separately.",
+    "SEVIS campus suffix groups form the initial draft hierarchy; distinct colleges sharing a district name remain separate schools.",
+    "APU's San Diego site is grouped under Azusa Pacific University using its official campus page; SJSU's separate International Gateways program is excluded by the narrowed scope.",
+    "Campus codes are preserved from official profile URL paths; irregular lengths are listed for review, not silently corrected.",
+    "Internal school_id values are pinned in institution_scope.csv; CRC is crc. Source group keys and SEVP campus codes remain separate.",
+    "BE's four-column directory contains one row per school, using its sourced main-campus city. Other campus cities remain in the campus table.",
+    "Certification is separate from verification of a school's workflow.",
+    "November live search snapshot; not historical August certification evidence."
+  ]
+}
