@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .config import schools_path
-from .rules import RulesFile
+from .rules import GENERIC, RulesFile, applicable_rules
 
 
 class School(BaseModel):
@@ -23,25 +23,26 @@ class School(BaseModel):
 
     @model_validator(mode="after")
     def _id_is_not_reserved(self) -> "School":
-        if self.school_id == "_generic":
+        if self.school_id == GENERIC:
             raise ValueError("_generic is reserved for generic rules")
         return self
 
 
 def school_is_verified(rules: RulesFile, school_id: str | None) -> bool:
-    """Only applicable school rules with completed verification can establish this flag."""
-    if not school_id or school_id == "_generic":
+    """True only if every school step this student sees is the school's own, verified rule."""
+    if not school_id or school_id == GENERIC:
         return False
-    used = {rule_id for task in rules.tasks for rule_id in task.rule_ids}
-    specific = [
+    # The school-layer rules this student would actually see, task by task.
+    school_rules = [
         rule
-        for rule in rules.rules
+        for task in rules.tasks
+        for rule in applicable_rules(rules, task, school_id)
         if rule.layer == "school"
-        and rule.school_id == school_id
-        and rule.rule_id in used
     ]
-    return bool(specific) and all(
-        rule.verification_status == "verified" for rule in specific
+    # A generic fallback on any task means part of the workflow is not checked for this school.
+    return bool(school_rules) and all(
+        rule.school_id == school_id and rule.verification_status == "verified"
+        for rule in school_rules
     )
 
 

@@ -46,11 +46,16 @@ def demo_rules(**dmv_timing: Any) -> dict[str, Any]:
     timing = {"from": "arrival_date", "days": 10, **dmv_timing}
     return {
         "tasks": [
-            task("task_checkin"),
-            task("task_residency"),
+            task("task_checkin", rule_ids=["rule_checkin"]),
+            task("task_residency", rule_ids=["rule_residency"]),
             task("task_dmv", ["task_checkin", "task_residency"], rule_ids=["rule_dmv"]),
         ],
-        "rules": [rule("rule_dmv", timing=timing)],
+        # rule_dmv stays first: several tests below change rules["rules"][0].
+        "rules": [
+            rule("rule_dmv", timing=timing),
+            rule("rule_checkin"),
+            rule("rule_residency"),
+        ],
     }
 
 
@@ -225,73 +230,97 @@ def test_different_checkers_can_verify_a_rule():
 
 
 def school_rules() -> dict[str, Any]:
-    """Synthetic data covers shared, school-specific, and generic applicability."""
+    """Synthetic data: shared, generic, CRC-only and other-school steps.
+
+    task "checkin" cites both the generic rule and CRC's own rule, so CRC students get
+    CRC's version and everyone else gets the generic one. "dmv" is shared and needs it.
+    """
     return {
         "tasks": [
             task("shared", rule_ids=["shared_rule"]),
-            task("crc_task", ["shared"], rule_ids=["crc_rule"]),
+            task("checkin", ["shared"], rule_ids=["generic_checkin", "crc_checkin"]),
+            task("crc_fee", ["checkin"], rule_ids=["crc_fee_rule"]),
             task("other_task", ["shared"], rule_ids=["other_rule"]),
-            task("generic_checkin", ["shared"], rule_ids=["generic_rule"]),
+            task("dmv", ["checkin"], rule_ids=["dmv_rule"]),
         ],
         "rules": [
             rule("shared_rule", layer="federal"),
-            rule("crc_rule", layer="school", school_id="crc"),
+            rule("generic_checkin", layer="school", school_id="_generic"),
+            rule("crc_checkin", layer="school", school_id="crc"),
+            rule("crc_fee_rule", layer="school", school_id="crc"),
             rule("other_rule", layer="school", school_id="other_school"),
-            rule("generic_rule", layer="school", school_id="_generic"),
+            rule("dmv_rule", layer="california"),
         ],
     }
+
+
+def for_school(
+    school_id: str | None, raw: dict[str, Any] | None = None, completed=None
+) -> Workflow:
+    selected = profile(completed).model_copy(update={"school_id": school_id})
+    return resolve(RulesFile.model_validate(raw or school_rules()), selected, AS_OF)
+
+
+def source_ids(workflow: Workflow, task_id: str) -> list[str]:
+    return [source.rule_id for source in by_id(workflow, task_id).sources]
 
 
 @pytest.mark.parametrize(
     ("school_id", "expected"),
     [
-        ("crc", ["shared", "crc_task"]),
-        ("other_school", ["shared", "other_task"]),
-        ("unknown_school", ["shared", "generic_checkin"]),
-        (None, ["shared", "generic_checkin"]),
+        ("crc", ["shared", "checkin", "crc_fee", "dmv"]),
+        ("other_school", ["shared", "checkin", "other_task", "dmv"]),
+        ("unknown_school", ["shared", "checkin", "dmv"]),
+        (None, ["shared", "checkin", "dmv"]),
+        ("_generic", ["shared", "checkin", "dmv"]),
     ],
 )
-def test_resolver_selects_shared_and_matching_or_generic_school_rules(
-    school_id, expected
-):
-    selected = profile().model_copy(update={"school_id": school_id})
+def test_each_school_gets_shared_tasks_plus_its_own_or_generic(school_id, expected):
+    workflow = for_school(school_id)
 
-    result = resolve(RulesFile.model_validate(school_rules()), selected, AS_OF)
-
-    assert [task.id for task in result.workflow] == expected
-    assert result.student_profile.school_verified is False
+    assert [task.id for task in workflow.workflow] == expected
+    assert workflow.student_profile.school_verified is False
 
 
-def test_unused_school_rule_does_not_hide_generic_fallback():
+def test_school_rule_replaces_the_generic_rule_only_for_its_own_school():
+    assert source_ids(for_school("crc"), "checkin") == ["crc_checkin"]
+    assert source_ids(for_school("other_school"), "checkin") == ["generic_checkin"]
+
+
+def test_one_school_rule_keeps_generic_steps_for_its_other_tasks():
+    # PR #13 review: CRC's fee rule must not hide the generic check-in, or the DMV task
+    # that depends on it.
+    raw = {
+        "tasks": [
+            task("checkin", rule_ids=["generic_checkin"]),
+            task("crc_fee", rule_ids=["crc_fee_rule"]),
+            task("dmv", ["checkin"], rule_ids=["dmv_rule"]),
+        ],
+        "rules": [
+            rule("generic_checkin", layer="school", school_id="_generic"),
+            rule("crc_fee_rule", layer="school", school_id="crc"),
+            rule("dmv_rule", layer="california"),
+        ],
+    }
+
+    workflow = for_school("crc", raw)
+
+    assert [task.id for task in workflow.workflow] == ["checkin", "crc_fee", "dmv"]
+    assert source_ids(workflow, "checkin") == ["generic_checkin"]
+    assert workflow.student_profile.school_verified is False
+
+
+def test_dependency_on_another_schools_task_is_rejected_instead_of_removed():
     raw = school_rules()
-    raw["tasks"] = [task for task in raw["tasks"] if task["id"] != "crc_task"]
+    raw["tasks"][2]["prerequisites"] = ["other_task"]
 
-    result = resolve(
-        RulesFile.model_validate(raw),
-        profile().model_copy(update={"school_id": "crc"}),
-        AS_OF,
-    )
-
-    assert [task.id for task in result.workflow] == ["shared", "generic_checkin"]
-
-
-def test_cross_school_dependency_is_rejected_instead_of_removed():
-    raw = school_rules()
-    raw["tasks"][1]["prerequisites"] = ["other_task"]
-
-    with pytest.raises(ValueError, match="unknown task other_task"):
-        resolve(
-            RulesFile.model_validate(raw),
-            profile().model_copy(update={"school_id": "crc"}),
-            AS_OF,
-        )
+    with pytest.raises(ValueError, match="needs other_task, which does not apply"):
+        for_school("crc", raw)
 
 
 def test_completed_task_from_another_school_is_rejected():
-    selected = profile(["other_task", "shared"]).model_copy(update={"school_id": "crc"})
-
     with pytest.raises(ValueError, match="unknown task ids: other_task"):
-        resolve(RulesFile.model_validate(school_rules()), selected, AS_OF)
+        for_school("crc", completed=["shared", "other_task"])
 
 
 def test_client_cannot_claim_its_school_is_verified():
@@ -302,22 +331,31 @@ def test_client_cannot_claim_its_school_is_verified():
     result = resolve(RulesFile.model_validate(school_rules()), selected, AS_OF)
 
     assert result.student_profile.school_verified is False
-    assert (
-        selected.school_verified is True
-    )  # resolving did not mutate the caller's profile
+    # Resolving returns a copy; the caller's profile is not changed.
+    assert selected.school_verified is True
 
 
-def test_school_verification_requires_verified_school_specific_rules():
-    raw = school_rules()
-    raw["rules"][1] = verified_rule(rule_id="crc_rule", layer="school", school_id="crc")
+def crc_verified(raw: dict[str, Any], *rule_ids: str) -> dict[str, Any]:
+    raw["rules"] = [
+        verified_rule(rule_id=r["rule_id"], layer="school", school_id="crc")
+        if r["rule_id"] in rule_ids
+        else r
+        for r in raw["rules"]
+    ]
+    return raw
 
-    result = resolve(
-        RulesFile.model_validate(raw),
-        profile().model_copy(update={"school_id": "crc"}),
-        AS_OF,
-    )
 
-    assert result.student_profile.school_verified is True
+def test_school_is_verified_when_all_its_own_steps_are_verified():
+    raw = crc_verified(school_rules(), "crc_checkin", "crc_fee_rule")
+
+    assert for_school("crc", raw).student_profile.school_verified is True
+
+
+def test_school_is_not_verified_while_a_task_uses_the_generic_steps():
+    raw = crc_verified(school_rules(), "crc_checkin", "crc_fee_rule")
+    raw["tasks"][1]["rule_ids"] = ["generic_checkin"]  # CRC has no check-in rule of its own
+
+    assert for_school("crc", raw).student_profile.school_verified is False
 
 
 @pytest.mark.parametrize(
@@ -331,11 +369,10 @@ def test_ambiguous_school_scope_is_rejected(changes):
 
 def test_no_applicable_rules_returns_an_explicit_error():
     raw = school_rules()
-    raw["tasks"] = [task for task in raw["tasks"] if task["id"] == "crc_task"]
-    raw["tasks"][0]["prerequisites"] = []
+    raw["tasks"] = [task("crc_fee", rule_ids=["crc_fee_rule"])]
 
     with pytest.raises(ValueError, match="No tasks found for this school"):
-        resolve(RulesFile.model_validate(raw), profile(), AS_OF)
+        for_school(None, raw)
 
 
 # Fail loudly on a bad rules file
@@ -364,8 +401,16 @@ def test_prerequisite_loop_is_rejected():
 
 def test_duplicate_task_id_is_rejected():
     rules = demo_rules()
-    rules["tasks"].append(task("task_checkin"))
+    rules["tasks"].append(task("task_checkin", rule_ids=["rule_checkin"]))
     with pytest.raises(ValueError, match="duplicate task id task_checkin"):
+        RulesFile.model_validate(rules)
+
+
+def test_task_without_a_rule_is_rejected():
+    # PR #13 review: a task with no rule would show with no source at all.
+    rules = demo_rules()
+    rules["tasks"][0]["rule_ids"] = []
+    with pytest.raises(ValueError, match="rule_ids"):
         RulesFile.model_validate(rules)
 
 

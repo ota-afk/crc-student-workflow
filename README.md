@@ -63,9 +63,11 @@ CSV columns and response fields. The default limit is 20, with a maximum of 100.
 
 The resolver selects school rules using `student_profile.school_id`; `institution` is a
 display name. **Proposed, pending ENG agreement:** the existing CRC rule and mock use `crc`
-as an internal ID, not an official SEVP code. Other schools receive shared rules and any
-generic rules ENG supplies with `school_id: "_generic"`. A missing fallback never causes CRC
-requirements to be substituted. `school_verified` is computed by the engine.
+as an internal ID, not an official SEVP code. Everyone gets the shared federal and
+California rules. For school steps, the choice is made per task: a task uses the school's own
+rule when one exists, and otherwise the generic rule ENG supplies with `school_id: "_generic"`.
+One school's rules are never used for another school. `school_verified` is computed by the
+engine, and it stays false while any task uses generic steps.
 
 Source verification travels with each rule even after its timing blocker disappears. A URL
 and an old verification date alone cannot make a rule verified (the dashboard follows once

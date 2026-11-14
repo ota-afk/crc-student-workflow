@@ -15,6 +15,9 @@ from .contract import Priority
 # extra='forbid': an unknown key (a typo like "timming") is an error, not silently ignored.
 STRICT = ConfigDict(extra="forbid")
 
+# school_id of ENG's generic F-1 check-in rules, used when a school has no rule of its own.
+GENERIC = "_generic"
+
 
 class Timing(BaseModel):
     """Proposed: blocks a task until `days` after a date in the student's profile."""
@@ -99,7 +102,9 @@ class RuleTask(BaseModel):
     title: str
     priority: Priority
     prerequisites: list[str] = []
-    rule_ids: list[str] = []
+    # min_length=1: every task needs a source. Unfinished research still cites a rule,
+    # marked needs_verification, so it shows as "Not verified" instead of looking sourced.
+    rule_ids: list[str] = Field(min_length=1)
 
 
 class RulesFile(BaseModel):
@@ -157,6 +162,25 @@ def _reject_loops(tasks: list[RuleTask]) -> None:
 
     for task_id in needs:
         walk(task_id, [])
+
+
+def applicable_rules(
+    rules: RulesFile, task: RuleTask, school_id: str | None
+) -> list[Rule]:
+    """The rules of one task that apply to this school, in the order the task cites them.
+
+    Federal and California rules always apply. For school rules, the school's own rule
+    replaces the generic one, but only for this task: a task the school has not covered
+    keeps its generic steps. An empty list means the task does not apply to this school.
+    """
+    cited = [rules.rule(rule_id) for rule_id in task.rule_ids]
+    # None or "_generic" = no school picked, so only generic school rules can apply.
+    has_own = school_id not in (None, GENERIC) and any(
+        r.layer == "school" and r.school_id == school_id for r in cited
+    )
+    scope = school_id if has_own else GENERIC
+    # Another school's rule never applies here; it is skipped, not substituted.
+    return [r for r in cited if r.layer != "school" or r.school_id == scope]
 
 
 def load_rules(path: Path | None = None) -> RulesFile:

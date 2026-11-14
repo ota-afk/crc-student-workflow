@@ -76,8 +76,8 @@ rules. `institution` stays the display name; the resolver never guesses an ID fr
 **Proposed, pending ENG agreement:** this branch uses `crc` as the internal identifier for
 the existing CRC rule. It is not an official SEVP code.
 The resolver recomputes `school_verified` rather than trusting a value sent by a client.
-It is true only when the selected school has applicable school-specific rules and all those
-rules are verified. Generic rules never make a school's own requirements verified.
+It is true only when every school step the student sees comes from that school's own rules
+and all of those rules are verified. If any task falls back to the generic steps, it is false.
 
 `visa_type` is a string in the current model; `"F-1"` in the examples is not an enforced
 list of allowed values.
@@ -279,7 +279,7 @@ The file has two lists: `tasks` and `rules`.
 | `title` | string | Required |
 | `priority` | string: `Required`, `Recommended`, or `Optional` | Required |
 | `prerequisites` | array of task IDs from this file | `[]` |
-| `rule_ids` | array of rule IDs from this file | `[]` |
+| `rule_ids` | array of rule IDs from this file, at least one | Required |
 
 ### Rule
 
@@ -304,6 +304,11 @@ The file has two lists: `tasks` and `rules`.
 `high_risk` is required, not defaulted, because a missing flag must never quietly mean "safe".
 School rules require a nonblank `school_id`. Use `_generic` for generic check-in guidance.
 Federal and California rules require `school_id: null`.
+
+Every task cites at least one rule, so nothing appears on screen without a source. Unfinished
+research still gets a rule, marked `needs_verification`. A task can cite both a generic rule
+and a school's own rule for the same step, for example
+`"rule_ids": ["rule_generic_checkin", "rule_crc_checkin"]`; see the resolver section below.
 
 A rule can only be `verified` when `source_url`, `evidence`, `last_verified`, `verified_by` and
 `second_checker` are all filled in (the plan's "Rules start as `needs_verification` and change
@@ -363,13 +368,21 @@ uses `RULES_PATH`, default `data/rules/rules.json`.
 
 How each task's status is decided (code decides status, never the AI):
 
-First, select the applicable rules. Federal and California rules are shared. School rules
-must match `student_profile.school_id`; when no school-specific rules match, use available
-`_generic` rules. A task is excluded if any of its rules belongs to a different school. If an
-included task depends on an excluded task, fail instead of dropping that prerequisite. A
-completed task must belong to the selected workflow. No applicable tasks raises `ValueError`.
-Generic check-in content is supplied by ENG in the rules file; the resolver invents none when
-it is absent. A profile with no school ID can receive only shared and generic tasks.
+First, select the applicable rules, **task by task**:
+
+- Federal and California rules always apply.
+- If the task cites a rule for the student's `school_id`, that school's rules apply and the
+  task's `_generic` rules do not. Otherwise the task's `_generic` rules apply.
+- Another school's rules never apply.
+- A task with no applicable rules is not part of this student's workflow.
+
+So a school's own rule replaces the generic step only for that one task; its other tasks keep
+their generic steps until ENG adds a school version. Task IDs are the same for every school,
+so prerequisites such as "DMV needs check-in" work everywhere. If a task in the workflow needs
+a task that is not, the resolver fails instead of dropping that prerequisite. A completed task
+must belong to the selected workflow. No applicable tasks raises `ValueError`. Generic check-in
+content is supplied by ENG in the rules file; the resolver invents none when it is absent. A
+profile with no school ID (or `_generic`) gets only shared and generic steps.
 
 1. In `completed_tasks` → `Completed`.
 2. Otherwise `missing_prerequisites` = its prerequisites that are not completed, in file order.
@@ -393,9 +406,9 @@ It passes the same consistency checks as the mock.
 Invalid rules or profiles raise `ValueError`, so bad input fails loudly. Loading a missing or
 unreadable rules file raises the corresponding file error.
 
-- Rules file: an unknown key, a duplicate task or rule ID, a prerequisite or `rule_id` that does
-  not exist, a prerequisite loop (A needs B, B needs A), invalid school scope, or a `verified`
-  rule with missing evidence or identical checkers.
+- Rules file: an unknown key, a duplicate task or rule ID, a task with no rules, a prerequisite
+  or `rule_id` that does not exist, a prerequisite loop (A needs B, B needs A), invalid school
+  scope, or a `verified` rule with missing evidence or identical checkers.
 - Profile: a `completed_tasks` ID that is not in the rules file, or a task marked completed
   before its prerequisites, no applicable tasks, or a dependency unavailable for that school.
 
@@ -428,6 +441,9 @@ unreadable rules file raises the corresponding file error.
 
 ## Changelog
 
+- 2026-11-14, STU-D02-BE review fixes (PR #13): choose school or generic rules per task, so one
+  school rule no longer hides the generic steps for that school's other tasks; `school_verified`
+  is false while any task uses generic steps. Every task must cite at least one rule.
 - 2026-11-13, STU-D02-BE: document the rules-file shape the resolver reads (unknown keys
   rejected; `verified` needs full evidence from two different checkers; school rules need a
   `school_id`), propose the `timing` field, and document the dependency resolver with school

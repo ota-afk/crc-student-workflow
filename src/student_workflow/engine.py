@@ -7,7 +7,7 @@ docs/contract.md, section "Dependency resolver". The API starts using this on Da
 from datetime import date, timedelta
 
 from .contract import Blocker, NextAction, Source, StudentProfile, Task, Workflow
-from .rules import Rule, RulesFile, RuleTask
+from .rules import Rule, RulesFile, RuleTask, applicable_rules
 from .schools import school_is_verified
 
 SCHEMA_VERSION = "1.0"
@@ -15,11 +15,11 @@ SCHEMA_VERSION = "1.0"
 
 def resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow:
     # as_of is always passed in, never "today", so the demo and the tests repeat exactly.
-    rules = _for_school(rules, profile.school_id)
+    scoped = _for_school(rules, profile.school_id)
     completed = set(profile.completed_tasks)
-    _check_profile(rules, completed)
+    _check_profile(scoped, completed)
     tasks = [
-        _resolve_task(rules, task, profile, completed, as_of) for task in rules.tasks
+        _resolve_task(scoped, task, profile, completed, as_of) for task in scoped.tasks
     ]
     return Workflow(
         schema_version=SCHEMA_VERSION,
@@ -33,35 +33,34 @@ def resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow:
 
 
 def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
-    """Apply shared rules plus the selected school's rules, or ENG's generic fallback."""
-    # used = rules that some task actually cites; an unused rule must not change the scope.
-    used = {rule_id for task in rules.tasks for rule_id in task.rule_ids}
-    # specific = this school has at least one rule of its own that a task uses.
-    specific = any(
-        rule.layer == "school"
-        and rule.school_id == school_id
-        and school_id != "_generic"
-        and rule.rule_id in used
-        for rule in rules.rules
-    )
-    # scope = whose school rules apply: the school's own, otherwise the generic ones.
-    # Open team question: should a school with its own rules also get the generic tasks?
-    scope = school_id if specific else "_generic"
-    # Federal and California rules apply to everyone; school rules only inside the scope.
-    allowed = [
-        rule
-        for rule in rules.rules
-        if rule.layer != "school" or rule.school_id == scope
-    ]
-    ids = {rule.rule_id for rule in allowed}
-    # A task is kept only if every rule it cites is allowed (<= means "is a subset of").
-    tasks = [task for task in rules.tasks if set(task.rule_ids) <= ids]
+    """Keep the tasks that apply to this school, each citing only the rules that apply.
+
+    The choice is made per task (see rules.applicable_rules): a school's own rule replaces
+    the generic one for that task, and its other tasks keep their generic steps.
+    """
+    tasks = []
+    for task in rules.tasks:
+        applicable = applicable_rules(rules, task, school_id)
+        # Empty = only other schools' rules, so this task is not part of this workflow.
+        if applicable:
+            tasks.append(
+                task.model_copy(update={"rule_ids": [r.rule_id for r in applicable]})
+            )
     if not tasks:
         raise ValueError(
-            "No tasks found for this school; no generic rules are available"
+            "No tasks found for this school, and no generic rules are available"
         )
-    # Revalidation catches a prerequisite that would otherwise cross school boundaries.
-    return RulesFile(tasks=tasks, rules=allowed)
+    shown = {task.id for task in tasks}
+    for task in tasks:
+        # Fail loudly rather than quietly dropping a step the student still has to do.
+        hidden = [p for p in task.prerequisites if p not in shown]
+        if hidden:
+            raise ValueError(
+                f"task {task.id} needs {', '.join(hidden)}, which does not apply to "
+                f"school {school_id}"
+            )
+    used = {rule_id for task in tasks for rule_id in task.rule_ids}
+    return RulesFile(tasks=tasks, rules=[r for r in rules.rules if r.rule_id in used])
 
 
 def _check_profile(rules: RulesFile, completed: set[str]) -> None:
