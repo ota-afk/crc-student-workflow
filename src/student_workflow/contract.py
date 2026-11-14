@@ -1,3 +1,5 @@
+"""Shared API shapes; missing verification is always explicit rather than inferred."""
+
 from datetime import date
 from typing import Literal
 
@@ -34,6 +36,7 @@ class Source(BaseModel):
     rule_id: str
     url: str | None = None
     last_verified: date | None = None
+    verification_status: Literal['verified', 'needs_verification'] | None = None
 
 
 class Task(BaseModel):
@@ -56,6 +59,8 @@ class StudentProfile(BaseModel):
     arrival_date: date
     has_ssn: bool
     completed_tasks: list[str] = []
+    school_id: str | None = None
+    school_verified: bool = False
 
 
 class Workflow(BaseModel):

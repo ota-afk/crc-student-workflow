@@ -8,3 +8,6 @@ data/cache/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+
+# Local downloaded research snapshots and validation artifacts
+reference/
