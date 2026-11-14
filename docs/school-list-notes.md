@@ -1,11 +1,13 @@
 # Day 2 school list — three-category scope
 
-The user's final scope is:
+The confirmed Day 2 scope is limited to these three institution types:
 1. Community colleges.
 2. Public universities.
 3. Private colleges and universities.
 
 The active draft contains **195 school options linked to 330 campus records**: 106 community-college options, 32 public universities, and 57 private colleges/universities. It supersedes the 419-option / 669-campus broader higher-education draft.
+
+The app reads only `data/schools/sevp_schools_ca.csv`. The scope allowlist, school metadata, campus table and source JSON support research/imports; they are not additional onboarding selectors.
 
 ## What is included
 
@@ -30,7 +32,9 @@ Application `school_id` values are internal identifiers, separate from SEVP code
 
 The four-column directory uses each school's sourced main-campus city. Other cities, such as Elk Grove for CRC, remain in the linked campus table; BE's current `/schools` endpoint does not search those additional campus cities or expose a campus-selection endpoint. That integration remains BE/FE work. The metadata CSV and scope allowlist are research/import inputs; do not point `SCHOOLS_PATH` at them because the BE loader rejects extra columns.
 
-Onboarding should first select a school, then show only that school's campuses. A sole campus may be selected automatically. The app/contract/UI is not changed by this local data draft.
+Current onboarding remains school name and city only. The parent/child campus relationship is retained as research data. Campus selection is a proposed later enhancement requiring BE/FE contract agreement, deferred until after Day 3.
+
+The narrowed list needs a “My school is not listed” path. BE reports that a profile without school_id receives shared and generic guidance; FE still needs to provide that choice. This note does not claim that UI is implemented or that an omitted school is ineligible.
 
 **CRC is one school with two children:** Cosumnes River College — Main Campus in Sacramento, and Elk Grove Center — Center / Satellite Campus in Elk Grove. Original source names, campus codes and addresses are preserved.
 
@@ -52,16 +56,22 @@ Azusa Pacific University's San Diego site is linked under APU using its official
 
 Raw DHS pages and the downloaded directory/dictionary are retained locally. November sources do not establish historical certification on the simulated August demo date.
 
-## Reproduction and upload
+## Reproduction and review updates
 
-The PR update now contains seven files: the five files in `data/schools/` (including the new four-column directory), the importer under `scripts/`, and this note under `docs/`. Update the existing Draft PR #14 on `feature/STU-D02-ENG-school-list`. Do not upload the old all-type or broader higher-education drafts as active selectors.
+The seven-file directory update was uploaded in Draft PR #14 at commit 81a1a0e. This follow-up addresses its review. The narrowed three-category scope is confirmed; FE implementation of the missing-school option remains pending. Keep the existing importer name `scripts/import_sevp_school_draft.py`; the plan called it `scripts/import_schools.py`. This is a naming difference, not a second importer.
 
-Rebuild from the saved November DHS snapshots:
+Raw snapshots are local research files excluded through `reference/` in .gitignore. Teammates without those snapshots can fetch live data:
 
 ```sh
-uv run --locked python scripts/import_sevp_school_draft.py --snapshots reference/school-search-2026-11-13-higher-education --scope data/schools/institution_scope.csv --output data/schools/sevp_schools_ca_draft.csv --campuses-output data/schools/sevp_campuses_ca_draft.csv --directory-output data/schools/sevp_schools_ca.csv
+uv run --locked python scripts/import_sevp_school_draft.py --download --snapshots reference/school-search-refresh --scope data/schools/institution_scope.csv --output data/schools/sevp_schools_ca_draft.csv --campuses-output data/schools/sevp_campuses_ca_draft.csv --directory-output data/schools/sevp_schools_ca.csv
 ```
 
-The importer uses Beautiful Soup, already in the project dependencies, plus the standard library. It verifies the three DHS filters, complete result counts, unique campus codes, allowlist types, school/campus links and unambiguous display names. It does not automatically classify newly added schools. A later download/refresh requires updating the dated source checks and reviewing the scope file.
+This fetches data on the day it is run; it does not reproduce the November 13 snapshot or its hashes. The importer records the actual download date. The dated inclusion/classification evidence remains unchanged until separately reviewed. Review changed campuses, IDs and counts before committing a refresh; newly discovered schools are not automatically classified or included.
 
-The original six-file data draft is already in Draft PR #14. This BE-compatible directory update has been prepared locally; it has not yet been uploaded. The generic-check-in fallback and enrollment/deadline proposals are separate resolver/contract decisions, not implemented by this directory update.
+For someone who has the original snapshots, reproduce them offline:
+
+```sh
+uv run --locked python scripts/import_sevp_school_draft.py --snapshot-date 2026-11-13 --snapshots reference/school-search-2026-11-13-higher-education --scope data/schools/institution_scope.csv --output data/schools/sevp_schools_ca_draft.csv --campuses-output data/schools/sevp_campuses_ca_draft.csv --directory-output data/schools/sevp_schools_ca.csv
+```
+
+Offline runs require an explicit snapshot date to avoid labeling old source files as newly checked. The importer uses Beautiful Soup and standard-library modules, verifies the three DHS filters, result counts, unique campus codes, allowlist types and parent links, and preserves the existing internal IDs. School-specific workflow verification, generic fallback and enrollment/deadline support remain separate work.
