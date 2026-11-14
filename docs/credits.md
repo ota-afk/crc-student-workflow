@@ -23,3 +23,11 @@
 - STU-D01-AI-followup (Nov 13 2026): ChatGPT assisted with the README smoke-test
   instructions, environment-variable support, student ID policy clarification,
   and cleanup following PR #8 review.
+- STU-D02-BE (Nov 13 2026): AI assistance (Claude Code) drafted the rules-file models
+  (`src/student_workflow/rules.py`), the dependency resolver (`src/student_workflow/engine.py`),
+  their tests (`tests/test_engine.py`), and the matching `docs/contract.md` sections.
+  Reviewed by the BE owner.
+- STU-D02-BE review fixes (Nov 13 2026): Codex preserved source verification in the shared
+  contract, added school scoping and CSV search support, strengthened two-person
+  evidence checks, and added regression tests and documentation. The CRC rule's internal
+  school ID was set to `crc`; its statement and verification state were not changed.
