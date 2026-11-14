@@ -272,3 +272,27 @@ Both take the same request body as `POST /workflow` and return the updated Workf
 - 2026-11-12, STU-D01-BE: first version. Documents the live contract, the `POST /workflow`
   example, proposed Day 3 task actions, and answers to FE's questions. No code change.
 - 2026-11-11, Day 1 skeleton: `contract.py` and the mock created from the Final Repo Setup Guide.
+
+## Intent mapping (Live, Day 2)
+
+`map_intent(text, tasks)` in `src/student_workflow/ai_assistant.py` turns a
+student's sentence into one task ID. `tasks` is a list of dicts with `id`,
+`title` and optionally `high_risk` (bool). It returns an `IntentResult`:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `outcome` | string | One of the four outcomes below |
+| `task_id` | string or null | Set only when `outcome` is `matched` |
+| `message` | string or null | Text to show the student for every outcome except `matched` |
+
+Outcomes:
+
+- `matched`: the model picked a task ID that exists in the list. Show that task.
+- `no_match`: nothing fits, the model answered `none` or an unknown ID, or the
+  text had personal details and the student is asked to rephrase. Show `message`.
+- `dso_referral`: an immigration-status or work-authorization question, or the
+  matched task has `high_risk: true`. Show `message`. No answer is given.
+- `error`: the model was unavailable, a key or model was missing, or the
+  call failed. Show `message` and let the student pick a task from the list.
+
+Code decides task status. The model only picks a task ID.

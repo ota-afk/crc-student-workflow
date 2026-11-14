@@ -1,19 +1,18 @@
 """Intent mapping: turn a student's sentence into one task ID.
 
 The model only picks a task ID. Plain code decides everything else:
-high-risk questions never reach the model, and any ID that is not in the
-allowed list is treated as "no match".
+high-risk questions never reach the model, personal details are refused or
+removed, and any ID that is not in the allowed list is treated as "no match".
 """
 
 import os
 import re
 from typing import Literal
 
-from dotenv import load_dotenv
-from openai import APIError, OpenAI
+from openai import OpenAI, OpenAIError
 from pydantic import BaseModel
 
-from .config import ROOT
+from . import config  # noqa: F401  (importing config loads .env)
 
 MAX_INPUT_CHARS = 500
 
@@ -26,16 +25,29 @@ HIGH_RISK_PATTERNS = [
     r'work authori[sz]ation',
     r'authori[sz]ed to work',
     r'work permit',
+    r'(can|may|am) i (legally )?work',
     r'(allowed|permitted|able|eligible) to work',
     r'work (off|on)[- ]campus',
     r'off[- ]campus (job|work|employment)',
-    r'(can|may|am) i (legally )?work',
-    r'\b(opt|cpt)\b',
+    r'\b(opt|cpt)\b(?![- ]out)',
+    r'\bjobs?\b',
+    r'\bemployment\b',
+    r'\binternships?\b',
+    r'\bget(ting)? paid\b',
+    r'\bpaid (work|employment|job|position)',
     r'\bdeport',
     r'\boverstay',
     r'\bunlawful',
     r'violat\w* (my )?(visa|status)',
     r'legal advice',
+]
+HIGH_RISK_REGEXES = [re.compile(p, re.IGNORECASE) for p in HIGH_RISK_PATTERNS]
+
+NAME_REGEXES = [
+    re.compile(r'\bmy name is\b', re.IGNORECASE),
+    re.compile(r'\bcall me\b', re.IGNORECASE),
+    # Case-sensitive on purpose: "I'm Jane" is a name, "I'm trying" is not.
+    re.compile(r"\bI(?:['\u2019]m| am) [A-Z][a-z]+"),
 ]
 
 DSO_MESSAGE = (
@@ -46,6 +58,10 @@ DSO_MESSAGE = (
 NO_MATCH_MESSAGE = (
     "I couldn't match that to a task on your list. Try rephrasing, "
     'or ask your international student office.'
+)
+REPHRASE_MESSAGE = (
+    'Please rephrase your question without names, ID numbers or other '
+    'personal details.'
 )
 ERROR_MESSAGE = (
     "I couldn't process that request right now. "
@@ -68,13 +84,22 @@ class IntentResult(BaseModel):
 
 
 def is_high_risk(text: str) -> bool:
-    lowered = text.lower()
-    return any(re.search(pattern, lowered) for pattern in HIGH_RISK_PATTERNS)
+    return any(regex.search(text) for regex in HIGH_RISK_REGEXES)
+
+
+def has_name(text: str) -> bool:
+    return any(regex.search(text) for regex in NAME_REGEXES)
 
 
 def scrub(text: str) -> str:
     """Remove obvious personal data and cap the length (see docs/ai-data-policy.md)."""
     text = re.sub(r'\S+@\S+', '[email removed]', text)
+    # Whole ID-like tokens: letters and digits mixed, 6+ characters.
+    text = re.sub(
+        r'\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{6,}\b',
+        '[id removed]',
+        text,
+    )
     text = re.sub(r'\d[\d\s-]{4,}\d', '[number removed]', text)
     return text.strip()[:MAX_INPUT_CHARS]
 
@@ -96,20 +121,29 @@ def map_intent(
     client: OpenAI | None = None,
     model: str | None = None,
 ) -> IntentResult:
-    """tasks is a list of dicts that each have 'id' and 'title'."""
+    """Map text to a task ID.
+
+    tasks is a list of dicts with 'id' and 'title', and optionally
+    'high_risk' (bool). Tasks missing an id or title are skipped.
+    """
     if is_high_risk(text):
         return IntentResult(outcome='dso_referral', message=DSO_MESSAGE)
+    if has_name(text):
+        return IntentResult(outcome='no_match', message=REPHRASE_MESSAGE)
 
     cleaned = scrub(text)
-    if not cleaned:
+    valid = [t for t in tasks if t.get('id') and t.get('title')]
+    if not cleaned or not valid:
         return IntentResult(outcome='no_match', message=NO_MATCH_MESSAGE)
+
+    model = model or os.getenv('OPENAI_MODEL')
+    if not model:
+        return IntentResult(outcome='error', message=ERROR_MESSAGE)
 
     owns_client = client is None
     if owns_client:
-        load_dotenv(ROOT / '.env', override=False)
         key = os.getenv('OPENAI_API_KEY')
-        model = model or os.getenv('OPENAI_MODEL')
-        if not key or not model:
+        if not key:
             return IntentResult(outcome='error', message=ERROR_MESSAGE)
         client = OpenAI(
             api_key=key,
@@ -121,21 +155,25 @@ def map_intent(
     try:
         response = client.responses.parse(
             model=model,
-            instructions=build_instructions(tasks),
+            instructions=build_instructions(valid),
             input=cleaned,
             text_format=IntentChoice,
             reasoning={'effort': 'none'},
             max_output_tokens=200,
             store=False,
         )
-    except (APIError, ValueError):
+    except (OpenAIError, ValueError):
         return IntentResult(outcome='error', message=ERROR_MESSAGE)
     finally:
         if owns_client:
             client.close()
 
     choice = response.output_parsed
-    allowed = {task['id'] for task in tasks}
+    allowed = {t['id'] for t in valid}
     if choice is None or choice.task_id not in allowed:
         return IntentResult(outcome='no_match', message=NO_MATCH_MESSAGE)
+
+    high_risk_ids = {t['id'] for t in valid if t.get('high_risk')}
+    if choice.task_id in high_risk_ids:
+        return IntentResult(outcome='dso_referral', message=DSO_MESSAGE)
     return IntentResult(outcome='matched', task_id=choice.task_id)
