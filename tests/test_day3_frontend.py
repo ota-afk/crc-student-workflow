@@ -81,7 +81,9 @@ def test_chat_history_is_session_only(monkeypatch):
     assert len(other.chat_message) == 0
 
 
-def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch):
+@pytest.mark.parametrize('school_context', [{}, {'school_id': None}, {'school_id': 'crc'}],
+                         ids=['legacy-profile', 'unknown-school', 'known-school'])
+def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_context):
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
     monkeypatch.setenv('API_URL', 'http://localhost:8000')
     captured = []
@@ -99,14 +101,22 @@ def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch):
         })
 
     monkeypatch.setattr(requests, 'post', post)
-    app = select_dmv(run_dashboard(monkeypatch, base_payload()))
+    payload = base_payload()
+    # Pin this test's inputs rather than inheriting changes to the shared demo.
+    payload['student_profile'] = {
+        'student_id': 'demo_test', 'institution': 'Cosumnes River College',
+        'visa_type': 'F-1', 'arrival_date': '2026-08-11', 'has_ssn': False,
+        'completed_tasks': ['task_i94_retrieval', 'task_sevis_fee'],
+        'school_verified': False, **school_context,
+    }
+    app = select_dmv(run_dashboard(monkeypatch, payload))
     app.chat_input[0].set_value('What is my next step?').run()
     assert not app.exception
     assert captured == [('http://localhost:8000/api/assistant/ask', {
         'question': 'What is my next step?', 'task_id': 'task_dmv_id',
         'student_profile': {'institution': 'Cosumnes River College',
                             'visa_type': 'F-1', 'arrival_date': '2026-08-11',
-                            'has_ssn': False},
+                            'has_ssn': False, **school_context},
     }, 30)]
     assert any('Contact your DSO' in x for x in values(app.markdown))
     assert any('Not verified' in x for x in values(app.warning))
