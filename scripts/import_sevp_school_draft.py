@@ -6,11 +6,11 @@ keywords. Saved HTML snapshots permit offline reproduction and source review.
 
 import argparse
 import csv
-from datetime import date
 import hashlib
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import urlopen
