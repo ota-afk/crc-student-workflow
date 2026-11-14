@@ -23,3 +23,8 @@
 - STU-D01-AI-followup (Nov 13 2026): ChatGPT assisted with the README smoke-test
   instructions, environment-variable support, student ID policy clarification,
   and cleanup following PR #8 review.
+- STU-D02-AI (Nov 13 2026): AI assistance (Claude) drafted `src/student_workflow/ai_assistant.py`
+  and `tests/test_ai_assistant.py` (intent mapping with Structured Outputs, DSO referral for
+  high-risk questions, and tests that use a fake model). It follows the client setup in
+  `scripts/smoke_test_openai.py`. The high-risk phrase list is a first draft. Reviewed and run
+  by the AI owner.
