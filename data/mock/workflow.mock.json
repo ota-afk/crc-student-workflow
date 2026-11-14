@@ -5,6 +5,8 @@
   "student_profile": {
     "student_id": "demo_001",
     "institution": "Cosumnes River College",
+    "school_id": "crc",
+    "school_verified": false,
     "visa_type": "F-1",
     "arrival_date": "2026-08-11",
     "has_ssn": false,
@@ -70,7 +72,8 @@
         "warnings": ["Sample warning text (sample)"]
       },
       "sources": [
-        {"rule_id": "rule_dmv_timing_sample", "url": null, "last_verified": null}
+        {"rule_id": "rule_dmv_timing_sample", "url": null, "last_verified": null,
+         "verification_status": "needs_verification"}
       ]
     },
     {

@@ -32,3 +32,11 @@
   ChatGPT/Codex assisted with the importer, source crosswalks, data preparation,
   documentation and validation. Human review and school-specific workflow verification
   remain pending; AI assistance does not count as a human source checker.
+- STU-D02-BE (Nov 13 2026): AI assistance (Claude Code) drafted the rules-file models
+  (`src/student_workflow/rules.py`), the dependency resolver (`src/student_workflow/engine.py`),
+  their tests (`tests/test_engine.py`), and the matching `docs/contract.md` sections.
+  Reviewed by the BE owner.
+- STU-D02-BE review fixes (Nov 13 2026): Codex preserved source verification in the shared
+  contract, added school scoping and CSV search support, strengthened two-person
+  evidence checks, and added regression tests and documentation. The CRC rule's internal
+  school ID was set to `crc`; its statement and verification state were not changed.

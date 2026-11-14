@@ -49,8 +49,30 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 | `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
 | `USE_MOCK` | `true` | `true` serves the mock file. `false` returns 501 until the live engine exists. |
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
+| `RULES_PATH` | `data/rules/rules.json` | Path to a different rules file for the resolver. |
+| `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
+
+## School search and rule scope
+
+`GET /schools?q=<name-or-city>&limit=20` searches the school CSV without making external
+requests. ENG still needs to supply the sourced CSV; until then the endpoint returns `503`
+instead of inventing schools. See [the contract](docs/contract.md#school-search-day-2) for the
+CSV columns and response fields. The default limit is 20, with a maximum of 100.
+
+The resolver selects school rules using `student_profile.school_id`; `institution` is a
+display name. **Proposed, pending ENG agreement:** the existing CRC rule and mock use `crc`
+as an internal ID, not an official SEVP code. Everyone gets the shared federal and
+California rules. For school steps, the choice is made per task: a task uses the school's own
+rule when one exists, and otherwise the generic rule ENG supplies with `school_id: "_generic"`.
+One school's rules are never used for another school. `school_verified` is computed by the
+engine, and it stays false while any task uses generic steps.
+
+Source verification travels with each rule even after its timing blocker disappears. A URL
+and an old verification date alone cannot make a rule verified (the dashboard follows once
+FE's change lands). The API still serves only
+the mock workflow; wiring the live resolver into workflow endpoints remains Day 3 work.
 
 ## Manual OpenAI smoke test
 
@@ -95,11 +117,15 @@ It exits with an error while sample or unverified data is still showing.
 
 ```text
 app/streamlit_app.py          Streamlit dashboard
-src/student_workflow/         config.py, contract.py (Pydantic models), api.py (FastAPI)
+src/student_workflow/         config.py, contract.py (Pydantic models), api.py (FastAPI),
+                              rules.py (rules-file models), engine.py (dependency resolver)
+                              schools.py (sourced school search)
 data/mock/workflow.mock.json  sample workflow (is_mock: true)
-data/rules/                   rules.json goes here (written by ENG)
-docs/                         contract.md, sources.md, credits.md
+data/rules/rules.json         tasks and rules (written by ENG, checked by tests)
+data/schools/                 ENG's California F-1 school CSV (not supplied yet)
+docs/                         contract.md, sources.md, credits.md, ai-data-policy.md
 scripts/check_no_sample.py    pre-recording check
+scripts/smoke_test_openai.py  manual, paid OpenAI check (not run by CI)
 tests/                        pytest tests
 .github/workflows/ci.yml      CI: ruff check and pytest
 ```

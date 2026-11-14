@@ -15,7 +15,7 @@
       "rule_id": "rule_crc_fall_2026_payment_deadline",
       "statement": "For CRC Fall 2026 students who enroll on or after July 25, 2026, payment is due the next day after enrollment. These students are not dropped for non-payment, but unpaid fees after the term ends result in a hold on future enrollment until payment is received.",
       "layer": "school",
-      "school_id": null,
+      "school_id": "crc",
       "high_risk": false,
       "source_url": "https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines",
       "evidence": "The next day after enrollment date",
