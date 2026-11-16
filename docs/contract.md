@@ -146,10 +146,9 @@ list of allowed values.
 unverified. A source's date may describe an earlier check even when the rule now needs
 verification; a URL and date alone never establish that it is currently verified.
 
-**Pending FE integration:** the current dashboard checks source URLs and dates but does not
-yet read `Source.verification_status`. FE needs to apply that check before live workflows are
-enabled, so an unverified rule cannot look verified after its timing blocker expires. This
-branch carries the verification state in the response; the dashboard change remains FE's work.
+**On main since FE PR #16:** the dashboard checks a source's usable URL, date and explicit
+`Source.verification_status` before treating it as verified. Per-fact citation rendering
+remains a separate FE integration step.
 
 ### Missing values and verification
 
