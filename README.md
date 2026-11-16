@@ -123,6 +123,18 @@ uv run python scripts/check_no_sample.py
 
 It exits with an error while sample or unverified data is still showing.
 
+End-to-end check of a running API (every endpoint, then the demo path). CI runs it against a
+fresh server on every pull request:
+
+```bash
+uv run --env-file .env.smoke python scripts/smoke_test.py   # see docs/deploy.md
+```
+
+## Deploy
+
+Both services run on Render's free plan from `render.yaml`. Setup, the values to enter, the
+live URLs and troubleshooting are in [docs/deploy.md](docs/deploy.md).
+
 ## Project structure
 
 ```text
@@ -132,12 +144,14 @@ src/student_workflow/         config.py, contract.py (Pydantic models), api.py (
                               schools.py (sourced school search)
 data/mock/workflow.mock.json  sample workflow (is_mock: true)
 data/rules/rules.json         tasks and rules (written by ENG, checked by tests)
-data/schools/                 ENG's California F-1 school CSV (not supplied yet)
-docs/                         contract.md, sources.md, credits.md, ai-data-policy.md
+data/schools/                 ENG's California F-1 school CSV
+docs/                         contract.md, deploy.md, sources.md, credits.md, ai-data-policy.md
 scripts/check_no_sample.py    pre-recording check
+scripts/smoke_test.py         end-to-end check of a running API (also run by CI)
 scripts/smoke_test_openai.py  manual, paid OpenAI check (not run by CI)
 tests/                        pytest tests
-.github/workflows/ci.yml      CI: ruff check and pytest
+.github/workflows/ci.yml      CI: ruff check, pytest, and the end-to-end smoke test
+render.yaml                   Render Blueprint: the API and dashboard deploys
 ```
 
 ## How we work

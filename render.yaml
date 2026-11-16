@@ -1,0 +1,47 @@
+# Render Blueprint (STU-D04-BE): the API and the dashboard as two free web services.
+# Step-by-step setup, the values to paste, and what to check afterwards: docs/deploy.md.
+#
+# Both services:
+# - Python 3.12 comes from .python-version; Render adds uv because uv.lock is in the repo.
+# - `uv sync --locked --no-dev` installs exactly uv.lock, without pytest and ruff.
+# - `uv run --no-sync` starts the app without re-installing anything at startup.
+# - They bind 0.0.0.0 and Render's $PORT, as Render requires.
+# - autoDeployTrigger checksPass: a push to main deploys only after CI passes.
+# - sync: false = a secret or a URL Render asks for when the Blueprint is created. It is
+#   never written in this file.
+services:
+  - type: web
+    name: crc-workflow-api
+    runtime: python
+    plan: free
+    buildCommand: uv sync --locked --no-dev
+    startCommand: uv run --no-sync uvicorn student_workflow.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: USE_MOCK
+        value: "false"
+      - key: RATE_LIMIT
+        value: 60/minute
+      - key: API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: crc-workflow-dashboard
+    runtime: python
+    plan: free
+    buildCommand: uv sync --locked --no-dev
+    startCommand: >-
+      uv run --no-sync streamlit run app/streamlit_app.py
+      --server.address 0.0.0.0 --server.port $PORT --server.headless true
+    # Streamlit's own health endpoint.
+    healthCheckPath: /_stcore/health
+    autoDeployTrigger: checksPass
+    envVars:
+      # The API's public https URL: free services can't reach each other privately.
+      - key: API_URL
+        sync: false
+      - key: API_KEY
+        sync: false

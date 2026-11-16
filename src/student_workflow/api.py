@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Security
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from limits import parse as parse_limit
@@ -52,8 +52,26 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title='CRC Student Workflow API', lifespan=lifespan)
 
-# Counted per client address. rate_limit is passed as a function, so it is read per request.
-limiter = Limiter(key_func=get_remote_address, default_limits=[rate_limit])
+
+def _key_is_valid(sent: str | None) -> bool:
+    # compare_digest takes the same time for any wrong key, so timing gives no hints.
+    return sent is not None and secrets.compare_digest(sent.encode(), api_key().encode())
+
+
+def rate_limit_bucket(request: Request) -> str:
+    """Which allowance a request counts against.
+
+    Requests with the right key (the dashboard's server) share one allowance. Everyone else is
+    counted by address, so requests without the key can never use up the dashboard's allowance.
+    We don't trust forwarded-address headers: Render's docs don't say what they contain.
+    """
+    if api_key() and _key_is_valid(request.headers.get('X-API-Key')):
+        return 'dashboard'
+    return get_remote_address(request)
+
+
+# rate_limit is passed as a function, so RATE_LIMIT is read on every request.
+limiter = Limiter(key_func=rate_limit_bucket, default_limits=[rate_limit])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
@@ -72,11 +90,9 @@ _key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
 
 
 def require_api_key(sent: str | None = Security(_key_header)) -> None:
-    expected = api_key()
-    if not expected:
+    if not api_key():
         return  # no key configured: local development and tests (see lifespan's warning)
-    # compare_digest takes the same time for any wrong key, so timing gives no hints.
-    if sent is None or not secrets.compare_digest(sent.encode(), expected.encode()):
+    if not _key_is_valid(sent):
         raise HTTPException(status_code=401, detail='Missing or invalid API key')
 
 

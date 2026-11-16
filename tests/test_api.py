@@ -9,6 +9,7 @@ import json
 from datetime import UTC, datetime
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from student_workflow import api
@@ -330,6 +331,35 @@ def test_rate_limit_returns_429(sample_rules, monkeypatch):
     monkeypatch.setenv('RATE_LIMIT', '2/minute')
     codes = [client.post('/workflow', json=body()).status_code for _ in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_requests_without_the_key_cannot_use_up_the_dashboards_allowance(
+    sample_rules, monkeypatch
+):
+    monkeypatch.setenv('API_KEY', 'secret')
+    monkeypatch.setenv('RATE_LIMIT', '2/minute')
+    # Someone without the key reaches the limit on their own allowance...
+    keyless = [client.post('/workflow', json=body()).status_code for _ in range(3)]
+    assert keyless == [401, 401, 429]
+    # ...and the dashboard, which sends the key, still has all of its allowance.
+    headers = {'X-API-Key': 'secret'}
+    assert client.post('/workflow', json=body(), headers=headers).status_code == 200
+
+
+def request_from(address, key=None):
+    """A bare request from `address`, sending `key` in X-API-Key (None = no header)."""
+    headers = [(b'x-api-key', key.encode())] if key is not None else []
+    return Request({'type': 'http', 'headers': headers, 'client': (address, 50000)})
+
+
+def test_wrong_key_is_counted_by_address_not_as_the_dashboard(monkeypatch):
+    monkeypatch.setenv('API_KEY', 'secret')
+    assert api.rate_limit_bucket(request_from('203.0.113.7', 'wrong')) == '203.0.113.7'
+
+
+def test_any_key_is_counted_by_address_when_the_api_has_no_key(monkeypatch):
+    # API_KEY empty (conftest): no key can match, so nobody gets the dashboard's allowance.
+    assert api.rate_limit_bucket(request_from('203.0.113.7', '')) == '203.0.113.7'
 
 
 def test_invalid_rate_limit_stops_the_api_at_startup(monkeypatch):

@@ -305,11 +305,12 @@ residency makes the DMV task `Ready`.
   deployed API must set it. FE sends the header from its own `API_KEY` setting. The key is a
   shared secret between our two services, so it lives in each host's secret settings, never in
   the code or the dashboard's page.
-- **Rate limit.** `RATE_LIMIT` (default `60/minute`) is counted per client address, on every
-  endpoint except `/health`. Over the limit returns `429`. The dashboard's server makes all the
-  calls, so in practice this caps the whole API; that is the point, since it protects the OpenAI
-  budget from someone hammering the endpoint. An invalid `RATE_LIMIT` stops the API at startup
-  instead of failing every request.
+- **Rate limit.** `RATE_LIMIT` (default `60/minute`) applies to every endpoint except
+  `/health`. Over the limit returns `429`. Requests with the right key (the dashboard's server)
+  share one allowance; every other request is counted by client address, so requests without
+  the key can never use up the dashboard's allowance (STU-D04-BE). That caps the whole
+  dashboard's traffic, which protects the OpenAI budget from someone hammering the endpoint.
+  An invalid `RATE_LIMIT` stops the API at startup instead of failing every request.
 
 ## The rules file: `data/rules/rules.json` (Live, Day 2)
 
@@ -493,6 +494,9 @@ unreadable rules file raises the corresponding file error.
 
 ## Changelog
 
+- 2026-11-16, STU-D04-BE: requests with the right API key share one rate-limit allowance;
+  other requests are counted by address, so they can't use up the dashboard's. No shape
+  changes.
 - 2026-11-15, STU-D03-BE: wire the resolver into the API. `POST /workflow` and the two task
   actions are live; `GET /workflow` with `USE_MOCK=false` runs the demo profile through the live
   engine. The profile gains `awaiting_reply`, which produces `In Progress`. Request models reject

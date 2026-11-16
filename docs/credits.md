@@ -55,3 +55,10 @@
   their tests (`tests/test_api.py`, `tests/conftest.py`, additions to `tests/test_engine.py`),
   and the matching `docs/contract.md` and README sections. A second Claude Code agent reviewed
   the change before it was opened. Reviewed by the BE owner.
+
+- STU-D04-BE (Nov 16 2026): AI assistance (Claude Code) drafted the end-to-end smoke test
+  (`scripts/smoke_test.py`) and its CI job, the Render Blueprint (`render.yaml`),
+  `docs/deploy.md`, and the rate-limit change that gives the dashboard's key its own
+  allowance. Render's behaviour was checked against its official docs (render.com/docs).
+  A second Claude Code agent reviewed the change before it was opened. Reviewed by the BE
+  owner.
