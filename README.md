@@ -47,7 +47,9 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 | --- | --- | --- |
 | `OPENAI_API_KEY` | none | Required for the manual OpenAI smoke test. Set it in the environment or local `.env`; never commit the key. |
 | `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
-| `USE_MOCK` | `true` | `true` serves the mock file. `false` returns 501 until the live engine exists. |
+| `USE_MOCK` | `true` | Only changes `GET /workflow`: `true` serves the mock file, `false` runs the demo student through the live engine. `POST /workflow` and the task actions always use the live engine. |
+| `API_KEY` | empty | Shared secret for the `X-API-Key` header, needed on every endpoint except `/health` (FastAPI's `/docs` pages stay open; they show no data). Empty turns the check off (local only); the deployed API must set it. Never commit it. |
+| `RATE_LIMIT` | `60/minute` | Requests allowed per client address on every endpoint except `/health`. Over it returns `429`. An invalid value stops the API at startup. |
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
 | `RULES_PATH` | `data/rules/rules.json` | Path to a different rules file for the resolver. |
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
@@ -71,8 +73,16 @@ engine, and it stays false while any task uses generic steps.
 
 Source verification travels with each rule even after its timing blocker disappears. A URL
 and an old verification date alone cannot make a rule verified (the dashboard follows once
-FE's change lands). The API still serves only
-the mock workflow; wiring the live resolver into workflow endpoints remains Day 3 work.
+FE's change lands).
+
+## Live workflow and task actions
+
+`POST /workflow` takes `{"as_of": "2026-08-14", "student_profile": {...}}` and returns that
+student's workflow, computed from `data/rules/rules.json`. `POST /tasks/{task_id}/complete`
+("Mark done") and `POST /tasks/{task_id}/resolve` ("Resolve blocker") take the same body and
+return the updated profile inside the answer. The server stores nothing, so the dashboard keeps
+that profile and sends it next time. See [the contract](docs/contract.md#task-actions-live-day-3)
+for the rules and error codes. Try them at <http://localhost:8000/docs>.
 
 ## Manual OpenAI smoke test
 
@@ -155,5 +165,8 @@ Commit `pyproject.toml` and `uv.lock` together. If `uv.lock` conflicts after a m
 ## Troubleshooting
 
 - **Dashboard says "Could not reach the API"**: start the API first, and check `API_URL` in `.env`.
-- **`/workflow` returns 501**: `USE_MOCK` is `false` and the live engine is not built yet.
+- **An endpoint returns 401**: the API has `API_KEY` set and the request did not send the same
+  value in the `X-API-Key` header.
+- **An endpoint returns 429**: the rate limit was reached; wait a minute, or raise `RATE_LIMIT`
+  locally.
 - **`ModuleNotFoundError: student_workflow`**: run commands with `uv run` from the project root.

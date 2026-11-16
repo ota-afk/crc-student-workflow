@@ -1,7 +1,8 @@
 """Dependency resolver (STU-D02-BE): rules file + student profile + "as of" date -> Workflow.
 
 Code decides every status here; the AI never does. The status rules are written down in
-docs/contract.md, section "Dependency resolver". The API starts using this on Day 3.
+docs/contract.md, section "Dependency resolver". The API calls it on every workflow request
+(STU-D03-BE), with the profile the dashboard sends.
 """
 
 from datetime import date, timedelta
@@ -13,13 +14,23 @@ from .schools import school_is_verified
 SCHEMA_VERSION = "1.0"
 
 
+class RulesError(ValueError):
+    """The rules file can't build a workflow for this school: our data problem, not the student's.
+
+    A subclass of ValueError, so code that only asks "is the input bad?" still catches it.
+    """
+
+
 def resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow:
     # as_of is always passed in, never "today", so the demo and the tests repeat exactly.
     scoped = _for_school(rules, profile.school_id)
+    _reject_repeats(profile)  # before the sets below, which would hide a repeat
     completed = set(profile.completed_tasks)
-    _check_profile(scoped, completed)
+    awaiting = set(profile.awaiting_reply)
+    _check_profile(scoped, completed, awaiting)
     tasks = [
-        _resolve_task(scoped, task, profile, completed, as_of) for task in scoped.tasks
+        _resolve_task(scoped, task, profile, completed, awaiting, as_of)
+        for task in scoped.tasks
     ]
     return Workflow(
         schema_version=SCHEMA_VERSION,
@@ -47,7 +58,7 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
                 task.model_copy(update={"rule_ids": [r.rule_id for r in applicable]})
             )
     if not tasks:
-        raise ValueError(
+        raise RulesError(
             "No tasks found for this school, and no generic rules are available"
         )
     shown = {task.id for task in tasks}
@@ -55,7 +66,7 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
         # Fail loudly rather than quietly dropping a step the student still has to do.
         hidden = [p for p in task.prerequisites if p not in shown]
         if hidden:
-            raise ValueError(
+            raise RulesError(
                 f"task {task.id} needs {', '.join(hidden)}, which does not apply to "
                 f"school {school_id}"
             )
@@ -63,11 +74,27 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
     return RulesFile(tasks=tasks, rules=[r for r in rules.rules if r.rule_id in used])
 
 
-def _check_profile(rules: RulesFile, completed: set[str]) -> None:
+def _reject_repeats(profile: StudentProfile) -> None:
+    # A task listed twice means the client built the profile wrong; say so instead of hiding it.
+    for field in ("completed_tasks", "awaiting_reply"):
+        ids = getattr(profile, field)
+        repeated = sorted({task_id for task_id in ids if ids.count(task_id) > 1})
+        if repeated:
+            raise ValueError(f"{field} lists a task more than once: {', '.join(repeated)}")
+
+
+def _check_profile(rules: RulesFile, completed: set[str], awaiting: set[str]) -> None:
     known = {t.id for t in rules.tasks}
-    unknown = sorted(completed - known)
-    if unknown:
-        raise ValueError(f"completed_tasks has unknown task ids: {', '.join(unknown)}")
+    for field, ids in (("completed_tasks", completed), ("awaiting_reply", awaiting)):
+        unknown = sorted(ids - known)
+        if unknown:
+            raise ValueError(f"{field} has unknown task ids: {', '.join(unknown)}")
+    # A finished task is no longer waiting on anyone; both at once means the profile is broken.
+    both = sorted(completed & awaiting)
+    if both:
+        raise ValueError(
+            f"tasks both completed and awaiting a reply: {', '.join(both)}"
+        )
     for task in rules.tasks:
         if task.id not in completed:
             continue
@@ -84,6 +111,7 @@ def _resolve_task(
     task: RuleTask,
     profile: StudentProfile,
     completed: set[str],
+    awaiting: set[str],
     as_of: date,
 ) -> Task:
     task_rules = [rules.rule(rule_id) for rule_id in task.rule_ids]
@@ -110,7 +138,13 @@ def _resolve_task(
             task_id=first.id, text=f'Finish "{first.title}" first.'
         )
 
-    status = "Blocked" if missing or blockers else "Ready"
+    # Blocked wins over In Progress: waiting on an office never skips a prerequisite or a date.
+    if missing or blockers:
+        status = "Blocked"
+    elif task.id in awaiting:
+        status = "In Progress"  # the student wrote to the office and waits for a reply
+    else:
+        status = "Ready"
     return _task(
         task,
         status,

@@ -26,14 +26,15 @@ From the build plan:
 
 | Method and path | Status | What it does |
 | --- | --- | --- |
-| `GET /health` | Live | Returns `{"status": "ok"}`. |
-| `GET /workflow` | Live | Returns the fixed demo workflow (the mock while `USE_MOCK=true`). Kept for the tests and `scripts/check_no_sample.py`. |
-| `GET /schools?q=&limit=20` | Day 2 | Searches ENG's California F-1 school CSV by name or city. Returns 503 until that file is available. |
-| `POST /workflow` | Planned, built Day 3 (request shape proposed) | Takes a profile, returns that student's computed workflow. |
-| `POST /tasks/{task_id}/resolve` | Proposed, Day 3 | "Resolve blocker": drafts the email and marks the task as awaiting a reply. |
-| `POST /tasks/{task_id}/complete` | Proposed, Day 3 | "Mark done": adds the task to the student's completed tasks. |
+| `GET /health` | Live | Returns `{"status": "ok"}`. No API key and no rate limit, so hosts and warm-up pings can call it. |
+| `GET /workflow` | Live | The fixed demo student. `USE_MOCK=true`: the mock file. `USE_MOCK=false`: the mock's demo profile and "as of" date run through the live engine. Kept for the tests and `scripts/check_no_sample.py`. |
+| `GET /schools?q=&limit=20` | Live (Day 2) | Searches ENG's California F-1 school CSV by name or city. Returns 503 if that file is unavailable. |
+| `POST /workflow` | Live (Day 3) | Takes a profile, returns that student's computed workflow. Always the live engine. |
+| `POST /tasks/{task_id}/resolve` | Live (Day 3) | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`). |
+| `POST /tasks/{task_id}/complete` | Live (Day 3) | "Mark done": adds the task to the student's completed tasks. |
 
-There is no `/api/` prefix, to match the live endpoints.
+There is no `/api/` prefix, to match the live endpoints. Every endpoint except `/health` needs
+the API key header and counts toward the rate limit (see "Access" below).
 
 ## The Workflow response (Live)
 
@@ -68,8 +69,14 @@ it to `"1.0"`.
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
 | `completed_tasks` | array of strings (task IDs) | `[]` |
+| `awaiting_reply` | array of strings (task IDs), set by `POST /tasks/{id}/resolve` | `[]` |
 | `school_id` | string or null | `null` |
 | `school_verified` | boolean, computed by the resolver | `false` |
+
+A profile with a key not in this table is rejected (`422`), so a typo like `"completed_task"`
+fails loudly instead of being ignored. `awaiting_reply` lists the tasks whose office the student
+has written to and is waiting on. A task cannot be in both `completed_tasks` and
+`awaiting_reply`.
 
 `school_id` is the stable identifier shared by the school directory and school-specific
 rules. `institution` stays the display name; the resolver never guesses an ID from that name.
@@ -163,17 +170,20 @@ branch carries the verification state in the response; the dashboard change rema
   steps. The plan has FE label generic tasks "Not verified for your school" with a prompt to
   confirm with the DSO (FE's Day 2 work).
 
-## POST /workflow (planned for Day 3; request shape proposed)
+## POST /workflow (Live, Day 3)
 
 The dashboard sends the profile it keeps in `st.session_state`. The plan requires the engine
 to accept an injected "as of" date so the demo can show a fixed day ("arrived 3 days ago").
+`POST /workflow` always runs the live engine on `data/rules/rules.json`; `USE_MOCK` only changes
+`GET /workflow`.
 
-The whole request shape below is BE's proposal for FE to review on Day 1; the plan only says
-the dashboard sends the profile. It becomes "Agreed" once FE approves it.
+The request shape below was BE's Day 1 proposal (merged in PR #4). The code version is
+`WorkflowRequest` in `contract.py`. Unknown keys are rejected with a `422`, at the top level and
+inside `student_profile`.
 
-**Proposed request detail, pending FE agreement:** make `as_of` optional and use today when it
-is omitted. The plan does not specify that default. The example supplies `as_of` explicitly;
-there is no POST request model or route in the code yet.
+**Proposed, pending FE agreement:** `as_of` is optional. When it is omitted, the API uses today's
+date in California (`America/Los_Angeles`), because the students are in California and the
+server's own clock may be on UTC. The demo always sends `as_of` explicitly.
 
 Request:
 
@@ -193,11 +203,12 @@ Request:
 ```
 
 The request leaves out `school_verified`: the resolver computes it, and ignores any value sent.
+`awaiting_reply` can be left out too (it defaults to `[]`).
 
-Planned response: `200` with a Workflow (above). The example below is **sample data**, trimmed
-to one task. Its check-in task, priority, prerequisites, and status are illustrative and
-unverified; they do not establish CRC requirements. A live response will use `is_mock: false`
-and must visibly label any unverified facts.
+Response: `200` with a Workflow (above). The example below is **sample data**, trimmed to one
+task. Its check-in task, priority, prerequisites, and status are illustrative and unverified;
+they do not establish CRC requirements. A live response uses `is_mock: false` and must visibly
+label any unverified facts.
 
 ```json
 {
@@ -231,36 +242,74 @@ and must visibly label any unverified facts.
 }
 ```
 
-Current behavior, before Day 3:
+Errors (every workflow endpoint uses the same ones):
 
-- `POST /workflow` returns `405 Method Not Allowed`: only the GET route exists today.
-- `GET /workflow` returns `501` when `USE_MOCK=false`, because the live engine is not built yet.
+| Code | When | `detail` |
+| --- | --- | --- |
+| `401` | `X-API-Key` missing or wrong (only when the server has an `API_KEY` set) | `Missing or invalid API key` |
+| `404` | Task actions only: `task_id` is not in this student's workflow | Names the task ID |
+| `409` | Task actions only: the task is not in a state the action allows (see below) | Says why |
+| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key), or the profile breaks a resolver rule (an unknown task ID, a task listed twice, a task completed before its prerequisites, a task both completed and awaiting a reply) | FastAPI's field errors, or the resolver's message |
+| `429` | Rate limit reached | slowapi's message |
+| `500` | A bug in our code (the engine built an invalid workflow) | `Internal error`; the details go to the server log only |
+| `503` | The rules file is missing, invalid, or cannot build a workflow for this school; or (`GET /workflow` only) the demo profile no longer fits the rules | `Workflow is temporarily unavailable`; the real reason goes to the server log only |
 
-**Proposed validation response once POST is implemented:** `422` for a request that fails
-the future request model (for example, a missing required field or an invalid date). Until
-that model exists, only the request's `student_profile` can be checked against StudentProfile;
-the full request body cannot be validated against an existing model. The response example
-can be checked against Workflow now.
+A `422` always means the request can be fixed by the client. Problems on our side are `500` or
+`503`, so a student never sees our internal errors described as their mistake.
 
 `student_id` is a made-up ID such as `demo_001`. Never a name, passport number or SEVIS ID.
 
-## Day 3 task actions (Proposed)
+## Task actions (Live, Day 3)
 
-Both take the same request body as `POST /workflow` and return the updated Workflow. The returned
-`student_profile` is the new state: FE saves it back into `st.session_state`, then calls
-`st.rerun()`. Because the server stores nothing, this is how a change survives the next click.
+Both take the same request body as `POST /workflow`. The returned `student_profile` is the new
+state: FE saves it back into `st.session_state`, then calls `st.rerun()`. Because the server
+stores nothing, this is how a change survives the next click.
 
-- `POST /tasks/{task_id}/complete` adds `task_id` to `completed_tasks`. Tasks that depended on it
-  can now become `Ready`.
-- `POST /tasks/{task_id}/resolve` drafts the email and moves the next action to `In Progress`
-  (awaiting reply). It never makes a task `Ready` on its own: only completed prerequisites, or
-  the "as of" date passing, do that.
-  - Open: the profile needs a place to remember "awaiting reply" between requests. BE proposes
-    a new `student_profile` field `awaiting_reply: list[str]` (task IDs). That is a contract
-    change, made in its own pull request.
-  - Open: the response also needs the email draft. Its fields belong to AI (`generate_email()`),
-    so AI and BE agree on them on Day 3.
-- `404` if `task_id` is not a task in the workflow.
+The demo path on ENG's rules: the DMV task is `Blocked`, and its next action is proof of
+residency. "Resolve blocker" on the DMV task moves residency to `In Progress`. "Mark done" on
+residency makes the DMV task `Ready`.
+
+**`POST /tasks/{task_id}/complete`** returns a Workflow.
+
+- Allowed when the task is `Ready` or `In Progress`. It adds `task_id` to `completed_tasks` and
+  removes it from `awaiting_reply`. Tasks that depended on it can now become `Ready`.
+- `409` when the task is `Completed` already, or `Blocked` (by a missing prerequisite or by a
+  date that has not arrived). A student cannot finish a step the workflow says they cannot start.
+
+**`POST /tasks/{task_id}/resolve`** returns `{"workflow": Workflow, "email_draft": null}`.
+
+- `task_id` is the blocked task (the one with the "Resolve blocker" button). Allowed when it is
+  `Blocked` by a missing prerequisite. It adds that task's `next_action.task_id` (its first
+  missing prerequisite) to `awaiting_reply`, which shows that prerequisite as `In Progress`.
+  Resolving again is allowed and changes nothing.
+- It never makes a task `Ready`: only completed prerequisites, or the "as of" date passing, do
+  that. The blocked task stays `Blocked` until the prerequisite is marked done.
+- `409` when the task is not `Blocked`, or is blocked only by a date (there is no office to
+  write to; the student waits for `unlocks_on`). A task blocked by both a missing prerequisite
+  and a date can be resolved: the prerequisite moves to `In Progress`, and the date still holds.
+- `409` when the next action is itself `Blocked` (a chain: c needs b, b needs a). Marking b as
+  awaiting a reply would show nothing, because `Blocked` wins. The student resolves b first.
+  ENG's rules today have no chain (only DMV needs residency).
+- `email_draft` is always `null` for now: `null` = no draft is available, so FE shows "Email
+  draft not available yet" and never a made-up one. AI's `generate_email()` does not exist yet;
+  its fields are agreed with AI before this becomes an object. **Proposed, pending AI and FE
+  agreement.**
+
+## Access: API key and rate limit (Live, Day 3)
+
+- **API key.** When the server's `API_KEY` setting is not empty, every endpoint except `/health`
+  needs the header `X-API-Key: <that value>`, or it returns `401`. FastAPI's own pages (`/docs`,
+  `/redoc`, `/openapi.json`) stay open: they show the API's shape, never any data, and the
+  interactive `/docs` page still needs the key to call an endpoint. When `API_KEY` is empty (local
+  development and the tests), the check is off and the server logs a warning at startup. The
+  deployed API must set it. FE sends the header from its own `API_KEY` setting. The key is a
+  shared secret between our two services, so it lives in each host's secret settings, never in
+  the code or the dashboard's page.
+- **Rate limit.** `RATE_LIMIT` (default `60/minute`) is counted per client address, on every
+  endpoint except `/health`. Over the limit returns `429`. The dashboard's server makes all the
+  calls, so in practice this caps the whole API; that is the point, since it protects the OpenAI
+  budget from someone hammering the endpoint. An invalid `RATE_LIMIT` stops the API at startup
+  instead of failing every request.
 
 ## The rules file: `data/rules/rules.json` (Live, Day 2)
 
@@ -354,7 +403,7 @@ school data or rules returns `503`; invalid query parameters return `422`. The e
 no external requests. ENG must add and credit the sourced directory before statewide search
 is available.
 
-## Dependency resolver (Live, Day 2; not wired to the API until Day 3)
+## Dependency resolver (Live, Day 2; used by the API since Day 3)
 
 `src/student_workflow/engine.py`:
 
@@ -380,7 +429,9 @@ So a school's own rule replaces the generic step only for that one task; its oth
 their generic steps until ENG adds a school version. Task IDs are the same for every school,
 so prerequisites such as "DMV needs check-in" work everywhere. If a task in the workflow needs
 a task that is not, the resolver fails instead of dropping that prerequisite. A completed task
-must belong to the selected workflow. No applicable tasks raises `ValueError`. Generic check-in
+must belong to the selected workflow. No applicable tasks, or a prerequisite that does not
+apply to the school, raises `RulesError` (a kind of `ValueError` meaning the rules file is at
+fault, so the API answers `503`, not `422`). Generic check-in
 content is supplied by ENG in the rules file; the resolver invents none when it is absent. A
 profile with no school ID (or `_generic`) gets only shared and generic steps.
 
@@ -389,8 +440,9 @@ profile with no school ID (or `_generic`) gets only shared and generic steps.
 3. For each of its rules with `timing`: if `as_of` is before the unlock date, add a `timing`
    blocker with that `unlocks_on`, the rule's `verification_status`, and its `statement` as the
    explanation. On the unlock date itself, the task is no longer blocked.
-4. Any missing prerequisite or timing blocker → `Blocked`; otherwise `Ready`.
-5. `In Progress` is never produced yet: it needs the Day 3 "awaiting reply" state.
+4. Any missing prerequisite or timing blocker → `Blocked`.
+5. Otherwise, in `awaiting_reply` → `In Progress`; otherwise `Ready`. `Blocked` wins over
+   `In Progress`: waiting on an office does not let a student skip a prerequisite or a date.
 
 Other fields on each task:
 
@@ -409,8 +461,9 @@ unreadable rules file raises the corresponding file error.
 - Rules file: an unknown key, a duplicate task or rule ID, a task with no rules, a prerequisite
   or `rule_id` that does not exist, a prerequisite loop (A needs B, B needs A), invalid school
   scope, or a `verified` rule with missing evidence or identical checkers.
-- Profile: a `completed_tasks` ID that is not in the rules file, or a task marked completed
-  before its prerequisites, no applicable tasks, or a dependency unavailable for that school.
+- Profile: a `completed_tasks` or `awaiting_reply` ID that is not in this student's workflow or
+  is listed twice, a task marked completed before its prerequisites, a task both completed and awaiting a reply, no
+  applicable tasks, or a dependency unavailable for that school.
 
 ## Answers to FE's Day 1 questions
 
@@ -435,11 +488,18 @@ unreadable rules file raises the corresponding file error.
   so the team decides first.
 - **State.** School search currently accepts California rows only. The profile has no state
   field; support for other states still requires a contract decision.
-- **Unknown keys.** Pydantic ignores keys it does not know, so a typo like `"enrolment_date"`
-  disappears silently. BE proposes making request models reject unknown keys (a `422`) when the
-  POST endpoints are built.
+- **Email draft.** `POST /tasks/{id}/resolve` returns `email_draft: null` until AI's
+  `generate_email()` exists and AI, FE and BE agree on its fields.
 
 ## Changelog
+
+- 2026-11-15, STU-D03-BE: wire the resolver into the API. `POST /workflow` and the two task
+  actions are live; `GET /workflow` with `USE_MOCK=false` runs the demo profile through the live
+  engine. The profile gains `awaiting_reply`, which produces `In Progress`. Request models reject
+  unknown keys (`422`), which settles that open question. Add the `X-API-Key` check and the rate
+  limit. `422` now means only a client mistake; our own faults are `500` or `503`. Resolve
+  returns `409` when the next action is itself blocked. Proposed, pending agreement: the California default for `as_of` (FE) and
+  `email_draft: null` (AI and FE).
 
 - 2026-11-14, STU-D02-BE review fixes (PR #13): choose school or generic rules per task, so one
   school rule no longer hides the generic steps for that school's other tasks; `school_verified`

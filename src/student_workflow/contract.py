@@ -3,7 +3,10 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+# extra='forbid': an unknown key in a request (a typo like 'completed_task') is a 422, not ignored.
+STRICT = ConfigDict(extra='forbid')
 
 Status = Literal['Blocked', 'Ready', 'In Progress', 'Completed']
 Priority = Literal['Required', 'Recommended', 'Optional']
@@ -53,12 +56,17 @@ class Task(BaseModel):
 
 
 class StudentProfile(BaseModel):
+    # The dashboard sends back the profile it received, so a strict model costs it nothing.
+    model_config = STRICT
+
     student_id: str
     institution: str
     visa_type: str
     arrival_date: date
     has_ssn: bool
     completed_tasks: list[str] = []
+    # Tasks whose office the student has written to ("Resolve blocker"); shown as In Progress.
+    awaiting_reply: list[str] = []
     school_id: str | None = None
     school_verified: bool = False
 
@@ -69,3 +77,22 @@ class Workflow(BaseModel):
     as_of: date
     student_profile: StudentProfile
     workflow: list[Task]
+
+
+class WorkflowRequest(BaseModel):
+    """Body of POST /workflow and both task actions: the server stores nothing between calls."""
+
+    model_config = STRICT
+
+    # None = not sent, so the API uses today's date in California (see docs/contract.md).
+    as_of: date | None = None
+    student_profile: StudentProfile
+
+
+class ResolveResult(BaseModel):
+    """Answer of POST /tasks/{task_id}/resolve."""
+
+    workflow: Workflow
+    # Always None for now: no draft exists until AI's generate_email() is built and agreed.
+    # FE shows "Email draft not available yet" and never a made-up draft.
+    email_draft: None = None

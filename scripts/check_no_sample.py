@@ -4,7 +4,12 @@ import sys
 import requests
 
 API_URL = os.getenv('API_URL', 'http://localhost:8000')
-data = requests.get(f'{API_URL}/workflow', timeout=10).json()
+# The deployed API needs the key; locally API_KEY is usually empty, so no header is sent.
+headers = {'X-API-Key': key} if (key := os.getenv('API_KEY', '').strip()) else {}
+response = requests.get(f'{API_URL}/workflow', headers=headers, timeout=10)
+# Fail loudly on 401/429/503 instead of checking an error message as if it were a workflow.
+response.raise_for_status()
+data = response.json()
 text = str(data).lower()
 problems = []
 if data.get('is_mock'):

@@ -48,3 +48,10 @@
   Integration tests cover the actual task data. AI assistance does not count as a human
   source checker; verification states and the existing CRC fee-rule checker metadata
   are preserved.
+
+- STU-D03-BE (Nov 15 2026): AI assistance (Claude Code) drafted the live workflow endpoints
+  (`POST /workflow`, `POST /tasks/{task_id}/complete`, `POST /tasks/{task_id}/resolve`), the
+  `awaiting_reply` state in the resolver, the `X-API-Key` check, the rate limit (slowapi),
+  their tests (`tests/test_api.py`, `tests/conftest.py`, additions to `tests/test_engine.py`),
+  and the matching `docs/contract.md` and README sections. A second Claude Code agent reviewed
+  the change before it was opened. Reviewed by the BE owner.

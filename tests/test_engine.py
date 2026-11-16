@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from student_workflow.contract import StudentProfile, Workflow
-from student_workflow.engine import resolve
+from student_workflow.engine import RulesError, resolve
 from student_workflow.rules import Rule, RulesFile, load_rules
 
 ARRIVAL = date(2026, 8, 11)
@@ -60,7 +60,9 @@ def demo_rules(**dmv_timing: Any) -> dict[str, Any]:
 
 
 def profile(
-    completed: list[str] | None = None, arrival: date = ARRIVAL
+    completed: list[str] | None = None,
+    arrival: date = ARRIVAL,
+    awaiting: list[str] | None = None,
 ) -> StudentProfile:
     return StudentProfile(
         student_id="demo_001",
@@ -69,6 +71,7 @@ def profile(
         arrival_date=arrival,
         has_ssn=False,
         completed_tasks=completed or [],
+        awaiting_reply=awaiting or [],
     )
 
 
@@ -439,6 +442,55 @@ def test_unknown_completed_task_is_rejected():
 def test_task_completed_before_its_prerequisites_is_rejected():
     with pytest.raises(ValueError, match="task_dmv is completed"):
         run(demo_rules(), ["task_dmv"])
+
+
+# "Awaiting reply" (STU-D03-BE): the state "Resolve blocker" leaves behind
+
+
+def test_task_awaiting_a_reply_is_in_progress():
+    workflow = run(demo_rules(), awaiting=["task_residency"])
+    assert status_of(workflow, "task_residency") == "In Progress"
+
+
+def test_awaiting_a_reply_does_not_unblock_the_task_that_needs_it():
+    # Writing to the office is not finishing the step: the DMV task stays Blocked.
+    workflow = run(demo_rules(), ["task_checkin"], awaiting=["task_residency"])
+    assert status_of(workflow, "task_dmv") == "Blocked"
+
+
+def test_blocked_wins_over_awaiting_a_reply():
+    workflow = run(demo_rules(), awaiting=["task_dmv"])
+    assert status_of(workflow, "task_dmv") == "Blocked"
+
+
+def test_unknown_awaiting_task_is_rejected():
+    with pytest.raises(ValueError, match="awaiting_reply has unknown task ids: task_typo"):
+        run(demo_rules(), awaiting=["task_typo"])
+
+
+def test_task_both_completed_and_awaiting_is_rejected():
+    with pytest.raises(ValueError, match="both completed and awaiting a reply"):
+        run(demo_rules(), ["task_checkin"], awaiting=["task_checkin"])
+
+
+@pytest.mark.parametrize("field", ["completed", "awaiting"])
+def test_task_listed_twice_is_rejected(field):
+    with pytest.raises(ValueError, match="more than once: task_checkin"):
+        run(demo_rules(), **{field: ["task_checkin", "task_checkin"]})
+
+
+def test_rules_that_cannot_serve_a_school_raise_rules_error():
+    # RulesError, not a plain ValueError: the API answers 503 (our data), not 422.
+    raw = {"tasks": [task("task_crc", rule_ids=["rule_crc"])], "rules": []}
+    raw["rules"] = [rule("rule_crc", layer="school", school_id="crc")]
+    with pytest.raises(RulesError):
+        resolve(RulesFile.model_validate(raw), profile(), AS_OF)
+
+
+def test_unknown_profile_key_is_rejected():
+    raw = profile().model_dump(mode="json") | {"completed_task": ["task_checkin"]}
+    with pytest.raises(ValueError, match="completed_task"):
+        StudentProfile.model_validate(raw)
 
 
 # Loading the real file
