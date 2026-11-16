@@ -60,6 +60,15 @@ and implement [the frontend adapter contract](docs/day-3-frontend.md).
 Failures display a retry message and leave the checklist usable. Live requests
 may invoke a paid model through the backend; the frontend never calls an LLM directly.
 
+### Day 4: email preview and deployment preparation
+
+In **Task details**, select a blocked task and click **Preview sample email draft**.
+Copy the subject and body with the copy icon, replace placeholders in your own mail
+app, and confirm the recipient. This is a labeled template preview; it does not
+send email or resolve a blocker. Changing task/profile context clears stale drafts.
+See [Day 4 status and Render settings](docs/day-4-frontend.md) for deployment
+preparation and the missing live backend dependencies.
+
 ## Environment variables
 
 | Name | Default | What it does |

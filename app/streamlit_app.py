@@ -8,7 +8,9 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
+from student_workflow.contract import Workflow
 from student_workflow.frontend import safe_url, source_verified
+from student_workflow.frontend_email import render_email_preview
 from student_workflow.frontend_views import render_assistant, render_task_details
 
 load_dotenv()
@@ -53,7 +55,7 @@ STATUS_STYLES = {
 def load_workflow() -> dict[str, Any]:
     response = requests.get(f'{API_URL}/workflow', timeout=10)
     response.raise_for_status()
-    return response.json()
+    return Workflow.model_validate(response.json()).model_dump(mode='json', exclude_unset=True)
 
 
 def esc(value: Any) -> str:
@@ -97,13 +99,14 @@ def detail_line(label: str, value: Any) -> None:
 
 
 try:
-    data = load_workflow()
-except (requests.RequestException, ValueError) as error:
-    st.error(f'Could not load the workflow from {API_URL}: {error}')
+    with st.spinner('Loading your workflow…'):
+        data = load_workflow()
+except (requests.RequestException, ValueError):
+    st.error('Could not load your workflow. The service may be unavailable or '
+             'returned incomplete data. Try again in a moment.')
     st.info(
-        'Start the API in another terminal with '
-        '`uv run uvicorn student_workflow.api:app --reload --port 8000`, '
-        'and check that API_URL in your .env matches.'
+        'If this continues, contact the app team. Your selections in this '
+        'session have been kept.'
     )
     st.button('Retry')  # Clicking any button reruns the script.
     st.stop()
@@ -328,6 +331,8 @@ with readiness_tab:
 
 with detail_tab:
     selected_task = render_task_details(tasks, bool(data.get('is_mock')))
+    render_email_preview(next((t for t in tasks if t['id'] == selected_task), None),
+                         profile, data.get('as_of', ''), titles)
 
 with assistant_tab:
     render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'))
