@@ -68,8 +68,8 @@ it to `"1.0"`.
 | `visa_type` | string | Required |
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
-| `completed_tasks` | array of strings (task IDs) | `[]` |
-| `awaiting_reply` | array of strings (task IDs), set by `POST /tasks/{id}/resolve` | `[]` |
+| `completed_tasks` | array of strings (task IDs), at most 1,000 | `[]` |
+| `awaiting_reply` | array of strings (task IDs), at most 1,000; set by `POST /tasks/{id}/resolve` | `[]` |
 | `school_id` | string or null | `null` |
 | `school_verified` | boolean, computed by the resolver | `false` |
 
@@ -249,7 +249,7 @@ Errors (every workflow endpoint uses the same ones):
 | `401` | `X-API-Key` missing or wrong (only when the server has an `API_KEY` set) | `Missing or invalid API key` |
 | `404` | Task actions only: `task_id` is not in this student's workflow | Names the task ID |
 | `409` | Task actions only: the task is not in a state the action allows (see below) | Says why |
-| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key), or the profile breaks a resolver rule (an unknown task ID, a task listed twice, a task completed before its prerequisites, a task both completed and awaiting a reply) | FastAPI's field errors, or the resolver's message |
+| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key, either progress list over 1,000 items), or the profile breaks a resolver rule (an unknown task ID, a task listed twice, a task completed before its prerequisites, a task both completed and awaiting a reply) | FastAPI's field errors, or the resolver's message |
 | `429` | Rate limit reached | slowapi's message |
 | `500` | A bug in our code (the engine built an invalid workflow) | `Internal error`; the details go to the server log only |
 | `503` | The rules file is missing, invalid, or cannot build a workflow for this school; or (`GET /workflow` only) the demo profile no longer fits the rules | `Workflow is temporarily unavailable`; the real reason goes to the server log only |
@@ -492,6 +492,10 @@ unreadable rules file raises the corresponding file error.
   `generate_email()` exists and AI, FE and BE agree on its fields.
 
 ## Changelog
+
+- 2026-11-16, STU-D03-BE review fix: count duplicate task IDs in one pass and cap each
+  `completed_tasks` and `awaiting_reply` list at 1,000 items. Larger lists return `422`
+  before the resolver runs; existing duplicate-ID errors keep the same message.
 
 - 2026-11-15, STU-D03-BE: wire the resolver into the API. `POST /workflow` and the two task
   actions are live; `GET /workflow` with `USE_MOCK=false` runs the demo profile through the live

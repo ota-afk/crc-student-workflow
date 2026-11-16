@@ -55,3 +55,8 @@
   their tests (`tests/test_api.py`, `tests/conftest.py`, additions to `tests/test_engine.py`),
   and the matching `docs/contract.md` and README sections. A second Claude Code agent reviewed
   the change before it was opened. Reviewed by the BE owner.
+
+- STU-D03-BE merge review (Nov 16 2026): AI assistance (Codex) addressed the requested
+  performance fix with linear duplicate counting and a 1,000-item limit on each profile
+  progress list. Added API regression tests for early rejection and the limit boundary,
+  and documented the limits in `docs/contract.md`. Pending the BE owner's review.
