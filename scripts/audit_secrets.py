@@ -29,10 +29,19 @@ KEY_PATTERNS = {
 # A name like api_key / X-API-Key / SECRET / token followed by = or : and a long literal value.
 # Our own API_KEY (from secrets.token_urlsafe) has no fixed shape, so this is how it would show
 # up: API_KEY=..., "X-API-Key": "...", -H "X-API-Key: ...", api_key = "...". (?i) = any case.
+SECRET_NAME = r"[\w-]*(?:api[_-]?key|secret|token|password)\b"
 ASSIGNMENT = re.compile(
-    r"(?i)\b[\w-]*(?:api[_-]?key|secret|token|password)\b[\"']?\s*[=:]\s*[\"']?"
-    r"([^\s\"'#,)}]{8,})"
+    rf"(?i)\b{SECRET_NAME}[\"']?\s*[=:]\s*"
+    r"(?:(?P<quote>[\"'])(?P<quoted>[^\r\n]*?)(?P=quote)"
+    r"|(?P<bare>[^\s\"'#,)}\\]+))"
 )
+# Render stores environment settings as a name and value on different lines. Keep the
+# name from an added or unchanged line so a newly added value is checked as well.
+YAML_KEY = re.compile(
+    r"^(?P<indent>[ \t]*)(?P<dash>-[ \t]+)?key:[ \t]*"
+    r"[\"']?(?P<name>[\w-]+)[\"']?[ \t]*(?:#.*)?$"
+)
+YAML_VALUE = re.compile(r"^[ \t]*value:[ \t]*(?P<value>.+)$")
 # Values that look like an assignment but are known to be harmless.
 SAFE_VALUES = {
     "your_api_key_here",  # the placeholder in .env.example
@@ -56,6 +65,18 @@ def mask(value: str) -> str:
     return f"{value[:4]}… ({len(value)} characters)"
 
 
+def literal_secret(value: str, *, quoted: bool) -> bool:
+    """Recognize literal assignments without assuming a secret must contain digits."""
+    if len(value) < 8 or value in SAFE_VALUES:
+        return False
+    # Documentation placeholders and references to environment/template variables are not
+    # literal credentials. These exclusions are deliberately narrower than "no digits".
+    if value.startswith(("<", "{", "$", "[")):
+        return False
+    # Unquoted calls and attributes read a value; quoted text is the literal value itself.
+    return quoted or not ("(" in value or re.match(r"\w+\.", value))
+
+
 def scan_line(commit: str, line: str) -> list[Finding]:
     """Key-shaped strings in one added line of a diff ("+..."); [] = nothing found."""
     findings = []
@@ -64,17 +85,10 @@ def scan_line(commit: str, line: str) -> list[Finding]:
             Finding(commit, kind, mask(m.group(0))) for m in pattern.finditer(line)
         ]
     for match in ASSIGNMENT.finditer(line):
-        value = match.group(1)
-        # Skip code that reads a setting (os.getenv(...), a variable name). Generated keys
-        # contain digits, so a value with none is treated as code. A heuristic: a digit-free
-        # password would be missed, which the KEY_PATTERNS above don't cover either.
-        if (
-            value in SAFE_VALUES
-            or not re.search(r"[0-9]", value)
-            or value.startswith("os.")
-        ):
-            continue
-        findings.append(Finding(commit, "assigned secret", mask(value)))
+        quoted = match.group("quoted")
+        value = quoted if quoted is not None else match.group("bare")
+        if literal_secret(value, quoted=quoted is not None):
+            findings.append(Finding(commit, "assigned secret", mask(value)))
     return findings
 
 
@@ -82,11 +96,38 @@ def scan_history(log_text: str) -> list[Finding]:
     """Scan `git log -p` output; only added lines can bring a secret into the history."""
     findings: list[Finding] = []
     commit = "?"
+    yaml_setting: tuple[str, int, bool] | None = None
     for line in log_text.splitlines():
         if line.startswith("COMMIT "):
             commit = line.split()[1]
-        elif line.startswith("+") and not line.startswith("+++"):
-            findings += scan_line(commit, line)
+            yaml_setting = None
+        elif line.startswith(("diff --git ", "@@", "+++")):
+            yaml_setting = None
+        elif line.startswith(("+", " ")):
+            added = line.startswith("+")
+            content = line[1:]
+            key = YAML_KEY.fullmatch(content)
+            if key:
+                name = key.group("name")
+                field_indent = len(key.group("indent")) + len(key.group("dash") or "")
+                yaml_setting = (
+                    (name, field_indent, added)
+                    if re.fullmatch(SECRET_NAME, name, re.IGNORECASE)
+                    else None
+                )
+            elif yaml_setting and content.strip():
+                name, field_indent, key_added = yaml_setting
+                indent = len(content) - len(content.lstrip())
+                if indent < field_indent:
+                    yaml_setting = None
+                elif value := YAML_VALUE.fullmatch(content):
+                    if added or key_added:
+                        findings += scan_line(commit, f"+{name}={value.group('value')}")
+                    yaml_setting = None
+            if added:
+                findings += scan_line(commit, line)
+        elif line.startswith("-") and YAML_KEY.fullmatch(line[1:]):
+            yaml_setting = None
     return sorted(set(findings), key=lambda f: (f.commit, f.kind, f.masked))
 
 

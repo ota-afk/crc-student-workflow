@@ -39,6 +39,15 @@ def test_placeholder_and_ci_key_are_not_findings():
     assert audit.scan_history(log) == []
 
 
+def test_safe_assignments_inside_a_python_string_are_not_findings():
+    # Git sees literal backslash-n characters in this source line, not actual newlines.
+    line = (
+        r'+log = "COMMIT abc1234\n+OPENAI_API_KEY=your_api_key_here\n'
+        r'+API_KEY: ci-only-throwaway-key\n"'
+    )
+    assert audit.scan_history(f"COMMIT abc1234\n{line}\n") == []
+
+
 def test_code_reading_a_setting_is_not_a_finding():
     log = "COMMIT abc1234\n+API_KEY = os.getenv('API_KEY', '')\n"
     assert audit.scan_history(log) == []
@@ -60,6 +69,7 @@ def test_github_noreply_addresses_are_not_public_emails():
 
 # A random key with no fixed shape, like the one docs/deploy.md tells us to generate.
 FAKE_RANDOM_KEY = "Zq3" + "x9LmP0aB7" + "kT2wR5"
+FAKE_LETTER_KEY = "AbCdEfGh" + "IjKlMnOpQrStUvWxYz"
 
 
 @pytest.mark.parametrize(
@@ -73,6 +83,101 @@ FAKE_RANDOM_KEY = "Zq3" + "x9LmP0aB7" + "kT2wR5"
 )
 def test_our_own_api_key_is_found_in_the_shapes_it_would_leak_in(line):
     assert audit.scan_history(f"COMMIT abc1234\n{line}\n")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        f"+API_KEY={FAKE_LETTER_KEY}",
+        f'+api_key = "{FAKE_LETTER_KEY}"',
+        f'+password = "{FAKE_LETTER_KEY} with spaces"',
+        f'+curl -H "X-API-Key: {FAKE_LETTER_KEY}" https://example.com',
+    ],
+)
+def test_literal_secrets_without_digits_are_found(line):
+    findings = audit.scan_history(f"COMMIT abc1234\n{line}\n")
+    assert any(f.kind == "assigned secret" for f in findings)
+    assert all(FAKE_LETTER_KEY not in f.masked for f in findings)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "os.getenv('API_KEY', '')",
+        "settings.API_KEY",
+        "config.api_key()",
+        "${API_KEY}",
+        '"{FAKE_RANDOM_KEY}"',
+        '"<the shared key>"',
+    ],
+)
+def test_code_references_and_documentation_placeholders_are_not_secrets(value):
+    assert audit.scan_history(f"COMMIT abc1234\n+API_KEY={value}\n") == []
+
+
+def test_quoted_secret_is_not_mistaken_for_a_code_reference():
+    value = "os." + FAKE_LETTER_KEY
+    assert audit.scan_history(f'COMMIT abc1234\n+API_KEY="{value}"\n')
+
+
+@pytest.mark.parametrize(
+    "key_prefix,value_prefix", [("+", "+"), (" ", "+"), ("+", " ")]
+)
+def test_yaml_setting_is_checked_when_its_name_or_value_is_added(
+    key_prefix, value_prefix
+):
+    log = (
+        "COMMIT abc1234\n"
+        f"{key_prefix}  - key: API_KEY\n"
+        f'{value_prefix}    value: "{FAKE_LETTER_KEY}"\n'
+    )
+    findings = audit.scan_history(log)
+    assert len(findings) == 1
+    assert findings[0].commit == "abc1234"
+    assert FAKE_LETTER_KEY not in findings[0].masked
+
+
+def test_yaml_replacement_value_is_checked_with_an_unchanged_name():
+    log = (
+        "COMMIT abc1234\n"
+        "   - key: API_KEY\n"
+        "-    value: your_api_key_here\n"
+        f"+    value: {FAKE_LETTER_KEY}\n"
+    )
+    assert audit.scan_history(log)
+
+
+def test_yaml_secret_name_does_not_carry_over_to_another_setting():
+    log = (
+        "COMMIT abc1234\n"
+        "+  - key: API_KEY\n"
+        "+    sync: false\n"
+        "+  - key: API_URL\n"
+        "+    value: https://api.example.com\n"
+    )
+    assert audit.scan_history(log) == []
+
+
+@pytest.mark.parametrize(
+    "boundary", ["COMMIT def5678", "@@ -10,1 +10,1 @@", "diff --git a/a b/b"]
+)
+def test_yaml_secret_name_does_not_carry_over_to_another_diff_section(boundary):
+    log = (
+        "COMMIT abc1234\n"
+        "+  - key: API_KEY\n"
+        f"{boundary}\n"
+        "+    value: https://api.example.com\n"
+    )
+    assert audit.scan_history(log) == []
+
+
+def test_removed_yaml_secret_is_not_reported_as_a_new_secret():
+    log = (
+        "COMMIT abc1234\n"
+        "-  - key: API_KEY\n"
+        f"-    value: {FAKE_LETTER_KEY}\n"
+    )
+    assert audit.scan_history(log) == []
 
 
 def test_streamlit_secrets_file_is_a_secret_file():

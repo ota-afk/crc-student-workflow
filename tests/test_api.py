@@ -333,6 +333,33 @@ def test_rate_limit_returns_429(sample_rules, monkeypatch):
     assert codes == [200, 200, 429]
 
 
+@pytest.mark.parametrize(
+    'method,path',
+    [
+        ('GET', '/schools'),
+        ('POST', '/tasks/residency/complete'),
+        ('POST', '/tasks/dmv/resolve'),
+    ],
+)
+def test_dashboard_allowance_is_shared_across_routes(
+    sample_rules, monkeypatch, method, path
+):
+    monkeypatch.setenv('API_KEY', 'secret')
+    monkeypatch.setenv('RATE_LIMIT', '1/minute')
+    headers = {'X-API-Key': 'secret'}
+    assert client.post('/workflow', json=body(), headers=headers).status_code == 200
+    response = client.request(method, path, json=body(), headers=headers)
+    assert response.status_code == 429
+
+
+def test_changing_task_id_does_not_reset_the_allowance(sample_rules, monkeypatch):
+    monkeypatch.setenv('RATE_LIMIT', '1/minute')
+    first = client.post('/tasks/residency/complete', json=body())
+    assert first.status_code == 200
+    second = client.post('/tasks/chain_a/complete', json=body())
+    assert second.status_code == 429
+
+
 def test_requests_without_the_key_cannot_use_up_the_dashboards_allowance(
     sample_rules, monkeypatch
 ):
@@ -369,10 +396,12 @@ def test_invalid_rate_limit_stops_the_api_at_startup(monkeypatch):
         pass
 
 
-def test_health_is_not_rate_limited(monkeypatch):
+def test_health_is_not_rate_limited(sample_rules, monkeypatch):
     monkeypatch.setenv('RATE_LIMIT', '1/minute')
+    assert client.post('/workflow', json=body()).status_code == 200
     codes = [client.get('/health').status_code for _ in range(3)]
     assert codes == [200, 200, 200]
+    assert client.post('/workflow', json=body()).status_code == 429
 
 
 # The demo path on ENG's real rules file

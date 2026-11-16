@@ -68,3 +68,14 @@
   the unverified-rules warning in `scripts/check_no_sample.py`, `docs/release-checklist.md`
   and the README updates, and ran the audit recorded there. A second Claude Code agent
   reviewed the change before it was opened. Reviewed by the BE owner.
+
+- STU-D05-BE follow-up (Nov 16 2026): AI assistance (Codex) changed the rate limit to one
+  allowance shared across all endpoints and task IDs (`src/student_workflow/api.py`), made the
+  key audit (`scripts/audit_secrets.py`) recognize digit-free and quoted literal secrets and
+  Render `key:`/`value:` pairs while skipping placeholders and code references, and added
+  regression tests (`tests/test_api.py`, `tests/test_audit_secrets.py`). AI assistance
+  (Claude Code) updated `docs/contract.md`, `README.md`, `docs/deploy.md` and
+  `docs/release-checklist.md`: what is on `main` versus in review, real request and response
+  examples generated from the code, the readiness and AI-integration gaps, the enrollment-date
+  proposal, and the audit's limits. The audit is a heuristic check, not proof that no secret
+  or personal data is present. Pending the BE owner's review.

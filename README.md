@@ -4,6 +4,12 @@ A dashboard that shows an international student at Cosumnes River College which 
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
 workflow and a Streamlit dashboard displays it.
 
+**Status (2026-11-16):** `main` has the resolver, ENG's rules and school search. The live
+workflow endpoints, API key, rate limit, CI end-to-end test and deploy setup are in open pull
+requests #20, #21 and #22 (merge in that order). Nothing is deployed yet. This README describes
+the code once those merge; [docs/contract.md](docs/contract.md) marks what is on `main`, in
+review, or proposed.
+
 How it works:
 
 - The **API** computes each student's workflow from ENG's rules file (`data/rules/rules.json`)
@@ -59,7 +65,7 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 | `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
 | `USE_MOCK` | `true` | Only changes `GET /workflow`: `true` serves the mock file, `false` runs the demo student through the live engine. `POST /workflow` and the task actions always use the live engine. |
 | `API_KEY` | empty | Shared secret for the `X-API-Key` header, needed on every endpoint except `/health` (FastAPI's `/docs` pages stay open; they show no data). Empty turns the check off (local only); the deployed API must set it. Never commit it. |
-| `RATE_LIMIT` | `60/minute` | Requests allowed per client address on every endpoint except `/health`. Over it returns `429`. An invalid value stops the API at startup. |
+| `RATE_LIMIT` | `60/minute` | One allowance shared by all endpoints except `/health`: requests with the right `API_KEY` share one, every other address has its own. Over it returns `429`. An invalid value stops the API at startup. |
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
 | `RULES_PATH` | `data/rules/rules.json` | Path to a different rules file for the resolver. |
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
@@ -68,9 +74,10 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 
 ## School search and rule scope
 
-`GET /schools?q=<name-or-city>&limit=20` searches the school CSV without making external
-requests. ENG still needs to supply the sourced CSV; until then the endpoint returns `503`
-instead of inventing schools. See [the contract](docs/contract.md#school-search-day-2) for the
+`GET /schools?q=<name-or-city>&limit=20` searches ENG's sourced California school CSV
+(`data/schools/sevp_schools_ca.csv`, merged in #14) without making external requests. If the
+file can't be read, the endpoint returns `503` instead of inventing schools. A school being
+in the directory doesn't mean its own steps are verified (`school_verified`). See [the contract](docs/contract.md#school-search) for the
 CSV columns and response fields. The default limit is 20, with a maximum of 100.
 
 The resolver selects school rules using `student_profile.school_id`; `institution` is a
@@ -91,7 +98,7 @@ FE's change lands).
 student's workflow, computed from `data/rules/rules.json`. `POST /tasks/{task_id}/complete`
 ("Mark done") and `POST /tasks/{task_id}/resolve` ("Resolve blocker") take the same body and
 return the updated profile inside the answer. The server stores nothing, so the dashboard keeps
-that profile and sends it next time. See [the contract](docs/contract.md#task-actions-live-day-3)
+that profile and sends it next time. See [the contract](docs/contract.md#task-actions)
 for the rules and error codes. Try them at <http://localhost:8000/docs>.
 
 ## Manual OpenAI smoke test
