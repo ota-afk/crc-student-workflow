@@ -1,4 +1,4 @@
-"""Dashboard: Profile, Workflow and Readiness views (read-only, mock-first)."""
+"""Student dashboard with task details and a mock-first assistant preview."""
 
 import html
 import os
@@ -7,6 +7,13 @@ from typing import Any
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+
+from student_workflow.contract import Workflow
+from student_workflow.frontend import safe_url, source_verified
+from student_workflow.frontend_email import render_email_preview
+from student_workflow.frontend_onboarding import render_onboarding
+from student_workflow.frontend_state import open_task, sync_profile_context
+from student_workflow.frontend_views import render_assistant, render_task_details
 
 load_dotenv()
 API_URL = os.getenv('API_URL', 'http://localhost:8000').rstrip('/')
@@ -50,7 +57,7 @@ STATUS_STYLES = {
 def load_workflow() -> dict[str, Any]:
     response = requests.get(f'{API_URL}/workflow', timeout=10)
     response.raise_for_status()
-    return response.json()
+    return Workflow.model_validate(response.json()).model_dump(mode='json', exclude_unset=True)
 
 
 def esc(value: Any) -> str:
@@ -74,9 +81,7 @@ def status_badge(status: Any) -> str:
 
 def safe_link(url: Any) -> str | None:
     """Return an http(s) URL, or None, so odd values never become links."""
-    if isinstance(url, str) and url.startswith(('https://', 'http://')):
-        return url
-    return None
+    return safe_url(url)
 
 
 def yes_no(value: Any) -> str:
@@ -96,13 +101,14 @@ def detail_line(label: str, value: Any) -> None:
 
 
 try:
-    data = load_workflow()
-except (requests.RequestException, ValueError) as error:
-    st.error(f'Could not load the workflow from {API_URL}: {error}')
+    with st.spinner('Loading your workflow…'):
+        data = load_workflow()
+except (requests.RequestException, ValueError):
+    st.error('Could not load your workflow. The service may be unavailable or '
+             'returned incomplete data. Try again in a moment.')
     st.info(
-        'Start the API in another terminal with '
-        '`uv run uvicorn student_workflow.api:app --reload --port 8000`, '
-        'and check that API_URL in your .env matches.'
+        'If this continues, contact the app team. Your selections in this '
+        'session have been kept.'
     )
     st.button('Retry')  # Clicking any button reruns the script.
     st.stop()
@@ -115,6 +121,9 @@ if 'flash_message' in st.session_state:
     st.success(st.session_state.pop('flash_message'))
 
 profile = data.get('student_profile') or {}
+sync_profile_context(profile)
+if profile.get('school_verified') is not True:
+    st.warning('Not verified for your school. Confirm school-specific requirements with your DSO.')
 tasks = data.get('workflow') or []
 titles = {t['id']: t.get('title', t['id']) for t in tasks if t.get('id')}
 
@@ -125,7 +134,7 @@ def title_of(task_id: str) -> str:
 
 def source_is_verified(source: dict[str, Any]) -> bool:
     """A source counts as evidence only with both an official URL and a date."""
-    return bool(source.get('url') and source.get('last_verified'))
+    return source_verified(source)
 
 
 def has_unverified_blocker(task: dict[str, Any]) -> bool:
@@ -168,9 +177,14 @@ def verification_note(task: dict[str, Any]) -> str:
     return f'Last verified: {verified_on}'
 
 
-profile_tab, workflow_tab, readiness_tab = st.tabs(['Profile', 'Workflow', 'Readiness'])
+profile_tab, workflow_tab, readiness_tab, detail_tab, assistant_tab = st.tabs(
+    ['Profile', 'Workflow', 'Readiness', 'Task details', 'Assistant'],
+    key='dashboard_tabs', on_change='rerun',
+)
 
 with profile_tab:
+    render_onboarding(profile, API_URL)
+    st.divider()
     st.subheader('Student profile')
     left, right = st.columns(2)
     left.metric('Institution', profile.get('institution') or 'Not provided')
@@ -216,6 +230,8 @@ with workflow_tab:
             prerequisites = [title_of(p) for p in task.get('prerequisites') or []]
             if prerequisites:
                 st.caption('Prerequisites: ' + ', '.join(prerequisites))
+            st.button('View checklist', key='view_checklist:' + task['id'],
+                      on_click=open_task, args=(task['id'],))
 
 
 def render_readiness() -> None:
@@ -322,3 +338,12 @@ def render_readiness() -> None:
 
 with readiness_tab:
     render_readiness()
+
+with detail_tab:
+    selected_task = render_task_details(tasks, bool(data.get('is_mock')))
+    render_email_preview(next((t for t in tasks if t['id'] == selected_task), None),
+                         profile, data.get('as_of', ''), titles)
+
+with assistant_tab:
+    render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'),
+                     titles.get(selected_task))
