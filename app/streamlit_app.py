@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from student_workflow.contract import Workflow
 from student_workflow.frontend import safe_url, source_verified
 from student_workflow.frontend_email import render_email_preview
+from student_workflow.frontend_onboarding import render_onboarding
+from student_workflow.frontend_state import open_task, sync_profile_context
 from student_workflow.frontend_views import render_assistant, render_task_details
 
 load_dotenv()
@@ -119,6 +121,9 @@ if 'flash_message' in st.session_state:
     st.success(st.session_state.pop('flash_message'))
 
 profile = data.get('student_profile') or {}
+sync_profile_context(profile)
+if profile.get('school_verified') is not True:
+    st.warning('Not verified for your school. Confirm school-specific requirements with your DSO.')
 tasks = data.get('workflow') or []
 titles = {t['id']: t.get('title', t['id']) for t in tasks if t.get('id')}
 
@@ -173,10 +178,13 @@ def verification_note(task: dict[str, Any]) -> str:
 
 
 profile_tab, workflow_tab, readiness_tab, detail_tab, assistant_tab = st.tabs(
-    ['Profile', 'Workflow', 'Readiness', 'Task details', 'Assistant']
+    ['Profile', 'Workflow', 'Readiness', 'Task details', 'Assistant'],
+    key='dashboard_tabs', on_change='rerun',
 )
 
 with profile_tab:
+    render_onboarding(profile, API_URL)
+    st.divider()
     st.subheader('Student profile')
     left, right = st.columns(2)
     left.metric('Institution', profile.get('institution') or 'Not provided')
@@ -222,6 +230,8 @@ with workflow_tab:
             prerequisites = [title_of(p) for p in task.get('prerequisites') or []]
             if prerequisites:
                 st.caption('Prerequisites: ' + ', '.join(prerequisites))
+            st.button('View checklist', key='view_checklist:' + task['id'],
+                      on_click=open_task, args=(task['id'],))
 
 
 def render_readiness() -> None:
@@ -335,4 +345,5 @@ with detail_tab:
                          profile, data.get('as_of', ''), titles)
 
 with assistant_tab:
-    render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'))
+    render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'),
+                     titles.get(selected_task))

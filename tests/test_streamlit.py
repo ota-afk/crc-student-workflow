@@ -66,6 +66,7 @@ def source(url: str | None, verified_on: str | None) -> dict[str, Any]:
         'rule_id': 'rule_dmv_timing_sample',
         'url': url,
         'last_verified': verified_on,
+        'verification_status': 'verified',
     }
 
 

@@ -1,11 +1,37 @@
 """Task detail and assistant views for the existing Streamlit dashboard."""
 
 import html
+import os
 
 import requests
 import streamlit as st
 
 from .frontend import ask_assistant, safe_url, source_verified
+from .frontend_state import open_task
+
+
+@st.dialog('Readiness', on_dismiss='rerun')
+def show_readiness(task: dict) -> None:
+    st.write(task['title'])
+    if task['status'] == 'Blocked':
+        st.warning('Status: Blocked. Documents checked do not remove prerequisites or timing blockers.')
+    else:
+        st.caption('Current task status: ' + task['status'])
+    documents = list(dict.fromkeys((task.get('before_you_go') or {}).get('required_documents') or []))
+    selected = st.session_state.get('documents_on_hand', {}).get(task['id'], {})
+    missing = [document for document in documents if not selected.get(document)]
+    if not documents:
+        st.info('Document requirements are unknown. Confirm with the office.')
+    elif missing:
+        st.info('Missing listed documents: ' + ', '.join(missing))
+    else:
+        st.info('Listed documents checked. This does not confirm eligibility or change task status.')
+    if task.get('missing_prerequisites'):
+        st.warning('Some prerequisite tasks still need to be completed.')
+    st.caption('This is your document inventory, not a backend readiness decision. '
+               'Task updates are not connected yet.')
+    if st.button('Close readiness', key='close_readiness'):
+        st.rerun()
 
 
 def render_sources(sources: list[dict]) -> None:
@@ -44,11 +70,20 @@ def render_task_details(tasks: list[dict], is_mock: bool) -> str | None:
     else:
         st.caption('No next step supplied. Review the official sources or ask the office.')
     for prerequisite in task.get('missing_prerequisites') or []:
-        st.write('Finish first: ' + by_id.get(prerequisite, {}).get('title', prerequisite))
+        title = by_id.get(prerequisite, {}).get('title', prerequisite)
+        if prerequisite in by_id:
+            st.button('Finish first: ' + title, key=f'prerequisite:{task_id}:{prerequisite}',
+                      on_click=open_task, args=(prerequisite,))
+        else:
+            st.write('Finish first: ' + title)
     for blocker in task.get('blockers') or []:
-        st.warning(blocker['explanation'])
+        note = (' — Not verified. Confirm with the office.'
+                if blocker.get('verification_status') != 'verified' else '')
+        st.warning(blocker['explanation'] + note)
         if blocker.get('unlocks_on'):
-            st.caption(f'Listed unlock date: {blocker["unlocks_on"]}')
+            st.caption(f'Listed unlock date: {blocker["unlocks_on"]}{note}')
+        elif blocker.get('type') == 'timing':
+            st.caption('Unlock date: Not verified. Confirm with the office.')
 
     st.markdown('#### Document checklist')
     st.caption('Check what you have. No uploads or document numbers. '
@@ -80,6 +115,12 @@ def render_task_details(tasks: list[dict], is_mock: bool) -> str | None:
     if is_mock:
         st.caption('Sample checklist. Confirm the actual requirements before your visit.')
 
+    if st.button('View readiness', key='show_readiness'):
+        show_readiness(task)
+    st.caption('Task updates are not connected yet. Your checks do not resolve or complete tasks.')
+    st.button('Resolve blocker', key='resolve_task', disabled=True)
+    st.button('Mark done', key='complete_task', disabled=True)
+
     st.markdown('#### Before your visit')
     for label, key in [('Hours', 'hours'), ('Fees', 'fees'),
                        ('Appointment rules', 'appointment_rules'), ('Phone', 'phone')]:
@@ -93,30 +134,39 @@ def render_task_details(tasks: list[dict], is_mock: bool) -> str | None:
     return task_id
 
 
-def render_assistant(profile: dict, task_id: str | None, api_url: str, mode: str) -> None:
+def render_assistant(profile: dict, task_id: str | None, api_url: str, mode: str,
+                     task_title: str | None = None) -> None:
     st.subheader('Process assistant')
+    context = task_title or 'No task selected'
+    st.caption('Active task: ' + context)
     st.caption('Ask about the task selected in Task details. Do not include your name, '
                'student ID, passport number, SSN or other personal details.')
     st.caption('For immigration status or work authorization, contact your school’s DSO.')
     if mode == 'mock':
         st.info('Chat preview: replies are fixed sample text. Live AI is not connected.')
+    elif mode == 'live' and not os.getenv('ASSISTANT_ENDPOINT'):
+        st.info('Live assistant is not configured. Its endpoint and answer format '
+                'still need BE/AI agreement; use the sample preview for now.')
     history = st.session_state.setdefault('assistant_history', [])
     if st.button('Clear conversation', key='clear_chat'):
         history.clear()
     question = st.chat_input('Ask about your next step', max_chars=500)
     error = False
     if question and question.strip():
-        history.append({'role': 'user', 'text': question})
+        history.append({'role': 'user', 'text': question, 'task_title': context})
         try:
             with st.spinner('Getting an answer…'):
-                answer = ask_assistant(question, task_id, profile, api_url, mode)
-            history.append({'role': 'assistant', 'answer': answer.model_dump(mode='json')})
+                answer = ask_assistant(question, task_id, profile, api_url, mode,
+                                       endpoint=os.getenv('ASSISTANT_ENDPOINT'))
+            history.append({'role': 'assistant', 'answer': answer.model_dump(mode='json'),
+                            'task_title': context})
         except (requests.RequestException, ValueError, OSError):
             error = True
         # Bound memory in a long-running browser session.
         del history[:-40]
     for message in history:
         with st.chat_message(message['role']):
+            st.caption('Task context: ' + message.get('task_title', 'Not recorded'))
             if message['role'] == 'user':
                 st.write(message['text'])
                 continue

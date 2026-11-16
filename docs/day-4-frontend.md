@@ -30,7 +30,7 @@ assistant loading/failure states remain in place.
 | Task actions | Routes and awaiting-reply shape are proposals | BE/AI/FE to agree before wiring buttons |
 | Readiness | Inventory and dependency views exist; visit data incomplete | BE/ENG to supply requirements and sourced details |
 | Assistant | Mock preview plus proposed live adapter | BE/AI to implement agreed route and filtering |
-| Email | New fixed preview and copy; planned `/api/assistant/email` absent | BE/AI to agree and implement a distinct email response |
+| Email | New fixed preview and copy; live endpoint/response not yet agreed | BE/AI to agree and implement a distinct email response |
 
 These are findings from the starting commit. Before publishing, a successful
 `git fetch origin` confirmed no new commits on main or the Day 3 frontend branch.

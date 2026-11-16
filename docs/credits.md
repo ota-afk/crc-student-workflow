@@ -1,9 +1,5 @@
 # Credits: third-party code, AI-assisted code, and reused patterns
 
-- STU-D03-FE (Nov 13 2026): Codex assisted with task details, session-only document
-  checkboxes, dated sources, a sample assistant preview and proposed API adapter,
-  interaction tests, and documentation. Live BE/AI integration remains pending.
-
 - Day 1 skeleton (Nov 11 2026): the files were created from the team's Final Repo Setup Guide
   with AI assistance (Claude Code), which ran the setup commands and wrote the README.
 - STU-D01-BE (Nov 12 2026): AI assistance (Claude Code) drafted `docs/contract.md`, the README's
@@ -45,6 +41,10 @@
   evidence checks, and added regression tests and documentation. The CRC rule's internal
   school ID was set to `crc`; its statement and verification state were not changed.
 
+- STU-D03-FE (Nov 13 2026): Codex assisted with task details, session-only document
+  checkboxes, dated sources, a sample assistant preview and proposed API adapter,
+  interaction tests, and documentation. Live BE/AI integration remains pending.
+
 - STU-D02-ENG rules (Nov 14 2026): ChatGPT/Codex assisted with converting official-source
   research into task rules, preparing source notes and the handoff, and validating against
   the merged BE resolver. Sources include USAGov, ICE/DHS, California DMV, CFPB and CRC;
@@ -52,3 +52,11 @@
   Integration tests cover the actual task data. AI assistance does not count as a human
   source checker; verification states and the existing CRC fee-rule checker metadata
   are preserved.
+
+- STU-D04-FE (Nov 15 2026): Codex assisted with the labeled email template preview,
+  native copy control, workflow loading/validation/error handling, regression tests
+  and Render deployment preparation. No live email service or deployment is claimed.
+- STU-D03-FE review (Nov 15 2026): Codex assisted with explicit source/blocker
+  verification, state/school search preparation, task navigation, readiness inventory
+  dialog, profile-context resets, task-labeled chat, tests and documentation. Live
+  workflow/actions remain blocked on the BE/AI contract and implementation.

@@ -7,7 +7,9 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 import requests
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from .schools import School
 
 
 def safe_url(value: object) -> str | None:
@@ -24,11 +26,24 @@ def safe_url(value: object) -> str | None:
 
 
 def source_verified(source: dict) -> bool:
-    # Legacy v1 sources have no status. An explicit newer status always wins.
     return bool(
         safe_url(source.get('url')) and source.get('last_verified')
-        and source.get('verification_status', 'verified') == 'verified'
+        and source.get('verification_status') == 'verified'
     )
+
+
+def search_school_directory(api_url: str, query: str) -> list[School]:
+    query = query.strip()
+    if len(query) > 100:
+        raise ValueError('School search must contain at most 100 characters.')
+    response = requests.get(f'{api_url.rstrip("/")}/schools',
+                            params={'q': query, 'limit': 20}, timeout=10)
+    response.raise_for_status()
+    schools = TypeAdapter(list[School]).validate_python(response.json(), strict=True)
+    ids = [school.school_id for school in schools]
+    if len(set(ids)) != len(ids):
+        raise ValueError('School search returned duplicate identifiers.')
+    return schools
 
 
 class AnswerSource(BaseModel):
@@ -53,20 +68,22 @@ class AssistantAnswer(BaseModel):
 
 
 def ask_assistant(question: str, task_id: str | None, profile: dict,
-                  api_url: str, mode: str) -> AssistantAnswer:
+                  api_url: str, mode: str, *, endpoint: str | None = None) -> AssistantAnswer:
     if not question.strip() or len(question) > 500:
         raise ValueError('Question must contain 1 to 500 characters.')
     if mode == 'mock':
         path = Path(__file__).resolve().parents[2] / 'data/mock/assistant.mock.json'
-        return AssistantAnswer.model_validate(json.loads(path.read_text()))
+        return AssistantAnswer.model_validate(json.loads(path.read_text(encoding='utf-8')))
     if mode != 'live':
         raise ValueError('Unknown assistant mode.')
+    if not safe_url(endpoint):
+        raise ValueError('Live assistant endpoint is not configured.')
     # Only the basic profile context; never send IDs, document choices or history.
     context = {key: profile[key] for key in (
         'institution', 'visa_type', 'arrival_date', 'has_ssn', 'school_id'
     ) if key in profile}
     response = requests.post(
-        f'{api_url.rstrip("/")}/api/assistant/ask',
+        endpoint,
         json={'question': question.strip(), 'task_id': task_id,
               'student_profile': context}, timeout=30,
     )

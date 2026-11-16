@@ -86,6 +86,7 @@ def test_chat_history_is_session_only(monkeypatch):
 def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_context):
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
     monkeypatch.setenv('API_URL', 'http://localhost:8000')
+    monkeypatch.setenv('ASSISTANT_ENDPOINT', 'http://localhost:8000/configured-assistant')
     captured = []
 
     def post(url, *, json, timeout):
@@ -112,7 +113,7 @@ def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_
     app = select_dmv(run_dashboard(monkeypatch, payload))
     app.chat_input[0].set_value('What is my next step?').run()
     assert not app.exception
-    assert captured == [('http://localhost:8000/api/assistant/ask', {
+    assert captured == [('http://localhost:8000/configured-assistant', {
         'question': 'What is my next step?', 'task_id': 'task_dmv_id',
         'student_profile': {'institution': 'Cosumnes River College',
                             'visa_type': 'F-1', 'arrival_date': '2026-08-11',
@@ -127,6 +128,7 @@ def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_
 @pytest.mark.parametrize('failure', ['timeout', 'http', 'invalid'])
 def test_chat_failure_preserves_checklist_and_can_retry(monkeypatch, failure):
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
+    monkeypatch.setenv('ASSISTANT_ENDPOINT', 'http://localhost:8000/configured-assistant')
 
     def post(*args, **kwargs):
         if failure == 'timeout':
