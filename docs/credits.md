@@ -77,6 +77,13 @@
   dialog, profile-context resets, task-labeled chat, tests and documentation. Live
   workflow/actions remain blocked on the BE/AI contract and implementation.
 
+- STU-D04-BE (Nov 16 2026): AI assistance (Claude Code) drafted the end-to-end smoke test
+  (`scripts/smoke_test.py`) and its CI job, the Render Blueprint (`render.yaml`),
+  `docs/deploy.md`, and the rate-limit change that gives the dashboard's key its own
+  allowance. Render's behaviour was checked against its official docs (render.com/docs).
+  A second Claude Code agent reviewed the change before it was opened. Reviewed by the BE
+  owner.
+
 - STU-D03-BE merge review (Nov 16 2026): AI assistance (Codex) addressed the requested
   performance fix with linear duplicate counting and a 1,000-item limit on each profile
   progress list. Added API regression tests for early rejection and the limit boundary,
