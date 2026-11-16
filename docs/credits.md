@@ -44,3 +44,11 @@
   contract, added school scoping and CSV search support, strengthened two-person
   evidence checks, and added regression tests and documentation. The CRC rule's internal
   school ID was set to `crc`; its statement and verification state were not changed.
+
+- STU-D02-ENG rules (Nov 14 2026): ChatGPT/Codex assisted with converting official-source
+  research into task rules, preparing source notes and the handoff, and validating against
+  the merged BE resolver. Sources include USAGov, ICE/DHS, California DMV, CFPB and CRC;
+  exact pages and excerpts are recorded in `docs/sources.md` and `data/rules/rules.json`.
+  Integration tests cover the actual task data. AI assistance does not count as a human
+  source checker; verification states and the existing CRC fee-rule checker metadata
+  are preserved.
