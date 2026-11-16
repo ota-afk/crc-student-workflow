@@ -4,8 +4,18 @@ A dashboard that shows an international student at Cosumnes River College which 
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
 workflow and a Streamlit dashboard displays it.
 
-Right now the API serves **sample data only** (`data/mock/workflow.mock.json`). Nothing in it is
-verified.
+How it works:
+
+- The **API** computes each student's workflow from ENG's rules file (`data/rules/rules.json`)
+  and the profile the dashboard sends: code decides every status, never the AI. The server
+  stores nothing between requests. Request and response shapes are in
+  [docs/contract.md](docs/contract.md).
+- Every fact carries its source and verification state. Today every rule is still
+  `needs_verification`, so the dashboard must label it "Not verified".
+- `GET /workflow` serves the sample file (`data/mock/workflow.mock.json`, `is_mock: true`) while
+  `USE_MOCK=true`, the local default. The AI layer (OpenAI) is not wired into the API yet.
+- Set up for Render's free plan ([docs/deploy.md](docs/deploy.md)); the live URLs go there
+  after the first deploy.
 
 ## First-time setup
 
@@ -19,8 +29,8 @@ uv sync --locked
 cp .env.example .env
 ```
 
-On Windows PowerShell use `Copy-Item .env.example .env`. Then put your own OpenAI key in `.env`.
-Never commit `.env`.
+On Windows PowerShell use `Copy-Item .env.example .env`. The API and dashboard run without any
+keys. An OpenAI key is only needed for the manual OpenAI smoke test below. Never commit `.env`.
 
 ## Run the API
 
@@ -133,7 +143,9 @@ uv run --env-file .env.smoke python scripts/smoke_test.py   # see docs/deploy.md
 ## Deploy
 
 Both services run on Render's free plan from `render.yaml`. Setup, the values to enter, the
-live URLs and troubleshooting are in [docs/deploy.md](docs/deploy.md).
+live URLs and troubleshooting are in [docs/deploy.md](docs/deploy.md). The order of checks for
+recording day and before the repo goes public (warm-up, smoke test, pre-recording check, key
+audit) is in [docs/release-checklist.md](docs/release-checklist.md).
 
 ## Project structure
 
@@ -145,9 +157,12 @@ src/student_workflow/         config.py, contract.py (Pydantic models), api.py (
 data/mock/workflow.mock.json  sample workflow (is_mock: true)
 data/rules/rules.json         tasks and rules (written by ENG, checked by tests)
 data/schools/                 ENG's California F-1 school CSV
-docs/                         contract.md, deploy.md, sources.md, credits.md, ai-data-policy.md
+docs/                         contract.md, deploy.md, release-checklist.md, sources.md,
+                              credits.md, ai-data-policy.md
 scripts/check_no_sample.py    pre-recording check
 scripts/smoke_test.py         end-to-end check of a running API (also run by CI)
+scripts/warm_up.py            wakes both live services before recording or judging
+scripts/audit_secrets.py      searches all git history for keys before the repo goes public
 scripts/smoke_test_openai.py  manual, paid OpenAI check (not run by CI)
 tests/                        pytest tests
 .github/workflows/ci.yml      CI: ruff check, pytest, and the end-to-end smoke test

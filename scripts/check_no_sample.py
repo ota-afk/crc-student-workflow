@@ -1,3 +1,8 @@
+"""Pre-recording check (plan, "Demo video blueprint"): run it before recording the video.
+
+Fails on sample text, placeholder text, is_mock, or an unverified blocker in GET /workflow.
+"""
+
 import os
 import sys
 
@@ -21,5 +26,15 @@ for task in data['workflow']:
     for blocker in task.get('blockers', []):
         if blocker['verification_status'] != 'verified':
             problems.append('unverified blocker on ' + task_id)
+# Not a failure (the plan's check is the four rules above), but the plan's video rule is "say
+# only verified facts". The dashboard labels these "Not verified"; the voice-over must too.
+unverified = sorted({
+    source['rule_id']
+    for task in data['workflow']
+    for source in task.get('sources', [])
+    if source.get('verification_status') != 'verified'
+})
+if unverified:
+    print('warning: not verified yet, never state as fact in the video:', ', '.join(unverified))
 print(problems or 'clean')
 sys.exit(1 if problems else 0)

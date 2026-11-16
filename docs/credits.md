@@ -62,3 +62,9 @@
   allowance. Render's behaviour was checked against its official docs (render.com/docs).
   A second Claude Code agent reviewed the change before it was opened. Reviewed by the BE
   owner.
+
+- STU-D05-BE (Nov 16 2026): AI assistance (Claude Code) drafted the warm-up script
+  (`scripts/warm_up.py`), the git-history key audit (`scripts/audit_secrets.py`) and its tests,
+  the unverified-rules warning in `scripts/check_no_sample.py`, `docs/release-checklist.md`
+  and the README updates, and ran the audit recorded there. A second Claude Code agent
+  reviewed the change before it was opened. Reviewed by the BE owner.

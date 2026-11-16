@@ -60,11 +60,12 @@ Environment page only, never in `render.yaml`.
 ## After every deploy: smoke test
 
 From the repo on your computer, make a file named `.env.smoke` (git-ignored, like `.env`) with
-two lines:
+these lines (`DASHBOARD_URL` is for the warm-up script):
 
 ```text
 API_URL=https://<api-url>
 API_KEY=<the key>
+DASHBOARD_URL=https://<dashboard-url>
 ```
 
 Then run:
@@ -87,7 +88,9 @@ API's reason. CI runs the same script against a fresh local server on every pull
 
 - **Sleeping.** A free service sleeps after 15 minutes without traffic, and the next request
   takes about a minute while it wakes up. Wake both services before recording or judging
-  (STU-D05-BE adds a warm-up script). The smoke test waits up to two minutes for `/health`.
+  with `uv run --env-file .env.smoke python scripts/warm_up.py`; the order for demo day is in
+  [release-checklist.md](release-checklist.md). The smoke test waits up to two minutes for
+  `/health`.
 - **750 free hours per month** for the whole Render workspace. Two services awake all month
   would need about 1,440, so check the usage on Render's billing page before judging (Nov 20)
   and until winners are announced (around Nov 30), when the plan says the link must stay up.
