@@ -3,10 +3,13 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # extra='forbid': an unknown key in a request (a typo like 'completed_task') is a 422, not ignored.
 STRICT = ConfigDict(extra='forbid')
+
+# The demo has eight tasks. Leave room to grow while bounding untrusted progress lists.
+MAX_PROGRESS_TASKS = 1000
 
 Status = Literal['Blocked', 'Ready', 'In Progress', 'Completed']
 Priority = Literal['Required', 'Recommended', 'Optional']
@@ -64,9 +67,9 @@ class StudentProfile(BaseModel):
     visa_type: str
     arrival_date: date
     has_ssn: bool
-    completed_tasks: list[str] = []
+    completed_tasks: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
     # Tasks whose office the student has written to ("Resolve blocker"); shown as In Progress.
-    awaiting_reply: list[str] = []
+    awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
     school_id: str | None = None
     school_verified: bool = False
 

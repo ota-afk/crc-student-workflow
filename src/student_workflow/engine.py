@@ -5,6 +5,7 @@ docs/contract.md, section "Dependency resolver". The API calls it on every workf
 (STU-D03-BE), with the profile the dashboard sends.
 """
 
+from collections import Counter
 from datetime import date, timedelta
 
 from .contract import Blocker, NextAction, Source, StudentProfile, Task, Workflow
@@ -78,7 +79,7 @@ def _reject_repeats(profile: StudentProfile) -> None:
     # A task listed twice means the client built the profile wrong; say so instead of hiding it.
     for field in ("completed_tasks", "awaiting_reply"):
         ids = getattr(profile, field)
-        repeated = sorted({task_id for task_id in ids if ids.count(task_id) > 1})
+        repeated = sorted(task_id for task_id, count in Counter(ids).items() if count > 1)
         if repeated:
             raise ValueError(f"{field} lists a task more than once: {', '.join(repeated)}")
 

@@ -21,8 +21,7 @@ State on 2026-11-16 (check `git log origin/main` and the PRs for anything newer)
 | Resolver, school search (STU-D02-BE) | `main` | `a405852` | On main |
 | Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `0666b1c` | In review |
 | Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21, builds on #20 | `781e231` | In review |
-| Warm-up, key audit, release checklist (STU-D05-BE) | PR #22, builds on #21 | `84d2e0c` | In review |
-| One rate-limit allowance across all endpoints | `feature/STU-D05-BE` working tree | not committed | Not pushed |
+| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22, builds on #21 | `fcb6dc5` | In review |
 
 ## Ground rules that shape the API
 
@@ -84,8 +83,8 @@ it to `"1.0"`.
 | `visa_type` | string | Required |
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
-| `completed_tasks` | array of strings (task IDs) | `[]` |
-| `awaiting_reply` | array of strings (task IDs), set by `POST /tasks/{id}/resolve` (in review, #20) | `[]` |
+| `completed_tasks` | array of strings (task IDs), at most 1,000 | `[]` |
+| `awaiting_reply` | array of strings (task IDs), at most 1,000; set by `POST /tasks/{id}/resolve` (in review, #20) | `[]` |
 | `school_id` | string or null | `null` |
 | `school_verified` | boolean, computed by the resolver | `false` |
 
@@ -162,10 +161,9 @@ list of allowed values.
 unverified. A source's date may describe an earlier check even when the rule now needs
 verification; a URL and date alone never establish that it is currently verified.
 
-**Pending FE integration:** the dashboard on `main` checks source URLs and dates but does not
-read `Source.verification_status`. FE's PR #16 (open) adds the check: a source counts as
-verified only with `verification_status: "verified"`, a usable URL and a date. Until #16 merges,
-a deployed dashboard could show an unverified rule as verified.
+**On main since FE PR #16:** the dashboard checks a source's usable URL, date and explicit
+`Source.verification_status` before treating it as verified. Per-fact citation rendering
+remains a separate FE integration step.
 
 ### Missing values and verification
 
@@ -334,7 +332,7 @@ Every workflow endpoint uses the same ones. These are real answers from the API:
 | `401` | `X-API-Key` missing or wrong (only when the server has an `API_KEY` set) | `"Missing or invalid API key"` |
 | `404` | Task actions only: `task_id` is not in this student's workflow | `"Task task_typo is not in this workflow"` |
 | `409` | Task actions only: the task is not in a state the action allows (see below) | `"Task task_dmv_id is Blocked, so it cannot be marked done"` |
-| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key) | FastAPI's list, e.g. `"type": "extra_forbidden"` with `"loc": ["body", "student_profile", "completed_task"]` |
+| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key, either progress list over 1,000 items) | FastAPI's list, e.g. `"type": "extra_forbidden"` with `"loc": ["body", "student_profile", "completed_task"]` |
 | `422` | The profile breaks a resolver rule (unknown task ID, a task listed twice, completed before its prerequisites, both completed and awaiting a reply) | `"completed_tasks has unknown task ids: task_typo"` |
 | `429` | Rate limit reached | slowapi's message |
 | `500` | A bug in our code (the engine built an invalid workflow) | `"Internal error"`; details only in the server log |
@@ -734,6 +732,10 @@ unreadable rules file raises the corresponding file error.
   returns `email_draft: null`.
 
 ## Changelog
+
+- 2026-11-16, STU-D03-BE review fix: count duplicate task IDs in one pass and cap each
+  `completed_tasks` and `awaiting_reply` list at 1,000 items. Larger lists return `422`
+  before the resolver runs; existing duplicate-ID errors keep the same message.
 
 - 2026-11-16, STU-D05-BE docs: status labels now say what is on `main`, in review, deployed or
   proposed (D03 to D05 are open PRs, nothing is deployed). Real request and response examples
