@@ -7,8 +7,28 @@ docs/contract.md, section "Dependency resolver". The API calls it on every workf
 
 from datetime import date, timedelta
 
-from .contract import Blocker, NextAction, Source, StudentProfile, Task, Workflow
-from .rules import Rule, RulesFile, RuleTask, applicable_rules
+from .contract import (
+    BeforeYouGo,
+    Blocker,
+    Citation,
+    NextAction,
+    Source,
+    StudentProfile,
+    Task,
+    Workflow,
+)
+from .rules import (
+    LIST_FIELDS,
+    SINGLE_FIELDS,
+    VISIT_FIELDS,
+    CitedText,
+    Rule,
+    RuleBeforeYouGo,
+    RulesFile,
+    RuleTask,
+    applicable_facts,
+    applicable_rules,
+)
 from .schools import school_is_verified
 
 SCHEMA_VERSION = "1.0"
@@ -54,9 +74,15 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
         applicable = applicable_rules(rules, task, school_id)
         # Empty = only other schools' rules, so this task is not part of this workflow.
         if applicable:
-            tasks.append(
-                task.model_copy(update={"rule_ids": [r.rule_id for r in applicable]})
-            )
+            update = {
+                "rule_ids": [r.rule_id for r in applicable],
+                # Only the visit details whose rule applies to this school (e.g. no other
+                # school's phone number); None when nothing is left.
+                "before_you_go": _visit_details(
+                    applicable_facts(rules, task, school_id)
+                ),
+            }
+            tasks.append(task.model_copy(update=update))
     if not tasks:
         raise RulesError(
             "No tasks found for this school, and no generic rules are available"
@@ -70,8 +96,33 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
                 f"task {task.id} needs {', '.join(hidden)}, which does not apply to "
                 f"school {school_id}"
             )
-    used = {rule_id for task in tasks for rule_id in task.rule_ids}
+    # Keep every rule a task or one of its visit-details facts cites, so each source is found.
+    used = {rule_id for task in tasks for rule_id in _cited_rule_ids(task)}
     return RulesFile(tasks=tasks, rules=[r for r in rules.rules if r.rule_id in used])
+
+
+def _visit_details(facts: list[tuple[str, CitedText]]) -> RuleBeforeYouGo | None:
+    """Rebuild a task's visit details from the facts that were kept; None = none left."""
+    if not facts:
+        return None
+    fields: dict[str, list[CitedText]] = {field: [] for field in VISIT_FIELDS}
+    for field, fact in facts:
+        fields[field].append(fact)
+    return RuleBeforeYouGo(
+        **{
+            f: items if f in LIST_FIELDS else (items[0] if items else None)
+            for f, items in fields.items()
+        }
+    )
+
+
+def _cited_rule_ids(task: RuleTask) -> list[str]:
+    """The task's own rules, then the rules its visit details cite, each once, in order."""
+    cited = list(task.rule_ids)
+    for _field, fact in task.before_you_go.facts() if task.before_you_go else []:
+        if fact.rule_id not in cited:
+            cited.append(fact.rule_id)
+    return cited
 
 
 def _reject_repeats(profile: StudentProfile) -> None:
@@ -114,7 +165,8 @@ def _resolve_task(
     awaiting: set[str],
     as_of: date,
 ) -> Task:
-    task_rules = [rules.rule(rule_id) for rule_id in task.rule_ids]
+    # The task's own rules and the rules behind its visit details: each fact's source shows.
+    task_rules = [rules.rule(rule_id) for rule_id in _cited_rule_ids(task)]
     sources = [
         Source(
             rule_id=r.rule_id,
@@ -125,8 +177,9 @@ def _resolve_task(
         for r in task_rules
     ]
 
+    visit = _before_you_go(rules, task)
     if task.id in completed:
-        return _task(task, "Completed", sources=sources)
+        return _task(task, "Completed", sources=sources, visit=visit)
 
     # Kept in file order, so next_action always points at the same first prerequisite.
     missing = [p for p in task.prerequisites if p not in completed]
@@ -152,6 +205,7 @@ def _resolve_task(
         missing=missing,
         blockers=blockers,
         next_action=next_action,
+        visit=visit,
     )
 
 
@@ -173,6 +227,33 @@ def _timing_blocker(rule: Rule, profile: StudentProfile, as_of: date) -> Blocker
     )
 
 
+def _before_you_go(rules: RulesFile, task: RuleTask) -> BeforeYouGo | None:
+    """The response's visit details: the same strings as before, plus one citation per fact."""
+    # None = no visit details for this student: never a sign that nothing is needed.
+    if task.before_you_go is None:
+        return None
+    details = task.before_you_go
+    citations = [
+        Citation(
+            field=field,
+            text=fact.text,
+            rule_id=fact.rule_id,
+            # Carried over unchanged, so an unverified fact stays visibly unverified.
+            verification_status=rules.rule(fact.rule_id).verification_status,
+        )
+        for field, fact in details.facts()
+    ]
+    return BeforeYouGo(
+        required_documents=[fact.text for fact in details.required_documents],
+        warnings=[fact.text for fact in details.warnings],
+        **{
+            f: getattr(details, f).text if getattr(details, f) else None
+            for f in SINGLE_FIELDS
+        },
+        citations=citations,
+    )
+
+
 def _task(
     task: RuleTask,
     status: str,
@@ -181,6 +262,7 @@ def _task(
     missing: list[str] | None = None,
     blockers: list[Blocker] | None = None,
     next_action: NextAction | None = None,
+    visit: BeforeYouGo | None = None,
 ) -> Task:
     return Task(
         id=task.id,
@@ -191,6 +273,6 @@ def _task(
         missing_prerequisites=missing or [],
         next_action=next_action,
         blockers=blockers or [],
-        before_you_go=None,  # the rules file has no visit details yet
+        before_you_go=visit,
         sources=sources,
     )

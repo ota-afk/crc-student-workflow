@@ -79,3 +79,11 @@
   examples generated from the code, the readiness and AI-integration gaps, the enrollment-date
   proposal, and the audit's limits. The audit is a heuristic check, not proof that no secret
   or personal data is present. Pending the BE owner's review.
+
+- STU-D05-BE-before-you-go (Nov 16 2026): AI assistance (Claude Code) drafted support for
+  cited visit details: the rules-file `before_you_go` models (`src/student_workflow/rules.py`),
+  the school filter and the additive `citations` in the resolver (`engine.py`, `contract.py`,
+  `schools.py`), their tests (`tests/test_engine.py`) and the matching `docs/contract.md`
+  sections. It was tested against ENG's draft rules with visit details, which is not part of
+  this change. A second Claude Code agent reviewed the change, and its findings were fixed.
+  Pending the BE owner's review.

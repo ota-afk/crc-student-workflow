@@ -93,6 +93,66 @@ class Rule(BaseModel):
         return self
 
 
+class CitedText(BaseModel):
+    """One visit-details fact and the rule it comes from, so its source travels with it."""
+
+    model_config = STRICT
+
+    text: str = Field(min_length=1)
+    rule_id: str
+
+
+# The field order of BeforeYouGo, used for the response and its citations. The two list
+# fields hold several facts; the other five hold one fact or None.
+VISIT_FIELDS = (
+    "required_documents",
+    "fees",
+    "hours",
+    "appointment_rules",
+    "phone",
+    "official_url",
+    "warnings",
+)
+LIST_FIELDS = ("required_documents", "warnings")
+SINGLE_FIELDS = tuple(f for f in VISIT_FIELDS if f not in LIST_FIELDS)
+
+
+class RuleBeforeYouGo(BaseModel):
+    """Visit details as ENG writes them: the response's BeforeYouGo, with every fact cited."""
+
+    model_config = STRICT
+
+    required_documents: list[CitedText] = []
+    fees: CitedText | None = None
+    hours: CitedText | None = None
+    appointment_rules: CitedText | None = None
+    phone: CitedText | None = None
+    official_url: CitedText | None = None
+    warnings: list[CitedText] = []
+
+    @model_validator(mode="after")
+    def _no_repeated_facts(self) -> "RuleBeforeYouGo":
+        # The same fact twice in one list is a copy-paste slip; say so instead of showing it twice.
+        for field in LIST_FIELDS:
+            seen: set[tuple[str, str]] = set()
+            for fact in getattr(self, field):
+                key = (fact.text, fact.rule_id)
+                if key in seen:
+                    raise ValueError(f"before_you_go.{field} repeats a fact: {fact.text!r}")
+                seen.add(key)
+        return self
+
+    def facts(self) -> list[tuple[str, CitedText]]:
+        """Every fact with its field name, in field order; [] = nothing filled in."""
+        found: list[tuple[str, CitedText]] = []
+        for field in VISIT_FIELDS:
+            value = getattr(self, field)
+            # A list field holds several facts, the others one fact or None.
+            items = value if isinstance(value, list) else [value] if value else []
+            found += [(field, item) for item in items]
+        return found
+
+
 class RuleTask(BaseModel):
     """A task as ENG writes it. The engine turns it into a contract Task with a status."""
 
@@ -105,6 +165,8 @@ class RuleTask(BaseModel):
     # min_length=1: every task needs a source. Unfinished research still cites a rule,
     # marked needs_verification, so it shows as "Not verified" instead of looking sourced.
     rule_ids: list[str] = Field(min_length=1)
+    # None = no visit details for this task yet. Never a reason to call it "ready".
+    before_you_go: RuleBeforeYouGo | None = None
 
 
 class RulesFile(BaseModel):
@@ -126,6 +188,13 @@ class RulesFile(BaseModel):
             for rule_id in task.rule_ids:
                 if rule_id not in rule_ids:
                     raise ValueError(f"task {task.id} cites unknown rule {rule_id}")
+            # A visit-details fact must point at a real rule, or its source would be missing.
+            for field, fact in task.before_you_go.facts() if task.before_you_go else []:
+                if fact.rule_id not in rule_ids:
+                    raise ValueError(
+                        f"task {task.id} before_you_go.{field} cites unknown rule "
+                        f"{fact.rule_id}"
+                    )
         _reject_loops(self.tasks)
         return self
 
@@ -181,6 +250,38 @@ def applicable_rules(
     scope = school_id if has_own else GENERIC
     # Another school's rule never applies here; it is skipped, not substituted.
     return [r for r in cited if r.layer != "school" or r.school_id == scope]
+
+
+def applicable_facts(
+    rules: RulesFile, task: RuleTask, school_id: str | None
+) -> list[tuple[str, CitedText]]:
+    """The visit-details facts of one task that apply to this school; [] = none.
+
+    Federal and California facts always apply. A school fact applies only if it is the
+    student's own school's, or a _generic fact while this task uses the generic steps, so
+    one school's phone number or office never reaches a student at another school. A task
+    with no school rules at all uses the generic steps for everyone, so its _generic facts
+    are shown to every student (and keep school_verified false, like any generic step).
+    """
+    if task.before_you_go is None:
+        return []
+    own_school = school_id not in (None, GENERIC)
+    # Same choice as applicable_rules: the task uses the generic steps unless the student
+    # has a real school AND the task's own rule list has a rule for that school.
+    task_uses_generic = not own_school or not any(
+        r.layer == "school" and r.school_id == school_id
+        for r in (rules.rule(rule_id) for rule_id in task.rule_ids)
+    )
+    kept = []
+    for field, fact in task.before_you_go.facts():
+        rule = rules.rule(fact.rule_id)
+        if (
+            rule.layer != "school"
+            or (own_school and rule.school_id == school_id)
+            or (rule.school_id == GENERIC and task_uses_generic)
+        ):
+            kept.append((field, fact))
+    return kept
 
 
 def load_rules(path: Path | None = None) -> RulesFile:
