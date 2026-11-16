@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from student_workflow import api
 from student_workflow.api import app
-from student_workflow.contract import Workflow
+from student_workflow.contract import MAX_PROGRESS_TASKS, Workflow
 from student_workflow.engine import RulesError
 
 client = TestClient(app)
@@ -175,6 +175,35 @@ def test_profile_the_resolver_rejects_is_422_with_its_reason(sample_rules):
 
 def test_task_listed_twice_is_422(sample_rules):
     response = client.post('/workflow', json=body(['residency', 'residency']))
+    assert response.status_code == 422
+    assert 'more than once' in response.json()['detail']
+
+
+@pytest.mark.parametrize('field', ['completed_tasks', 'awaiting_reply'])
+@pytest.mark.parametrize('count', [MAX_PROGRESS_TASKS + 1, 40_000])
+def test_oversized_progress_list_is_rejected_before_the_resolver(
+    sample_rules, monkeypatch, field, count
+):
+    def must_not_resolve(*_args):
+        pytest.fail('an oversized progress list reached the resolver')
+
+    monkeypatch.setattr(api, 'resolve', must_not_resolve)
+    request = body()
+    request['student_profile'][field] = ['residency'] * count
+    response = client.post('/workflow', json=request)
+    assert response.status_code == 422
+    assert any(
+        error['loc'] == ['body', 'student_profile', field]
+        and error['type'] == 'too_long'
+        for error in response.json()['detail']
+    )
+
+
+@pytest.mark.parametrize('field', ['completed_tasks', 'awaiting_reply'])
+def test_progress_list_at_the_limit_still_checks_duplicate_ids(sample_rules, field):
+    request = body()
+    request['student_profile'][field] = ['residency'] * MAX_PROGRESS_TASKS
+    response = client.post('/workflow', json=request)
     assert response.status_code == 422
     assert 'more than once' in response.json()['detail']
 

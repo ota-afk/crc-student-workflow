@@ -68,8 +68,8 @@ it to `"1.0"`.
 | `visa_type` | string | Required |
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
-| `completed_tasks` | array of strings (task IDs) | `[]` |
-| `awaiting_reply` | array of strings (task IDs), set by `POST /tasks/{id}/resolve` | `[]` |
+| `completed_tasks` | array of strings (task IDs), at most 1,000 | `[]` |
+| `awaiting_reply` | array of strings (task IDs), at most 1,000; set by `POST /tasks/{id}/resolve` | `[]` |
 | `school_id` | string or null | `null` |
 | `school_verified` | boolean, computed by the resolver | `false` |
 
@@ -146,10 +146,9 @@ list of allowed values.
 unverified. A source's date may describe an earlier check even when the rule now needs
 verification; a URL and date alone never establish that it is currently verified.
 
-**Pending FE integration:** the current dashboard checks source URLs and dates but does not
-yet read `Source.verification_status`. FE needs to apply that check before live workflows are
-enabled, so an unverified rule cannot look verified after its timing blocker expires. This
-branch carries the verification state in the response; the dashboard change remains FE's work.
+**On main since FE PR #16:** the dashboard checks a source's usable URL, date and explicit
+`Source.verification_status` before treating it as verified. Per-fact citation rendering
+remains a separate FE integration step.
 
 ### Missing values and verification
 
@@ -249,7 +248,7 @@ Errors (every workflow endpoint uses the same ones):
 | `401` | `X-API-Key` missing or wrong (only when the server has an `API_KEY` set) | `Missing or invalid API key` |
 | `404` | Task actions only: `task_id` is not in this student's workflow | Names the task ID |
 | `409` | Task actions only: the task is not in a state the action allows (see below) | Says why |
-| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key), or the profile breaks a resolver rule (an unknown task ID, a task listed twice, a task completed before its prerequisites, a task both completed and awaiting a reply) | FastAPI's field errors, or the resolver's message |
+| `422` | The request fails `WorkflowRequest` (missing field, bad date, unknown key, either progress list over 1,000 items), or the profile breaks a resolver rule (an unknown task ID, a task listed twice, a task completed before its prerequisites, a task both completed and awaiting a reply) | FastAPI's field errors, or the resolver's message |
 | `429` | Rate limit reached | slowapi's message |
 | `500` | A bug in our code (the engine built an invalid workflow) | `Internal error`; the details go to the server log only |
 | `503` | The rules file is missing, invalid, or cannot build a workflow for this school; or (`GET /workflow` only) the demo profile no longer fits the rules | `Workflow is temporarily unavailable`; the real reason goes to the server log only |
@@ -493,6 +492,10 @@ unreadable rules file raises the corresponding file error.
   `generate_email()` exists and AI, FE and BE agree on its fields.
 
 ## Changelog
+
+- 2026-11-16, STU-D03-BE review fix: count duplicate task IDs in one pass and cap each
+  `completed_tasks` and `awaiting_reply` list at 1,000 items. Larger lists return `422`
+  before the resolver runs; existing duplicate-ID errors keep the same message.
 
 - 2026-11-16, STU-D04-BE: requests with the right API key share one rate-limit allowance;
   other requests are counted by address, so they can't use up the dashboard's. No shape

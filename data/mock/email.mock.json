@@ -1,0 +1,4 @@
+{
+  "subject": "Request for guidance: {task_title}",
+  "body": "Dear [Office or DSO],\n\nI would like guidance on this task: {task_title}.\n\nMy dashboard lists the following items, which may be unverified:\n{context}\n\nCould you confirm the applicable requirements, next steps, and who I should contact? I understand that this draft does not resolve a blocker or confirm eligibility.\n\nThank you,\n[Your Name]\n[Student ID]"
+}
