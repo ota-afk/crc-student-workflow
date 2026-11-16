@@ -118,3 +118,9 @@
   performance fix with linear duplicate counting and a 1,000-item limit on each profile
   progress list. Added API regression tests for early rejection and the limit boundary,
   and documented the limits in `docs/contract.md`. Pending the BE owner's review.
+
+- STU-D03-ENG content (Nov 14 2026): ChatGPT/Codex assisted with official-source research,
+  before-you-go content and separate student-facing wording for California REAL ID and CRC arrival reporting, source notes
+  and compatibility checks against the existing BeforeYouGo model. Current source
+  retrieval is recorded separately from the August demo dates. Codex also prepared the cited rule entries and ran integration checks. Human review
+  of the visit details and frontend citation rendering remain pending.

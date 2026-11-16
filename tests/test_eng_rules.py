@@ -1,4 +1,4 @@
-"""Integration checks for ENG's actual Day 2 rules and the synthetic demo profile."""
+"""Integration checks for ENG's sourced rules and the synthetic demo profile."""
 
 from datetime import date
 from pathlib import Path
@@ -48,7 +48,28 @@ def test_demo_tasks_resolve_with_the_correct_school_guidance(
     result = workflow(school_id)
     tasks = {task.id: task for task in result.workflow}
     assert len(tasks) == count
-    assert [s.rule_id for s in tasks["task_school_checkin"].sources] == [checkin_rule]
+    checkin = tasks["task_school_checkin"]
+    assert checkin.sources[0].rule_id == checkin_rule
+    if school_id == "crc":
+        assert checkin.before_you_go is not None
+        assert checkin.before_you_go.phone == "(916) 691-7411"
+        assert checkin.before_you_go.required_documents == []
+        assert checkin.before_you_go.fees is None
+        assert checkin.before_you_go.hours is None
+    else:
+        assert checkin.before_you_go is None
+        assert [source.rule_id for source in checkin.sources] == [checkin_rule]
+
+    dmv = tasks["task_dmv_id"]
+    assert dmv.before_you_go is not None
+    assert dmv.before_you_go.hours and "DMV office finder" in dmv.before_you_go.hours
+    verification = {source.rule_id: source.verification_status for source in dmv.sources}
+    assert dmv.before_you_go.citations
+    assert all(
+        citation.rule_id in verification
+        and citation.verification_status == verification[citation.rule_id]
+        for citation in dmv.before_you_go.citations
+    )
     assert ("task_crc_fee_payment" in tasks) == (school_id == "crc")
     for task_id in ("task_i94_retrieval", "task_sevis_fee"):
         assert tasks[task_id].status == "Completed"
@@ -60,6 +81,13 @@ def test_demo_tasks_resolve_with_the_correct_school_guidance(
         for task in tasks.values()
         for source in task.sources
     )
+
+
+def test_dso_recommendation_title_keeps_drivers_license_context():
+    task = next(
+        task for task in workflow().workflow if task.id == "task_confirm_sevis_active"
+    )
+    assert "before applying for a driver's license" in task.title.casefold()
 
 
 @pytest.mark.parametrize("as_of", [ARRIVAL, AS_OF])
