@@ -1,6 +1,72 @@
 {
   "tasks": [
     {
+      "id": "task_i94_retrieval",
+      "title": "Retrieve your I-94 record",
+      "priority": "Recommended",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_i94_retrieval_guidance"
+      ]
+    },
+    {
+      "id": "task_sevis_fee",
+      "title": "Check your I-901 SEVIS fee payment record",
+      "priority": "Recommended",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_i901_payment_record"
+      ]
+    },
+    {
+      "id": "task_school_checkin",
+      "title": "Report to your school's international student office",
+      "priority": "Required",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_generic_f1_arrival_reporting",
+        "rule_crc_arrival_reporting"
+      ]
+    },
+    {
+      "id": "task_proof_of_residency",
+      "title": "Gather residency evidence for California REAL ID",
+      "priority": "Recommended",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_california_real_id_residency"
+      ]
+    },
+    {
+      "id": "task_dmv_id",
+      "title": "Apply for a California REAL ID card",
+      "priority": "Recommended",
+      "prerequisites": [
+        "task_proof_of_residency"
+      ],
+      "rule_ids": [
+        "rule_california_id_application"
+      ]
+    },
+    {
+      "id": "task_bank_account",
+      "title": "Open a U.S. bank account",
+      "priority": "Optional",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_bank_account_identification_guidance"
+      ]
+    },
+    {
+      "id": "task_confirm_sevis_active",
+      "title": "Ask your DSO to confirm SEVIS registration",
+      "priority": "Recommended",
+      "prerequisites": [],
+      "rule_ids": [
+        "rule_dso_sevis_confirmation_referral"
+      ]
+    },
+    {
       "id": "task_crc_fee_payment",
       "title": "Pay CRC tuition and fees",
       "priority": "Required",
@@ -11,6 +77,142 @@
     }
   ],
   "rules": [
+    {
+      "rule_id": "rule_i94_retrieval_guidance",
+      "statement": "Retrieve your latest admission record through CBP's official I-94 service and print it if needed.",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://www.usa.gov/arrival-departure-record",
+      "evidence": "See your most recent I-94 form and print it, in case you need your record of legal admission to the U.S.",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_i901_payment_record",
+      "statement": "Check the official I-901 payment record for the fee that applied to your entry. Continuing-student and transfer exceptions may apply; this task does not create a new payment obligation.",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://www.ice.gov/sevis/i901/faq",
+      "evidence": "If the fee is paid on your behalf, a copy of your I-901 fee payment confirmation can be printed",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_generic_f1_arrival_reporting",
+      "statement": "Contact your school's DSO after entering the United States and follow the school's arrival-reporting instructions. School-specific procedures remain unverified.",
+      "layer": "school",
+      "school_id": "_generic",
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://studyinthestates.dhs.gov/students/study/maintaining-status",
+      "evidence": "Immediately contact your designated school official (DSO) when you enter the United States.",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_crc_arrival_reporting",
+      "statement": "Report to CRC's International Student Advisor as soon as you arrive. Completing check-in does not confirm SEVIS activation.",
+      "layer": "school",
+      "school_id": "crc",
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://crc.losrios.edu/student-resources/support-services/international-students-office",
+      "evidence": "It is important to report to the CRC International Student Advisor as soon as you arrive.",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_california_real_id_residency",
+      "statement": "For California REAL ID, prepare two different printed residency documents that meet the official checklist's name, address and exception instructions. This count does not apply to Standard ID; the documents need not come from different institutions.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/real-id-checklist/",
+      "evidence": "To prove that you live in California, you must present TWO DIFFERENT printed documents that show your California mailing address.",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_california_id_application",
+      "statement": "Follow California DMV's first-time ID application instructions and complete the required office steps. For REAL ID, follow its identity and residency checklist as well.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/identification-id-cards/",
+      "evidence": "Complete a Driver\u2019s License (DL) or ID Card Application",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_bank_account_identification_guidance",
+      "statement": "If you choose to open a U.S. bank account, check the bank's accepted identification, address information, fees and opening requirements. Acceptance of applicants without an SSN varies by provider.",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "verification_status": "needs_verification",
+      "source_url": "https://files.consumerfinance.gov/f/documents/cfpb_adult-fin-ed_checklist-for-opening-an-account.pdf",
+      "evidence": "some banks and credit unions accept foreign passports and consular IDs",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
+    {
+      "rule_id": "rule_dso_sevis_confirmation_referral",
+      "statement": "Official recommendation \u2014 DHS driver's-license guidance: ask your DSO to confirm your SEVIS record is Active before applying for a driver's license. This source does not establish a California REAL ID-card prerequisite. Refer individual immigration-status questions to your DSO.",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": true,
+      "verification_status": "needs_verification",
+      "source_url": "https://studyinthestates.dhs.gov/students/study/driving-in-the-united-states",
+      "evidence": "Confirming with your DSO that your student record is Active",
+      "last_checked": "2026-11-13",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "timing": null
+    },
     {
       "rule_id": "rule_crc_fall_2026_payment_deadline",
       "statement": "For CRC Fall 2026 students who enroll on or after July 25, 2026, payment is due the next day after enrollment. These students are not dropped for non-payment, but unpaid fees after the term ends result in a hold on future enrollment until payment is received.",
