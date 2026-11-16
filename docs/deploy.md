@@ -4,6 +4,12 @@ Both services run on Render's free plan, set up from [`render.yaml`](../render.y
 "Blueprint": one file that describes both services). Only the BE owner's Render account is
 used; teammates don't need one.
 
+**Status (2026-11-16): not deployed.** `render.yaml` and this guide are in PR #21, which builds
+on #20; neither is merged. Render reads `render.yaml` from the branch you pick, and `main` doesn't
+have it yet. Merge #20, #21 and #22 first and deploy from `main`. If the deploy can't wait,
+pick the branch `feature/STU-D05-BE` in the Blueprint step (it has all three tickets), and
+switch both services to `main` after the merges.
+
 ## Live URLs
 
 | Service | URL |
@@ -14,7 +20,7 @@ used; teammates don't need one.
 ## Before the first deploy: the dashboard must send the API key
 
 The deployed API needs the `X-API-Key` header on every endpoint except `/health`
-([contract](contract.md#access-api-key-and-rate-limit-live-day-3)). The dashboard on `main` does
+([contract](contract.md#access-api-key-and-rate-limit)). The dashboard on `main` does
 not send it yet, and it only calls `GET /workflow`. So:
 
 - **FE** adds the header (from the dashboard's `API_KEY` setting) to every request, and wires
@@ -60,11 +66,12 @@ Environment page only, never in `render.yaml`.
 ## After every deploy: smoke test
 
 From the repo on your computer, make a file named `.env.smoke` (git-ignored, like `.env`) with
-two lines:
+these lines (`DASHBOARD_URL` is for the warm-up script):
 
 ```text
 API_URL=https://<api-url>
 API_KEY=<the key>
+DASHBOARD_URL=https://<dashboard-url>
 ```
 
 Then run:
@@ -87,7 +94,9 @@ API's reason. CI runs the same script against a fresh local server on every pull
 
 - **Sleeping.** A free service sleeps after 15 minutes without traffic, and the next request
   takes about a minute while it wakes up. Wake both services before recording or judging
-  (STU-D05-BE adds a warm-up script). The smoke test waits up to two minutes for `/health`.
+  with `uv run --env-file .env.smoke python scripts/warm_up.py`; the order for demo day is in
+  [release-checklist.md](release-checklist.md). The smoke test waits up to two minutes for
+  `/health`.
 - **750 free hours per month** for the whole Render workspace. Two services awake all month
   would need about 1,440, so check the usage on Render's billing page before judging (Nov 20)
   and until winners are announced (around Nov 30), when the plan says the link must stay up.
@@ -101,7 +110,9 @@ API's reason. CI runs the same script against a fresh local server on every pull
 Render's docs don't say what forwarded-address headers contain, so the API doesn't trust them.
 Instead, requests with the right key (the dashboard's server) share one allowance of
 `RATE_LIMIT`, and every other request is counted by the address the API sees. Requests without
-the key are refused anyway (`401`), and they can never use up the dashboard's allowance.
+the key are refused anyway (`401`), and they can never use up the dashboard's allowance. The
+allowance covers all endpoints together, so calling a different path or task ID doesn't get a
+fresh one. `/health` is never limited.
 
 ## Troubleshooting
 

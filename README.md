@@ -4,9 +4,24 @@ A dashboard that shows an international student at Cosumnes River College which 
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
 workflow and a Streamlit dashboard displays it.
 
-`GET /workflow` defaults to sample data (`data/mock/workflow.mock.json`). Set
-`USE_MOCK=false` to compute the demo profile through the engine. `POST /workflow` and the task
-actions always use the live engine. Rules remain unverified; AI integration is still pending.
+**Status (2026-11-16):** `main` has the resolver, ENG's rules and school search. The live
+workflow endpoints, API key, rate limit, CI end-to-end test and deploy setup are in open pull
+requests #20, #21 and #22 (merge in that order). Nothing is deployed yet. This README describes
+the code once those merge; [docs/contract.md](docs/contract.md) marks what is on `main`, in
+review, or proposed.
+
+How it works:
+
+- The **API** computes each student's workflow from ENG's rules file (`data/rules/rules.json`)
+  and the profile the dashboard sends: code decides every status, never the AI. The server
+  stores nothing between requests. Request and response shapes are in
+  [docs/contract.md](docs/contract.md).
+- Every fact carries its source and verification state. Today every rule is still
+  `needs_verification`, so the dashboard must label it "Not verified".
+- `GET /workflow` serves the sample file (`data/mock/workflow.mock.json`, `is_mock: true`) while
+  `USE_MOCK=true`, the local default. The AI layer (OpenAI) is not wired into the API yet.
+- Set up for Render's free plan ([docs/deploy.md](docs/deploy.md)); the live URLs go there
+  after the first deploy.
 
 ## First-time setup
 
@@ -20,8 +35,8 @@ uv sync --locked
 cp .env.example .env
 ```
 
-On Windows PowerShell use `Copy-Item .env.example .env`. Then put your own OpenAI key in `.env`.
-Never commit `.env`.
+On Windows PowerShell use `Copy-Item .env.example .env`. The API and dashboard run without any
+keys. An OpenAI key is only needed for the manual OpenAI smoke test below. Never commit `.env`.
 
 ## Run the API
 
@@ -88,7 +103,7 @@ preparation and the missing live backend dependencies.
 | `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
 | `USE_MOCK` | `true` | Only changes `GET /workflow`: `true` serves the mock file, `false` runs the demo student through the live engine. `POST /workflow` and the task actions always use the live engine. |
 | `API_KEY` | empty | Shared secret for the `X-API-Key` header, needed on every endpoint except `/health` (FastAPI's `/docs` pages stay open; they show no data). Empty turns the check off (local only); the deployed API must set it. Never commit it. |
-| `RATE_LIMIT` | `60/minute` | Requests allowed per client address on every endpoint except `/health`. Over it returns `429`. An invalid value stops the API at startup. |
+| `RATE_LIMIT` | `60/minute` | One allowance shared by all endpoints except `/health`: requests with the right `API_KEY` share one, every other address has its own. Over it returns `429`. An invalid value stops the API at startup. |
 | `MOCK_PATH` | `data/mock/workflow.mock.json` | Path to a different mock file. |
 | `RULES_PATH` | `data/rules/rules.json` | Path to a different rules file for the resolver. |
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
@@ -99,9 +114,10 @@ preparation and the missing live backend dependencies.
 
 ## School search and rule scope
 
-`GET /schools?q=<name-or-city>&limit=20` searches the school CSV without making external
-requests. ENG's active CSV supplies 195 school options; a missing or invalid file
-returns `503` instead of inventing schools. See [the contract](docs/contract.md#school-search-day-2) for the
+`GET /schools?q=<name-or-city>&limit=20` searches ENG's sourced California school CSV
+(`data/schools/sevp_schools_ca.csv`, merged in #14) without making external requests. If the
+file can't be read, the endpoint returns `503` instead of inventing schools. A school being
+in the directory doesn't mean its own steps are verified (`school_verified`). See [the contract](docs/contract.md#school-search) for the
 CSV columns and response fields. The default limit is 20, with a maximum of 100.
 
 The resolver selects school rules using `student_profile.school_id`; `institution` is a
@@ -122,7 +138,7 @@ explicit source verification.
 student's workflow, computed from `data/rules/rules.json`. `POST /tasks/{task_id}/complete`
 ("Mark done") and `POST /tasks/{task_id}/resolve` ("Resolve blocker") take the same body and
 return the updated profile inside the answer. The server stores nothing, so the dashboard keeps
-that profile and sends it next time. See [the contract](docs/contract.md#task-actions-live-day-3)
+that profile and sends it next time. See [the contract](docs/contract.md#task-actions)
 for the rules and error codes. Try them at <http://localhost:8000/docs>.
 
 ## Manual OpenAI smoke test
@@ -174,7 +190,9 @@ uv run --env-file .env.smoke python scripts/smoke_test.py   # see docs/deploy.md
 ## Deploy
 
 Both services run on Render's free plan from `render.yaml`. Setup, the values to enter, the
-live URLs and troubleshooting are in [docs/deploy.md](docs/deploy.md).
+live URLs and troubleshooting are in [docs/deploy.md](docs/deploy.md). The order of checks for
+recording day and before the repo goes public (warm-up, smoke test, pre-recording check, key
+audit) is in [docs/release-checklist.md](docs/release-checklist.md).
 
 ## Project structure
 
@@ -186,9 +204,12 @@ src/student_workflow/         config.py, contract.py (Pydantic models), api.py (
 data/mock/workflow.mock.json  sample workflow (is_mock: true)
 data/rules/rules.json         tasks and rules (written by ENG, checked by tests)
 data/schools/                 ENG's scoped California F-1 school directory
-docs/                         contract.md, deploy.md, sources.md, credits.md, ai-data-policy.md
+docs/                         contract.md, deploy.md, release-checklist.md, sources.md,
+                              credits.md, ai-data-policy.md
 scripts/check_no_sample.py    pre-recording check
 scripts/smoke_test.py         end-to-end check of a running API (also run by CI)
+scripts/warm_up.py            wakes both live services before recording or judging
+scripts/audit_secrets.py      searches all git history for keys before the repo goes public
 scripts/smoke_test_openai.py  manual, paid OpenAI check (not run by CI)
 tests/                        pytest tests
 .github/workflows/ci.yml      CI: ruff check, pytest, and the end-to-end smoke test

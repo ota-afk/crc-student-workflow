@@ -70,8 +70,10 @@ def rate_limit_bucket(request: Request) -> str:
     return get_remote_address(request)
 
 
+# An application limit shares the allowance across routes and task IDs. A default limit
+# would give each URL a separate allowance, letting callers avoid it by changing paths.
 # rate_limit is passed as a function, so RATE_LIMIT is read on every request.
-limiter = Limiter(key_func=rate_limit_bucket, default_limits=[rate_limit])
+limiter = Limiter(key_func=rate_limit_bucket, application_limits=[rate_limit])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
