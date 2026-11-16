@@ -600,6 +600,18 @@ def test_visit_details_never_change_a_tasks_status():
     ]
 
 
+def test_rule_cited_only_by_visit_details_cannot_add_a_timing_blocker():
+    raw = visit_rules()
+    fee_rule = next(r for r in raw["rules"] if r["rule_id"] == "fee_rule")
+    fee_rule["timing"] = {"from": "arrival_date", "days": 10}
+    workflow = for_school("crc", raw, completed=["shared"])
+    checkin = by_id(workflow, "checkin")
+    assert checkin.status == "Ready"
+    assert checkin.blockers == []
+    assert "fee_rule" in source_ids(workflow, "checkin")
+    assert checkin.before_you_go.fees == "Shared fee (sample)"
+
+
 def test_unverified_school_fact_keeps_the_school_unverified():
     # CRC's own check-in and fee rules verified, but a shown CRC fact cites an unverified rule.
     raw = crc_verified(visit_rules(), "crc_checkin", "crc_fee_rule")

@@ -21,8 +21,8 @@ State on 2026-11-16 (check `git log origin/main` and the PRs for anything newer)
 | Resolver, school search (STU-D02-BE) | `main` | `a405852` | On main |
 | Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `0666b1c` | In review |
 | Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21, builds on #20 | `781e231` | In review |
-| Warm-up, key audit, release checklist (STU-D05-BE) | PR #22, builds on #21 | `84d2e0c` | In review |
-| One rate-limit allowance across all endpoints | `feature/STU-D05-BE` working tree | not committed | Not pushed |
+| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22, builds on #21 | `fcb6dc5` | In review |
+| Cited visit details (STU-D05-BE-before-you-go) | PR #23, builds on #22 | `22f2cda` | In review |
 
 ## Ground rules that shape the API
 

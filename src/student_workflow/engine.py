@@ -165,8 +165,10 @@ def _resolve_task(
     awaiting: set[str],
     as_of: date,
 ) -> Task:
-    # The task's own rules and the rules behind its visit details: each fact's source shows.
-    task_rules = [rules.rule(rule_id) for rule_id in _cited_rule_ids(task)]
+    # Only the task's own rules control status. A rule cited as preparation guidance must
+    # still appear in sources, but its timing must not introduce a new workflow blocker.
+    task_rules = [rules.rule(rule_id) for rule_id in task.rule_ids]
+    cited_rules = [rules.rule(rule_id) for rule_id in _cited_rule_ids(task)]
     sources = [
         Source(
             rule_id=r.rule_id,
@@ -174,7 +176,7 @@ def _resolve_task(
             last_verified=r.last_verified,
             verification_status=r.verification_status,
         )
-        for r in task_rules
+        for r in cited_rules
     ]
 
     visit = _before_you_go(rules, task)
