@@ -41,6 +41,44 @@ uv run streamlit run app/streamlit_app.py
 
 Open <http://localhost:8501>. It should show the sample-data warning and six tasks.
 
+### Day 3: task details and assistant
+
+Open **Task details**, choose **Apply for California REAL ID**, and check a document.
+The missing-document list updates immediately. Switch to another task and back:
+your choices remain for this browser session. Checking every document does not
+unlock a blocked task, mark it completed, or establish eligibility. Visit details
+and source links retain their verification warnings and dates.
+
+Open **Assistant** and enter a question. By default it shows a fixed, explicitly
+labeled sample response: no LLM request is made. **Clear conversation** removes
+chat history without clearing document selections. Neither is written to disk;
+a new browser session starts fresh. Do not enter personal identifiers in chat.
+
+The assistant endpoint and answer contract are **proposed, pending BE/AI agreement**.
+There is no hardcoded live route. Keep `ASSISTANT_MODE=mock`; only after agreement,
+set `ASSISTANT_ENDPOINT` to the exact full URL and opt into live mode. Without a
+configured URL, no live assistant request is made. See
+[Day 3 implementation and integration blockers](docs/day-3-frontend.md).
+The frontend never calls a model directly.
+
+In **Profile**, prepare a California-only school/profile draft using **Search
+schools**. Other states are unsupported; a missing-school choice remains
+available. Search failures can be retried without clearing document selections.
+**Generate workflow**, **Resolve blocker** and **Mark done** are visibly disabled
+while BE's POST contracts/routes remain unavailable. Profile edits are not yet
+applied to the displayed workflow. **View checklist** on a task card and its
+prerequisite buttons navigate directly to Task details; **View readiness** opens
+an inventory summary without changing task status.
+
+### Day 4: email preview and deployment preparation
+
+In **Task details**, select a blocked task and click **Preview sample email draft**.
+Copy the subject and body with the copy icon, replace placeholders in your own mail
+app, and confirm the recipient. This is a labeled template preview; it does not
+send email or resolve a blocker. Changing task/profile context clears stale drafts.
+See [Day 4 status and Render settings](docs/day-4-frontend.md) for deployment
+preparation and the missing live backend dependencies.
+
 ## Environment variables
 
 | Name | Default | What it does |
@@ -55,12 +93,14 @@ Open <http://localhost:8501>. It should show the sample-data warning and six tas
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
+| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview; `live` requires an explicitly configured, agreed endpoint. |
+| `ASSISTANT_ENDPOINT` | empty | Exact full URL to configure only after BE/AI agree; no route is assumed. |
 
 ## School search and rule scope
 
 `GET /schools?q=<name-or-city>&limit=20` searches the school CSV without making external
-requests. ENG still needs to supply the sourced CSV; until then the endpoint returns `503`
-instead of inventing schools. See [the contract](docs/contract.md#school-search-day-2) for the
+requests. ENG's active CSV supplies 195 school options; a missing or invalid file
+returns `503` instead of inventing schools. See [the contract](docs/contract.md#school-search-day-2) for the
 CSV columns and response fields. The default limit is 20, with a maximum of 100.
 
 The resolver selects school rules using `student_profile.school_id`; `institution` is a
@@ -132,7 +172,7 @@ src/student_workflow/         config.py, contract.py (Pydantic models), api.py (
                               schools.py (sourced school search)
 data/mock/workflow.mock.json  sample workflow (is_mock: true)
 data/rules/rules.json         tasks and rules (written by ENG, checked by tests)
-data/schools/                 ENG's California F-1 school CSV (not supplied yet)
+data/schools/                 ENG's scoped California F-1 school directory
 docs/                         contract.md, sources.md, credits.md, ai-data-policy.md
 scripts/check_no_sample.py    pre-recording check
 scripts/smoke_test_openai.py  manual, paid OpenAI check (not run by CI)
