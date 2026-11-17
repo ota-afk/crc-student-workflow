@@ -7,7 +7,9 @@ import requests
 from streamlit.testing.v1 import AppTest
 from test_streamlit import FakeResponse, base_payload, values
 
-APP = Path(__file__).resolve().parents[1] / 'app/flyover_app.py'
+from student_workflow import flyover_client
+
+APP =Path(__file__).resolve().parents[1] / 'app/flyover_app.py'
 
 
 def app_with(monkeypatch, payload=None):
@@ -18,6 +20,10 @@ def app_with(monkeypatch, payload=None):
                 'city': 'Sacramento', 'state': 'CA', 'school_verified': False}])
         return FakeResponse(payload)
     monkeypatch.setattr(requests, 'get', get)
+    # These tests drive the page with a controlled payload, so the first load shows it as
+    # given. The real fresh start (a POST with empty progress) is tested in test_flyover.py
+    # and against the real API in test_flyover_live_api.py.
+    monkeypatch.setattr(flyover_client, 'fetch_fresh_workflow', flyover_client.fetch_workflow)
     app = AppTest.from_file(str(APP), default_timeout=30).run()
     assert not app.exception
     return app

@@ -30,6 +30,24 @@ def fetch_workflow(api_url: str) -> dict:
                                    headers=_headers(), timeout=10))
 
 
+def fetch_fresh_workflow(api_url: str) -> dict:
+    """The demo student with no progress yet, so a new visitor starts at step one.
+
+    GET /workflow serves the shared demo, which is partway through (I-94 and SEVIS fee already
+    done) because the classic dashboard, the smoke test and the pre-recording check use it.
+    Flyover asks the API to rebuild that same profile and date with empty progress, so every
+    status still comes from the backend, never from the page.
+    """
+    demo = fetch_workflow(api_url)
+    profile = demo['student_profile']
+    if not profile.get('completed_tasks') and not profile.get('awaiting_reply'):
+        return demo  # already a fresh start: no second request
+    fresh = {**deepcopy(profile), 'completed_tasks': [], 'awaiting_reply': []}
+    return _validated(requests.post(f'{api_url.rstrip("/")}/workflow',
+                                    json={'student_profile': fresh, 'as_of': demo['as_of']},
+                                    headers=_headers(), timeout=15))
+
+
 def fetch_schools(api_url: str) -> list[dict]:
     response = requests.get(f'{api_url.rstrip("/")}/schools',
                             params={'q': '', 'limit': 100}, headers=_headers(), timeout=10)

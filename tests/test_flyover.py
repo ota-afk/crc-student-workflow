@@ -168,3 +168,28 @@ def test_airshow_sends_page_context_only_when_given(monkeypatch):
     ask_airshow('http://api', base_payload(), 'Hi?', None)
     assert calls[0]['page_context'] == 'journey'
     assert 'page_context' not in calls[1]  # older APIs never see the key
+
+
+def test_fresh_start_rebuilds_the_demo_without_progress(monkeypatch):
+    from student_workflow.flyover_client import fetch_fresh_workflow
+    demo, posted = base_payload(), []
+    assert demo['student_profile']['completed_tasks']  # the shared demo is partway through
+    monkeypatch.setattr(requests, 'get', lambda url, **kw: FakeResponse(demo))
+    monkeypatch.setattr(requests, 'post', lambda url, **kw: (
+        posted.append((url, kw['json'])) or FakeResponse(base_payload())))
+    fetch_fresh_workflow('http://api')
+    (url, body), = posted
+    assert url == 'http://api/workflow'
+    assert body['student_profile']['completed_tasks'] == []
+    assert body['student_profile']['awaiting_reply'] == []
+    assert body['as_of'] == demo['as_of']
+
+
+def test_fresh_start_makes_no_second_request_when_already_fresh(monkeypatch):
+    from student_workflow.flyover_client import fetch_fresh_workflow
+    demo = base_payload()
+    demo['student_profile']['completed_tasks'] = []
+    demo['student_profile']['awaiting_reply'] = []
+    monkeypatch.setattr(requests, 'get', lambda url, **kw: FakeResponse(demo))
+    monkeypatch.setattr(requests, 'post', lambda *a, **kw: pytest.fail('unexpected POST'))
+    assert fetch_fresh_workflow('http://api')['student_profile']['completed_tasks'] == []
