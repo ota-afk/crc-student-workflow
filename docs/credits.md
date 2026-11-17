@@ -292,6 +292,11 @@
   checks cover both payment cutoffs, missing semester inputs and the sign-in workflow.
   The Spring source records await human review.
 
+- ENG registration priority (Nov 17, 2026): Codex added student-supplied priority levels,
+  CRC's Spring 2027 registration periods, the archived Fall 2026 group periods,
+  API source attribution and profile/checklist guidance. Regression checks retain
+  group ranges and keep them separate from actual registration and fee calculations.
+
 - STU-D07-demo-safe (Nov 17 2026): AI assistance (Claude Code) made the public Flyover demo
   safe to share: one scenario definition (`flyover_scenario.py`), a "Try the CRC demo" entry
   with no email or password, the scenario date on every workflow request, the demo notice on

@@ -13,7 +13,7 @@ from .schools import School
 # AssistantProfile in contract.py: the workflow inputs, without any student identifier.
 ASSISTANT_PROFILE_FIELDS = ('institution', 'visa_type', 'arrival_date', 'has_ssn', 'school_id',
                             'completed_tasks', 'awaiting_reply', 'enrollment_date',
-                            'enrollment_term')
+                            'enrollment_term', 'enrollment_priority')
 
 
 def safe_url(value: object) -> str | None:

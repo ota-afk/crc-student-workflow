@@ -119,4 +119,92 @@ def test_only_the_selected_terms_payment_rule_is_cited():
     fee = next(task for task in resolve(load_rules(), profile, date(2027, 1, 5)).workflow
                if task.id == FEE)
     assert [source.rule_id for source in fee.sources] == [
-        'rule_crc_spring_2027_payment_deadline']
+        'rule_crc_spring_2027_payment_deadline',
+        'rule_crc_spring_2027_registration_priorities',
+    ]
+
+
+@pytest.mark.parametrize(('priority', 'starts', 'ends'), [
+    ('0', '2026-11-23', '2026-11-24'),
+    ('0.5', '2026-11-25', '2026-11-25'),
+    ('0.75', '2026-11-25', '2026-11-25'),
+    ('1', '2026-11-30', '2026-12-11'),
+    ('1.1', '2026-11-30', '2026-12-11'),
+    ('1.2', '2026-11-30', '2026-12-11'),
+    ('1.3', '2026-11-30', '2026-12-11'),
+    ('1.4', '2026-11-30', '2026-12-11'),
+    ('2', '2026-12-14', '2026-12-16'),
+    ('3', '2026-12-17', '2026-12-18'),
+    ('open_by_appointment', '2026-12-21', '2026-12-21'),
+    ('open', '2026-12-22', None),
+])
+def test_spring_registration_priority_preserves_the_published_period(priority, starts, ends):
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2027, 1, 5), has_ssn=False,
+                             enrollment_term='spring_2027', enrollment_priority=priority)
+    result = resolve(load_rules(), profile, date(2026, 11, 17))
+    fee = next(task for task in result.workflow if task.id == FEE)
+    window = fee.registration_window
+    assert window.priority == priority
+    assert window.starts_on.isoformat() == starts
+    assert (window.ends_on.isoformat() if window.ends_on else None) == ends
+    assert window.verification_status == 'needs_verification'
+    assert window.rule_id in {source.rule_id for source in fee.sources}
+    # A priority period is never used as the actual date of registration for fees.
+    assert fee.due.due_on is None and fee.due.needs == 'enrollment_date'
+    assert result.student_profile.enrollment_date is None
+
+
+def test_missing_priority_does_not_guess_a_registration_day():
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2027, 1, 5), has_ssn=False,
+                             enrollment_term='spring_2027')
+    fee = next(task for task in resolve(load_rules(), profile, date(2026, 11, 17)).workflow
+               if task.id == FEE)
+    assert fee.registration_window.needs == 'enrollment_priority'
+    assert fee.registration_window.starts_on is None
+    assert fee.registration_window.ends_on is None
+
+
+@pytest.mark.parametrize('priority', [None, '2'])
+def test_fall_profile_does_not_receive_spring_registration_periods(priority):
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2026, 8, 11), has_ssn=False,
+                             enrollment_term='fall_2026', enrollment_priority=priority)
+    fee = next(task for task in resolve(load_rules(), profile, date(2026, 8, 14)).workflow
+               if task.id == FEE)
+    assert fee.registration_window.term == 'fall_2026'
+    if priority is None:
+        assert fee.registration_window.needs == 'enrollment_priority'
+        assert fee.registration_window.starts_on is None
+    else:
+        assert fee.registration_window.needs is None
+        assert fee.registration_window.starts_on == date(2026, 5, 4)
+    assert '20260517094536' in fee.registration_window.source_url
+    assert [source.rule_id for source in fee.sources] == [
+        'rule_crc_fall_2026_payment_deadline', 'rule_crc_fall_2026_registration_timeline',
+    ]
+
+
+@pytest.mark.parametrize(('priority', 'starts', 'ends'), [
+    ('0', '2026-04-13', '2026-04-16'),
+    ('0.5', '2026-04-17', '2026-04-17'),
+    ('0.75', '2026-04-17', '2026-04-17'),
+    ('1.4', '2026-04-20', '2026-05-01'),
+    ('2', '2026-05-04', '2026-05-06'),
+    ('3', '2026-05-07', '2026-05-08'),
+    ('open_by_appointment', '2026-05-11', '2026-05-11'),
+    ('open', '2026-05-12', None),
+])
+def test_fall_2026_periods_match_the_archived_table(priority, starts, ends):
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2026, 8, 11), has_ssn=False,
+                             enrollment_term='fall_2026', enrollment_priority=priority)
+    fee = next(task for task in resolve(load_rules(), profile, date(2026, 8, 14)).workflow
+               if task.id == FEE)
+    window = fee.registration_window
+    assert window.starts_on.isoformat() == starts
+    assert (window.ends_on.isoformat() if window.ends_on else None) == ends
+    assert window.needs is None
+    assert window.verification_status == 'needs_verification'
+    assert fee.due.needs == 'enrollment_date'

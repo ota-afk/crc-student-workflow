@@ -131,11 +131,27 @@ def test_without_an_enrollment_date_flyover_asks_for_it(live):
 def test_spring_term_and_due_date_survive_sign_in_and_profile_edits(live):
     app = first_screen()
     app.selectbox(key='flyover_signin_term').select('spring_2027')
+    app.selectbox(key='flyover_signin_priority').select('2')
     app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 12, 1))
     app = sign_in(app)
     profile = app.session_state['flyover_data']['student_profile']
     assert profile['enrollment_term'] == 'spring_2027'
+    assert profile['enrollment_priority'] == '2'
+    assert app.selectbox(key='flyover_priority').value == '2'
+    assert any('Dec 14, 2026 to Dec 16, 2026' in value for value in values(app.info))
     assert app.selectbox(key='flyover_term').value == 'spring_2027'
     app = open_checklist(app, 'task_crc_fee_payment')
     assert any('Jan 8, 2027' in value and 'Not verified' in value
                for value in values(app.info))
+
+
+def test_fall_priority_uses_the_archive_and_preserves_actual_fee_date(live):
+    app = first_screen()
+    app.selectbox(key='flyover_signin_term').select('fall_2026')
+    app.selectbox(key='flyover_signin_priority').select('1.4')
+    app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 8, 13))
+    app = sign_in(app)
+    assert any('Apr 20, 2026 to May 01, 2026' in value for value in values(app.info))
+    assert any('archived May 17, 2026' in value for value in values(app.caption))
+    app = open_checklist(app, 'task_crc_fee_payment')
+    assert any(value.startswith('Due today') for value in values(app.success))

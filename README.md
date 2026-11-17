@@ -120,8 +120,16 @@ until their human checks are complete. A missing term or date prompts for that i
 [payment dates](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
 are recorded in `docs/sources.md`.
 
+**Enrollment priority** narrows Fall 2026 or Spring 2027 registration to the published group
+period. Use your assigned level from eServices. Priority 1 sublevels retain the whole published
+range; eServices gives the personal appointment time. Fall data comes from the May 17, 2026
+archive of the Los Rios page; Spring data comes from CRC's current page. Registration guidance
+is labeled **Not verified** and is separate from the actual enrollment date used for fees.
+[CRC priority dates](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
+
 Each unfinished task's checklist has **Email me a reminder** (own-details path only): a day and
 time (Pacific, up to 30 days ahead on the real calendar, not the demo's date) and a consent box. The API schedules it with Resend, so it arrives even if you
+
 close the page; scheduled reminders are listed with Cancel, and completing the task cancels
 them. The public demo only emails addresses on the server's allow-list (`docs/deploy.md`).
 Signing out doesn't cancel reminders already scheduled. Settings shows the masked address and Sign out, which

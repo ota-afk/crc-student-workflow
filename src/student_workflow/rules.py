@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .config import rules_path
-from .contract import EnrollmentTerm, Priority
+from .contract import EnrollmentTerm, Priority, RegistrationPriority
 
 # extra='forbid': an unknown key (a typo like "timming") is an error, not silently ignored.
 STRICT = ConfigDict(extra="forbid")
@@ -46,6 +46,26 @@ class Deadline(BaseModel):
     days_after: int = Field(ge=0)
 
 
+class RegistrationPeriod(BaseModel):
+    model_config = STRICT
+
+    starts_on: date
+    ends_on: date | None = None
+
+    @model_validator(mode="after")
+    def _dates_are_in_order(self) -> "RegistrationPeriod":
+        if self.ends_on is not None and self.starts_on > self.ends_on:
+            raise ValueError("registration period ends before it starts")
+        return self
+
+
+class RegistrationSchedule(BaseModel):
+    model_config = STRICT
+
+    term: EnrollmentTerm
+    periods: dict[RegistrationPriority, RegistrationPeriod]
+
+
 class Rule(BaseModel):
     model_config = STRICT
 
@@ -70,6 +90,7 @@ class Rule(BaseModel):
     timing: Timing | None = None
     # None = this rule sets no deadline. A deadline never blocks a task; it's shown with it.
     deadline: Deadline | None = None
+    registration: RegistrationSchedule | None = None
 
     @model_validator(mode="after")
     def _school_id_matches_layer(self) -> "Rule":

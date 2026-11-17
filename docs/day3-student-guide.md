@@ -17,11 +17,13 @@ For questions about check-in, contact CRC:
 
 Ask about your documents, any check-in fee, meeting time and location before making the trip. [CRC international student instructions and contact details](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps).
 
-## Enroll for Spring 2027 at CRC
+## Enrollment dates at CRC
 
-CRC lists November 2, 2026 for posting Spring 2027 class schedules, November 5 for assigning priority registration times, and November 23 for the start of enrollment. Check eServices for your own assigned date and time. [CRC enrollment instructions](https://crc.losrios.edu/admissions/enroll-in-classes)
+Choose **Fall 2026** or **Spring 2027** and enter the **Enrollment priority** shown in eServices. For Spring 2027, the app shows the official period for that priority. Priority 1, including 1.1–1.4, has a November 30 to December 11 period; your exact appointment date and time is in eServices. Fall 2026 uses the Los Rios table archived on May 17, 2026. These new registration records are awaiting human review. [CRC priority dates and eServices instructions](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates) · [Fall 2026 archived table](https://web.archive.org/web/20260517094536/https://losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
 
-In Profile setup, choose **Spring 2027** and enter the day you actually enrolled. For Spring classes, enrollment on or before December 25, 2026 has a January 8, 2027 payment deadline. Enrollment on or after December 26 has a deadline of the following day. CRC's later-enrollment exception avoids a drop for nonpayment, but unpaid fees after the term ends place a hold on future enrollment. These Spring details are awaiting human review. [CRC payment deadlines](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
+CRC lists April 13, 2026 as the start of Fall enrollment and November 23, 2026 for Spring enrollment. Those dates are semester-wide openings; your assigned priority controls your earliest appointment. [CRC enrollment timeline](https://crc.losrios.edu/admissions/enroll-in-classes)
+
+Enter the date you actually registered in **Enrollment date**. For Spring classes, registration on or before December 25, 2026 has a January 8, 2027 payment deadline. Registration from December 26 has a deadline of the following day. For Fall, the corresponding cutoff is July 24, with payment due August 7; registration from July 25 has a next-day deadline. Each semester has a nonpayment exception for its later-registration group, with unpaid fees after the term ends causing a hold on future enrollment. Spring details are awaiting human review. [CRC payment deadlines](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
 
 ## Apply for a California REAL ID card
 

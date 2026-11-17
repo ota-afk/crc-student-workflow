@@ -36,7 +36,14 @@ from .flyover_scenario import (
     long_date,
     notice_html,
 )
-from .flyover_signin import ENROLLMENT_TERMS, entered, masked, render_signin, sign_out
+from .flyover_signin import (
+    ENROLLMENT_PRIORITIES,
+    ENROLLMENT_TERMS,
+    entered,
+    masked,
+    render_signin,
+    sign_out,
+)
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
@@ -403,6 +410,12 @@ def _profile(data: dict, api_url: str) -> None:
                     index=list(ENROLLMENT_TERMS).index(profile.get('enrollment_term')),
                     format_func=ENROLLMENT_TERMS.get, key='flyover_term',
                     help='Choose the semester these classes belong to.')
+                priority = st.selectbox(
+                    'Enrollment priority', list(ENROLLMENT_PRIORITIES),
+                    index=list(ENROLLMENT_PRIORITIES).index(profile.get('enrollment_priority')),
+                    format_func=ENROLLMENT_PRIORITIES.get, key='flyover_priority',
+                    help='Use the priority listed in eServices. Your group determines the '
+                         'published date range; eServices gives your exact appointment.')
                 enrolled = st.date_input(
                     'Enrollment date (optional)', key='flyover_enrollment',
                     value=date.fromisoformat(profile['enrollment_date'])
@@ -421,7 +434,7 @@ def _profile(data: dict, api_url: str) -> None:
                             if school_id else 'School not listed', 'visa_type': visa,
                             'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
                             'enrollment_date': enrolled.isoformat() if enrolled else None,
-                            'enrollment_term': term}
+                            'enrollment_term': term, 'enrollment_priority': priority}
                         try:
                             # The spinner is the feedback; the page itself no longer dims.
                             with st.spinner('Building your workflow…'):
@@ -446,6 +459,8 @@ def _profile(data: dict, api_url: str) -> None:
                             st.session_state['flyover_flash'] = 'Your new workflow is ready to explore.'
                             st.rerun()
             st.caption('No names, document numbers or uploads. Your profile stays in this session.')
+            for task in data['workflow']:
+                _registration_info(task)
             st.button('View your profile', key='flyover_open_profile', type='tertiary',
                       icon=':material/badge:', on_click=go, args=('profile',))
 
@@ -900,6 +915,33 @@ def _visit_fact(task: dict, label: str, field: str, value: str) -> None:
     st.html(_more_info(_source_rows(fact_sources(task, field) or [])))
 
 
+def _registration_info(task: dict) -> None:
+    window = task.get('registration_window')
+    if not window:
+        return
+    term = ENROLLMENT_TERMS[window['term']]
+    if window.get('needs') == 'published_period':
+        text = f'{term} priority-group dates are not available in this guide yet.'
+    elif window.get('needs') == 'enrollment_priority':
+        text = f'Choose your enrollment priority in Profile setup to see your {term} registration information.'
+    else:
+        start = date.fromisoformat(window['starts_on']).strftime('%b %d, %Y')
+        end = window.get('ends_on')
+        dates = (start + ' to ' + date.fromisoformat(end).strftime('%b %d, %Y')
+                 if end and end != window['starts_on'] else start)
+        label = ENROLLMENT_PRIORITIES[window['priority']]
+        text = f'{label} · {term} registration ' + ('begins ' if end is None else 'period: ') + dates + '.'
+    verification = ('Double-checked by our team' if window['verification_status'] == 'verified'
+                    else 'Not verified')
+    st.info(text + ' ' + verification + '. Check your exact appointment date and time in '
+            '[eServices](https://ps.losrios.edu/). Enter the date you actually register '
+            'separately to calculate your payment deadline.')
+    if url := safe_url(window.get('source_url')):
+        label = ('Los Rios Fall 2026 priority dates · archived May 17, 2026'
+                 if 'web.archive.org' in url else 'Official CRC priority registration dates')
+        st.caption(f'[{label}]({url})')
+
+
 def _checklist(data: dict, task: dict, api_url: str) -> None:
     """The full checklist: status by the title, then documents, step actions, office hours."""
     title_col, status_col = st.columns([2.4, 1], vertical_alignment='bottom')
@@ -910,6 +952,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
     with status_col:
         # The shared status control (Edit status, Reopen); its key is the Checklist's own.
         _status_control(data, task, api_url, 'flyover_checklist_status')
+    _registration_info(task)
     if note := due_note(task, data['as_of']):
         getattr(st, note[0])(note[1])
     for blocker in task.get('blockers') or []:
@@ -1440,6 +1483,7 @@ def _profile_page(data: dict) -> None:
                  ('Arrival date', f'{arrival:%B} {arrival.day}, {arrival.year} · {since}'),
                  ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No'),
                  ('Enrollment term', ENROLLMENT_TERMS.get(profile.get('enrollment_term'))),
+                 ('Enrollment priority', ENROLLMENT_PRIORITIES.get(profile.get('enrollment_priority'))),
                  ('Enrollment date', date.fromisoformat(profile['enrollment_date']).strftime('%B %d, %Y')
                   if profile.get('enrollment_date') else 'Not given')]
         st.html('<dl class="fly-facts">' + ''.join(

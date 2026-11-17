@@ -178,7 +178,9 @@
       "prerequisites": [],
       "rule_ids": [
         "rule_crc_fall_2026_payment_deadline",
-        "rule_crc_spring_2027_payment_deadline"
+        "rule_crc_spring_2027_payment_deadline",
+        "rule_crc_spring_2027_registration_priorities",
+        "rule_crc_fall_2026_registration_timeline"
       ],
       "offices": [
         "crc_business_services"
@@ -546,6 +548,112 @@
         "cutoff": "2026-12-25",
         "due_if_by_cutoff": "2027-01-08",
         "days_after": 1
+      }
+    },
+    {
+      "rule_id": "rule_crc_spring_2027_registration_priorities",
+      "statement": "CRC publishes Spring 2027 registration periods by priority level. An individual student’s earliest registration date and time is assigned in eServices; a priority group only identifies the published period. Priority 1 sublevels share the published Priority 1 period.",
+      "layer": "school",
+      "school_id": "crc",
+      "high_risk": false,
+      "source_url": "https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates",
+      "evidence": "Registration Dates by Priority Level | Spring 2027 | Registration Period | Priority Level",
+      "last_checked": "2026-11-17",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "verification_status": "needs_verification",
+      "registration": {
+        "term": "spring_2027",
+        "periods": {
+          "0": {
+            "starts_on": "2026-11-23",
+            "ends_on": "2026-11-24"
+          },
+          "0.5": {
+            "starts_on": "2026-11-25",
+            "ends_on": "2026-11-25"
+          },
+          "0.75": {
+            "starts_on": "2026-11-25",
+            "ends_on": "2026-11-25"
+          },
+          "1": {
+            "starts_on": "2026-11-30",
+            "ends_on": "2026-12-11"
+          },
+          "2": {
+            "starts_on": "2026-12-14",
+            "ends_on": "2026-12-16"
+          },
+          "3": {
+            "starts_on": "2026-12-17",
+            "ends_on": "2026-12-18"
+          },
+          "open_by_appointment": {
+            "starts_on": "2026-12-21",
+            "ends_on": "2026-12-21"
+          },
+          "open": {
+            "starts_on": "2026-12-22",
+            "ends_on": null
+          }
+        }
+      }
+    },
+    {
+      "rule_id": "rule_crc_fall_2026_registration_timeline",
+      "statement": "Los Rios publishes Fall 2026 registration periods by priority level. The May 17, 2026 archive retains that semester’s table. Students must check their individual earliest date and time in eServices. Priority 1 sublevels use the published aggregate Priority 1 period.",
+      "layer": "school",
+      "school_id": "crc",
+      "high_risk": false,
+      "source_url": "https://web.archive.org/web/20260517094536/https://losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates",
+      "evidence": "Fall 2026 Registration Dates | Registration Period | Priority Level",
+      "last_checked": "2026-11-17",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "verification_status": "needs_verification",
+      "registration": {
+        "term": "fall_2026",
+        "periods": {
+          "0": {
+            "starts_on": "2026-04-13",
+            "ends_on": "2026-04-16"
+          },
+          "0.5": {
+            "starts_on": "2026-04-17",
+            "ends_on": "2026-04-17"
+          },
+          "0.75": {
+            "starts_on": "2026-04-17",
+            "ends_on": "2026-04-17"
+          },
+          "1": {
+            "starts_on": "2026-04-20",
+            "ends_on": "2026-05-01"
+          },
+          "2": {
+            "starts_on": "2026-05-04",
+            "ends_on": "2026-05-06"
+          },
+          "3": {
+            "starts_on": "2026-05-07",
+            "ends_on": "2026-05-08"
+          },
+          "open_by_appointment": {
+            "starts_on": "2026-05-11",
+            "ends_on": "2026-05-11"
+          },
+          "open": {
+            "starts_on": "2026-05-12",
+            "ends_on": null
+          }
+        }
       }
     }
   ],

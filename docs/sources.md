@@ -79,6 +79,49 @@ For the latter group, CRC states that nonpayment will not cause a drop. Unpaid f
 
 The profile's `enrollment_term` selects `fall_2026` or `spring_2027`. It refers to the semester of the classes. A missing term asks the student to choose one before calculating a term-specific deadline. A missing enrollment date continues to ask for that date. Existing saved profiles and API clients can omit the new field and receive the missing-term prompt. The August demo profile explicitly selects Fall 2026.
 
+## CRC registration priority periods — November 17, 2026
+
+Students enter the priority level assigned in eServices. The app uses the semester and
+that level to select the published registration period. It keeps the range for groups with
+multiple dates. An individual's exact earliest date and time remains in eServices.
+The app asks for actual registration separately when calculating payment deadlines.
+
+| Spring 2027 level | First date | Last date in the published priority period |
+| --- | --- | --- |
+| Priority 0 | 2026-11-23 | 2026-11-24 |
+| Priority .5 | 2026-11-25 | 2026-11-25 |
+| Priority .75 | 2026-11-25 | 2026-11-25 |
+| Priority 1, including 1.1–1.4 | 2026-11-30 | 2026-12-11 |
+| Priority 2 | 2026-12-14 | 2026-12-16 |
+| Priority 3 | 2026-12-17 | 2026-12-18 |
+| Open enrollment by appointment | 2026-12-21 | 2026-12-21 |
+| Open enrollment begins | 2026-12-22 | No end date supplied by this table |
+
+Rule `rule_crc_spring_2027_registration_priorities` carries these periods.
+The priority page supplies one aggregate Priority 1 period, with no date for each
+sublevel. The page describes each level's criteria; the application asks for the assigned
+level and does not determine it from visa type or personal circumstances.
+[CRC priority registration dates](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
+
+### Fall 2026 priority periods from the May 17 archive
+
+| Fall 2026 level | First date | Last date in the published priority period |
+| --- | --- | --- |
+| Priority 0 | 2026-04-13 | 2026-04-16 |
+| Priority .5 | 2026-04-17 | 2026-04-17 |
+| Priority .75 | 2026-04-17 | 2026-04-17 |
+| Priority 1, including 1.1–1.4 | 2026-04-20 | 2026-05-01 |
+| Priority 2 | 2026-05-04 | 2026-05-06 |
+| Priority 3 | 2026-05-07 | 2026-05-08 |
+| Open enrollment by appointment | 2026-05-11 | 2026-05-11 |
+| Open enrollment begins | 2026-05-12 | No end date supplied by this table |
+
+Rule `rule_crc_fall_2026_registration_timeline` uses the Los Rios district page archived
+on May 17, 2026 at 09:45:36 UTC. The archive was retrieved on November 17, 2026; these are
+separate dates. Both semester registration records remain `needs_verification`, with human
+checker fields empty. The archive also directs students to eServices for personal dates and
+times. [Archived Los Rios priority table](https://web.archive.org/web/20260517094536/https://losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
+
 ## Day 2 task sources — November 14, 2026
 
 These entries support the expanded `data/rules/rules.json`. Each rule retains its URL, evidence excerpt and check metadata in that file. The Day 2 task rules remain **needs_verification** pending human source review. The CRC payment rule above records its completed checks.
