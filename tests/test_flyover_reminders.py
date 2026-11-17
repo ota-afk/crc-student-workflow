@@ -56,6 +56,20 @@ def test_a_reminder_is_scheduled_for_the_signed_in_email(live):
     assert any(v.startswith('Reminder: ') for v in values(app.markdown))
 
 
+def test_reminders_use_the_real_clock_not_the_demo_date(live):
+    from datetime import datetime, timedelta
+
+    from student_workflow.flyover import PACIFIC
+    app = checklist(DMV)
+    assert app.session_state['flyover_data']['as_of'] == '2026-08-14'  # the demo's date
+    today = datetime.now(PACIFIC).date()
+    # The picker starts tomorrow on the real calendar, and the send time is in the future.
+    assert app.date_input(key=f'fly_rem_day:{DMV}').value == today + timedelta(days=1)
+    remind(app, DMV)
+    body, = [b for p, b in live.posts() if p == '/notifications/reminders']
+    assert datetime.fromisoformat(body['send_at']) > datetime.now(PACIFIC)
+
+
 def test_no_reminder_without_consent(live):
     app = remind(checklist(DMV), DMV, consent=False)
     assert any('Tick the box' in v for v in values(app.error))

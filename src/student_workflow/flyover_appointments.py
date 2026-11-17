@@ -6,13 +6,15 @@ What this does and deliberately does not do:
   required, so nothing here ever says "appointment required".
 - Free times are optional weekly windows the student types in, kept in this browser session
   only. They are never sent to the API or the model.
-- Matching free times against an office needs structured, sourced office hours. The rules
-  have none (hours are prose or a link), so the answer is always "check the office's
-  calendar" until ENG supplies structured hours. Never invent hours, slots or bookings.
+- Matching free times against an office needs structured, sourced office hours that are
+  confirmed for the workflow's date (visit_hours). Anything less (no hours, hours for another
+  period or with no dates, unverified hours, another service's hours, a listed closure) is
+  "Hours for this date aren't confirmed" plus the office's own page, never a suggested time.
+  Never invent hours, slots, bookings or verification dates.
 """
 
 import hashlib
-from datetime import time
+from datetime import date, time, timedelta
 
 DAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 TIMEZONE_LABEL = 'Pacific time (America/Los_Angeles)'
@@ -150,17 +152,77 @@ def overlaps(windows: list[dict], office: dict) -> list[dict]:
     return normalize_windows(found) if found else []
 
 
-def match_line(office: dict, windows: list[dict]) -> str:
-    """One honest sentence comparing free times with this office's published hours."""
-    name = office['name']
-    if in_person_hours(office) is None:
-        return f'{name} publishes no hours: check with the office before you go.'
+# ---- Are these hours usable for a visit on the workflow's date? (STU-D07-demo-scenario) ----
+
+HOURS_NOT_CONFIRMED = "Hours for this date aren't confirmed"
+# Offices whose published hours are for a different service than the visit their tasks need.
+# The rules file has no "which service do these hours cover" field yet (flagged for ENG), so
+# this stopgap lives here. ENG's own note on the International Students Office says to see the
+# International Student Advisor in Admissions & Records; the A&R hours are the front desk's.
+OTHER_SERVICE = {
+    'crc_admissions_records': ('These are the Admissions & Records front desk’s hours, not '
+                               'when an International Student Advisor is available.'),
+}
+
+
+def _day(value) -> date:
+    return value if isinstance(value, date) else date.fromisoformat(value)
+
+
+def visit_hours(office: dict, as_of) -> dict:
+    """{'confirmed': bool, 'reason': str, 'detail': str} for a visit on as_of.
+
+    Confirmed only when the office publishes in-person hours, they are for the visit's own
+    service, the office is not listed as closed that day, the source's dates cover as_of
+    (in_effect True; None = no dates, so not confirmed) and our team verified them.
+    Phone or virtual hours never count as visit hours (in_person_hours drops them).
+    """
+    day = _day(as_of)
+    when = f'{day:%B} {day.day}, {day.year}'
+    if not in_person_hours(office):
+        return {'confirmed': False, 'reason': 'no_hours',
+                'detail': 'The office publishes no in-person hours we can use.'}
+    if office['office_id'] in OTHER_SERVICE:
+        return {'confirmed': False, 'reason': 'other_service',
+                'detail': OTHER_SERVICE[office['office_id']]}
+    closed = next((c for c in office.get('closures') or [] if _day(c['date']) == day), None)
+    if closed:
+        return {'confirmed': False, 'reason': 'closed',
+                'detail': f'The office is listed as closed on {when}: {closed["note"]}'}
     if office.get('in_effect') is False:
-        return (f"{name}'s published hours are for {office['period_note'].rstrip('.')}, "
-                "not your workflow's date: check the office's current hours.")
-    caveat = '' if office.get('in_effect') else ' These hours may differ from your workflow\'s date.'
+        return {'confirmed': False, 'reason': 'other_period',
+                'detail': f'The published hours are for another period, not {when}.'}
+    if office.get('in_effect') is None:
+        return {'confirmed': False, 'reason': 'undated',
+                'detail': f'The published hours have no date range, so they may not apply on '
+                          f'{when}.'}
+    if office.get('verification_status') != 'verified':
+        return {'confirmed': False, 'reason': 'unverified',
+                'detail': "Our team hasn't double-checked these hours with the office yet."}
+    return {'confirmed': True, 'reason': 'confirmed', 'detail': ''}
+
+
+def upcoming_closures(office: dict, as_of, days: int = 14) -> list[str]:
+    """'Thu, Nov 26: Thanksgiving' for each listed closure within `days` of as_of."""
+    start = _day(as_of)
+    return [f'{_day(c["date"]):%a, %b} {_day(c["date"]).day}: {c["note"]}'
+            for c in office.get('closures') or []
+            if start <= _day(c['date']) <= start + timedelta(days=days)]
+
+
+def match_line(office: dict, windows: list[dict], as_of) -> str:
+    """One honest sentence comparing free times with this office's hours on the workflow's date.
+
+    An overlap is only worked out from hours confirmed for as_of (visit_hours); otherwise
+    the line says the hours aren't confirmed, so no time is ever suggested from other hours.
+    """
+    name = office['name']
+    check = visit_hours(office, as_of)
+    if not check['confirmed']:
+        return (f'{name}: {HOURS_NOT_CONFIRMED}. {check["detail"]} Check the official office '
+                'page before you go.')
     found = overlaps(windows, office)
     if found:
         return (f'Your free times overlap {name}\'s published hours: {describe_windows(found)}. '
-                f'Confirm before you go; this is not a booking.{caveat}')
-    return f'No overlap with {name}\'s published hours ({hours_summary(office)}).{caveat}'
+                'Confirm before you go; this is not a booking.')
+    return f'No overlap with {name}\'s published hours ({hours_summary(office)}).'

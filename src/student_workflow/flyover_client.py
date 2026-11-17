@@ -57,13 +57,26 @@ def fetch_schools(api_url: str) -> list[dict]:
             TypeAdapter(list[School]).validate_python(response.json())]
 
 
-def generate_workflow(api_url: str, current_profile: dict, changes: dict) -> dict:
+def generate_workflow(api_url: str, current_profile: dict, changes: dict,
+                      as_of: str | None = None) -> dict:
+    """A new workflow with no progress. as_of None = the API picks today in California.
+
+    Flyover always passes its scenario date, so a regenerated profile stays on the demo's
+    date; the key is left out (not sent as null) when there is none, as before.
+    """
     profile = {**deepcopy(current_profile), **changes, 'completed_tasks': [],
                'awaiting_reply': [], 'school_verified': False}
     profile = StudentProfile.model_validate(profile).model_dump(mode='json')
-    return _validated(requests.post(f'{api_url.rstrip("/")}/workflow',
-                                    json={'student_profile': profile},
+    body = {'student_profile': profile}
+    if as_of is not None:
+        body['as_of'] = as_of
+    return _validated(requests.post(f'{api_url.rstrip("/")}/workflow', json=body,
                                     headers=_headers(), timeout=15))
+
+
+def start_demo(api_url: str, profile: dict, as_of: str) -> dict:
+    """The demo student's workflow on the scenario date, built by the same POST /workflow."""
+    return generate_workflow(api_url, {}, profile, as_of=as_of)
 
 
 def change_status(api_url: str, data: dict, task_id: str, status: str) -> dict:

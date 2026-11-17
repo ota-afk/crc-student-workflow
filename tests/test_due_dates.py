@@ -73,7 +73,7 @@ def _due(due_on, past=False, status='verified'):
 
 
 @pytest.mark.parametrize(('due', 'expected'), [
-    (_due('2026-08-14'), ('success', 'Due today · Double-checked by our team')),
+    (_due('2026-08-14'), ('success', 'Due today, Fri, Aug 14, 2026 · Double-checked by our team')),
     (_due('2026-08-15'), ('success', 'Due tomorrow, Sat, Aug 15, 2026 · Double-checked by our team')),
     (_due('2026-08-20', status='needs_verification'),
      ('info', 'Due Thu, Aug 20, 2026 (in 6 days) · Not verified')),

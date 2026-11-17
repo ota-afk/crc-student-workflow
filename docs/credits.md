@@ -296,3 +296,11 @@
   CRC's Spring 2027 registration periods, the Fall timeline with empty historical group
   periods, API source attribution and profile/checklist guidance. Regression checks retain
   group ranges and keep them separate from actual registration and fee calculations.
+
+- STU-D07-demo-safe (Nov 17 2026): AI assistance (Claude Code) made the public Flyover demo
+  safe to share: one scenario definition (`flyover_scenario.py`), a "Try the CRC demo" entry
+  with no email or password, the scenario date on every workflow request, the demo notice on
+  every page, and date-scoped office hours that never suggest a visit time from unconfirmed
+  hours (`flyover.py`, `flyover_signin.py`, `flyover_client.py`, `flyover_appointments.py`,
+  `flyover_state.py`, `style.css`), with tests. No rules or source data changed.
+
