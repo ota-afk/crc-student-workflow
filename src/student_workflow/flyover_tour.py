@@ -34,9 +34,9 @@ TOUR_STEPS = [
     ('.st-key-flyover_ai', 'Ask AI Help',
      ("Ask about the step you're on. Answers come from your workflow and our sources. Don't "
      'include your name, SSN or document numbers.'), 'circle'),
-    ('.st-key-flyover_next', 'Readiness and your handoff',
-     ('Next shows the step to do now and what comes after. At the bottom, a handoff for the '
-     'office you visit, drafted from a template on this page.'), 'rounded'),
+    ('.st-key-flyover_goto', 'Go anywhere',
+     ('Go to opens your checklist, alerts, profile and the office handoff, drafted from a '
+     'template. The task you chose comes with you.'), 'rounded'),
     ('.st-key-flyover_settings', 'Replay any time',
      'Settings has Replay tutorial, Reduce motion and Pause travel banner.', 'circle'),
 ]

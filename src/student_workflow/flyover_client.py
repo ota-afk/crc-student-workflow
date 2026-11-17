@@ -90,6 +90,44 @@ def change_status(api_url: str, data: dict, task_id: str, status: str) -> dict:
                                     headers=_headers(), timeout=15))
 
 
+class DependentCompleted(ValueError):
+    """Reopening this task would leave a completed task without its prerequisite."""
+
+    def __init__(self, dependents: list[dict]):
+        self.dependents = dependents
+        names = ', '.join(task['title'] for task in dependents)
+        super().__init__(f'Reopen {names} first: it depends on this step.')
+
+
+def completed_dependents(data: dict, task_id: str) -> list[dict]:
+    """Completed tasks that list task_id as a prerequisite, in workflow order."""
+    return [task for task in data['workflow'] if task['status'] == 'Completed'
+            and task_id in (task.get('prerequisites') or [])]
+
+
+def reopen_task(api_url: str, data: dict, task_id: str) -> dict:
+    """Undo a completion: POST /workflow without this task's progress, at the same as_of.
+
+    The API then decides the task's status (Ready or Blocked); the page shows what it returns.
+    Refused here, before any request, while a completed task still depends on this one.
+    """
+    task = next((task for task in data['workflow'] if task['id'] == task_id), None)
+    if task is None:
+        raise ValueError('This task is not in the workflow.')
+    if task['status'] != 'Completed':
+        raise ValueError('Only a completed task can be reopened.')
+    if dependents := completed_dependents(data, task_id):
+        raise DependentCompleted(dependents)
+    profile = deepcopy(data['student_profile'])
+    profile['completed_tasks'] = [key for key in profile.get('completed_tasks', [])
+                                  if key != task_id]
+    profile['awaiting_reply'] = [key for key in profile.get('awaiting_reply', [])
+                                 if key != task_id]
+    return _validated(requests.post(f'{api_url.rstrip("/")}/workflow',
+                                    json={'student_profile': profile, 'as_of': data['as_of']},
+                                    headers=_headers(), timeout=15))
+
+
 def resolve_blocker(api_url: str, data: dict, task_id: str) -> tuple[dict, dict | None]:
     """POST /tasks/{id}/resolve: the updated workflow and the API's email draft (or None)."""
     body = {'student_profile': deepcopy(data['student_profile']), 'as_of': data['as_of']}

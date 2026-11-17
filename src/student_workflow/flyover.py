@@ -75,21 +75,94 @@ AIRSHOW_INTROS = {
     'other': "Let's try that another way.",
 }
 CHAT_LIMIT = 10  # questions kept in the dropdown's history for this session
-PAGE_NAMES = {'journey': 'Your journey', 'readiness': 'Readiness and checklist'}
+
+# ---- Navigation (guide Part 1). Every page id maps to exactly one label; nothing is inferred.
+DESTINATIONS = {
+    'workflow': 'Workflow and readiness',
+    'checklist': 'Checklist',
+    'alerts': 'Alerts',
+    'profile': 'Profile',
+    'handoff': 'Office handoff',
+    'updates': 'Updates and credits',
+}
+TABS = ('workflow', 'checklist', 'alerts')  # the sibling tabs under the header
+# Older page names (saved sessions, Replay tutorial) -> the destination they now mean.
+PAGE_ALIASES = {'home': 'workflow', 'readiness': 'workflow', 'assistant': 'handoff'}
+# What POST /assistant hears as page_context (a display hint; see the contract).
+PAGE_CONTEXT = {'workflow': 'journey', 'handoff': 'airshow'}  # every other page: 'readiness'
+# Session-level state, never a widget key: the one task every page shows (flyover_detail).
+TASK_KEY = 'flyover_detail'
+STATUS_CHOICES = ['Ready', 'In Progress', 'Completed']
+CREDITS_URL = 'https://github.com/ota-afk/crc-student-workflow/blob/main/docs/credits.md'
 
 
 def esc(value) -> str:
     return html.escape('' if value is None else str(value))
 
 
+def destination(page: str | None) -> str:
+    """The destination id for any page name; unknown names land on Workflow and readiness."""
+    page = PAGE_ALIASES.get(page, page)
+    return page if page in DESTINATIONS else 'workflow'
+
+
 def go(page: str, task_id: str | None = None) -> None:
-    # 'assistant' (Skip to Airshow) lives on the readiness page.
-    st.session_state['flyover_page'] = {'home': 'home', 'profile': 'profile'}.get(page, 'readiness')
-    st.session_state['flyover_scroll'] = ('airshow' if page == 'assistant'
-                                          else 'checklist' if task_id else 'top')
+    """Navigate. With task_id, that task becomes the selected task on every page."""
+    st.session_state['flyover_page'] = destination(page)
+    st.session_state['flyover_scroll'] = 'top'
     if task_id:
-        st.session_state['flyover_detail'] = task_id
+        _select_task(task_id)
         st.session_state['flyover_quote'] = st.session_state.get('flyover_quote', -1) + 1
+
+
+def _select_task(task_id: str) -> None:
+    """Choose a task without leaving the page. Saves nothing and plays no animation."""
+    st.session_state[TASK_KEY] = task_id
+    st.session_state.pop('flyover_next_offer', None)  # the choice has been made
+    st.session_state.pop('flyover_reopen_block', None)
+
+
+def _pick(widget: str) -> None:
+    """Callback for a task selector: copy the widget's choice into the shared task ID."""
+    if chosen := st.session_state.get(widget):
+        _select_task(chosen)
+
+
+def _goto(widget: str) -> None:
+    """Callback for the header's Go to and the sibling tabs (they write the same page)."""
+    if chosen := st.session_state.get(widget):
+        go(chosen)
+    # None: the active tab was pressed again. Stay; the next run shows it selected again.
+
+
+def selected_task_id(tasks: list[dict]) -> str | None:
+    """The student's chosen task; until they choose, the suggested one (active_task)."""
+    if (chosen := st.session_state.get(TASK_KEY)) in {task['id'] for task in tasks}:
+        return chosen
+    if not tasks:
+        return None
+    suggestion = (active_task(tasks) or tasks[0])['id']
+    st.session_state[TASK_KEY] = suggestion
+    return suggestion
+
+
+def _task_label(task: dict) -> str:
+    return f'{task["title"]} · {task["status"]}'
+
+
+def _task_picker(tasks: list[dict], widget: str, label: str) -> str:
+    """A selector over the whole workflow (unfinished first, then completed), keyed by ID.
+
+    Its widget key is its own; the choice lives in TASK_KEY, so every page agrees.
+    """
+    task_id = selected_task_id(tasks)
+    by_id = {task['id']: task for task in tasks}
+    order = [task['id'] for task in task_queue(tasks)]
+    order += [task['id'] for task in tasks if task['id'] not in order]
+    st.session_state[widget] = task_id
+    st.selectbox(label, order, key=widget, format_func=lambda key: _task_label(by_id[key]),
+                 on_change=_pick, args=(widget,))
+    return task_id
 
 
 def _replay_tour() -> None:
@@ -127,12 +200,20 @@ def settings() -> None:
         st.rerun()
 
 
-def _header():
-    """The sticky header. Returns the AI Help dropdown, filled once the workflow has loaded."""
+def _header(page: str):
+    """The sticky header. Returns the AI Help dropdown, filled once the workflow has loaded.
+
+    Order: logo, Go to, AI Help, Settings. On a phone, Go to drops to its own row so the
+    logo, AI Help and Settings stay on the first one (style.css).
+    """
     with st.container(key='flyover_header'):
-        brand, ai, gear = st.columns([8, 1, 1], vertical_alignment='center')
+        brand, nav, ai, gear = st.columns([5.2, 3, 1, 1], vertical_alignment='center')
         with brand:
             st.image(logo(), width=185)
+        with nav:
+            st.session_state['flyover_goto'] = page  # always shows where the student is
+            st.selectbox('Go to', list(DESTINATIONS), key='flyover_goto',
+                         format_func=DESTINATIONS.get, on_change=_goto, args=('flyover_goto',))
         with ai:
             # A dropdown anchored under the logo (not a page jump, not a modal). Its label is the
             # accessible name; CSS shows the AI Help logo in its place.
@@ -145,18 +226,18 @@ def _header():
     return panel
 
 
+def _tabs(page: str) -> None:
+    """Workflow and readiness, Checklist and Alerts as sibling tabs; same page as Go to."""
+    st.session_state['flyover_tab'] = page if page in TABS else None
+    with st.container(key='flyover_tabs'):
+        st.segmented_control('Sections', TABS, key='flyover_tab', format_func=DESTINATIONS.get,
+                             on_change=_goto, args=('flyover_tab',),
+                             label_visibility='collapsed')
+
+
 def _chat_context(data: dict, page: str) -> tuple[str, str | None]:
-    """(page_context, task_id) for the dropdown: the page it is opened on and the task in view."""
-    tasks = data['workflow']
-    if page in ('home', 'profile'):
-        current = active_task(tasks)
-        return 'journey', current['id'] if current else None
-    # Page 2: the task chosen in "Your checklist", else the current one.
-    chosen = st.session_state.get('flyover_detail')
-    if chosen in {task['id'] for task in tasks}:
-        return 'readiness', chosen
-    current = active_task(tasks)
-    return 'readiness', current['id'] if current else None
+    """(page_context, task_id) for the dropdown: the page it is opened on and the chosen task."""
+    return PAGE_CONTEXT.get(page, 'readiness'), selected_task_id(data['workflow'])
 
 
 def _context_key(data: dict, page_context: str, task_id: str | None) -> str:
@@ -238,7 +319,7 @@ def _chat(data: dict, api_url: str, page: str) -> None:
     current = _context_key(data, page_context, task_id)
     st.html(f'<img class="fly-chat-badge" src="{svg_asset("ai-help.svg")}" alt="">')
     st.caption(f'Asking about: {titles.get(task_id, "your workflow")} · '
-               f'{PAGE_NAMES[page_context]}')
+               f'{DESTINATIONS[page]}')
     st.caption('Answers come from your workflow and our sources. Do not include your name, '
                'SSN or document numbers.')
     with st.container(key='fly_chat_log'):
@@ -337,11 +418,12 @@ def _profile(data: dict, api_url: str) -> None:
                         else:
                             st.session_state['flyover_data'] = result
                             st.session_state['flyover_clear_reset_confirmation'] = True
-                            for key in ('flyover_active_id', 'flyover_status', 'flyover_detail', 'flyover_handoff',
+                            for key in (TASK_KEY, 'flyover_handoff',
                                         'flyover_map_done', 'flyover_celebrate', 'flyover_status_error',
                                         'flyover_email', 'flyover_resolve_error', 'flyover_popup_history',
                                         'flyover_chat_error', 'flyover_preferences',
-                                        'flyover_appt_dismissed'):
+                                        'flyover_appt_dismissed', 'flyover_next_offer',
+                                        'flyover_reopen_block', 'flyover_boarding'):
                                 st.session_state.pop(key, None)
                             for key in list(st.session_state):
                                 if key.startswith('flyover_doc:'):
@@ -353,33 +435,62 @@ def _profile(data: dict, api_url: str) -> None:
                       icon=':material/badge:', on_click=go, args=('profile',))
 
 
-def _save_status(api_url: str, task_id: str) -> None:
-    """Widget callback: commit once, then render only the backend's returned state."""
+SAVE_FAILED = 'Could not update this step. Your progress has been kept. Try again.'
+
+
+def _save_status(api_url: str, task_id: str, widget: str) -> None:
+    """The shared status callback. `widget` is the control that changed (the gate, a row's
+    Edit status or the Checklist tab); the save always targets `task_id`.
+
+    Success and failure both leave the selected task and the page as they were.
+    """
     data = st.session_state['flyover_data']
     task = next((item for item in data['workflow'] if item['id'] == task_id), None)
     if task is None:
         return
-    desired = st.session_state['flyover_status']
+    desired = st.session_state.get(widget)
     if desired == task['status']:
         return
     try:
         result = client.change_status(api_url, data, task_id, desired)
     except (requests.RequestException, ValueError):
-        st.session_state['flyover_status'] = task['status']
-        st.session_state['flyover_status_error'] = 'Could not update this step. Your progress has been kept. Try again.'
+        st.session_state[widget] = task['status']  # the previous status stays visible
+        st.session_state['flyover_status_error'] = SAVE_FAILED
         return
-    returned = _record_update(task, result, api_url)
-    st.session_state['flyover_status'] = returned['status']
+    st.session_state[widget] = _record_update(task, result, api_url)['status']
+
+
+def _reopen(api_url: str, task_id: str) -> None:
+    """Reopen task callback: undo a completion, unless a completed task still needs this one."""
+    st.session_state.pop('flyover_reopen_block', None)
+    data = st.session_state['flyover_data']
+    task = next((item for item in data['workflow'] if item['id'] == task_id), None)
+    if task is None:
+        return
+    try:
+        result = client.reopen_task(api_url, data, task_id)
+    except client.DependentCompleted as error:
+        # Named and linked (in _status_feedback), so the student can reopen that one first.
+        st.session_state['flyover_reopen_block'] = {
+            'task_id': task_id, 'dependents': [item['id'] for item in error.dependents]}
+        return
+    except (requests.RequestException, ValueError):
+        st.session_state['flyover_status_error'] = ('Could not reopen this step. Your progress '
+                                                    'has been kept. Try again.')
+        return
+    _record_update(task, result, api_url)
 
 
 def _record_update(task: dict, result: dict, api_url: str | None = None) -> dict:
     """The one success path for every status control: keep the API's answer, then celebrate.
 
-    Both the status selector and "Mark this step completed" land here, so they give the same
+    Every status control and "Mark this step completed" land here, so they give the same
     feedback. Confetti only for a new move to Completed, as the API returned it, never for the
-    click alone. The flag is consumed once by _workflow, and reduce motion keeps the message.
+    click alone. The flags are consumed once by _status_feedback, and reduce motion keeps the
+    message. The selected task never changes here: the next suggested task is only offered.
     """
     st.session_state['flyover_data'] = result
+    st.session_state.pop('flyover_status_error', None)
     returned = next((item for item in result['workflow'] if item['id'] == task['id']), task)
     if returned['status'] == 'Completed' and task['status'] != 'Completed':
         st.session_state['flyover_celebrate'] = True
@@ -389,15 +500,88 @@ def _record_update(task: dict, result: dict, api_url: str | None = None) -> dict
         st.session_state['flyover_boarding'] = {
             'done': task['title'], 'next': upcoming['title'] if upcoming else None,
             'next_id': upcoming['id'] if upcoming else None}
+        if upcoming:
+            st.session_state['flyover_next_offer'] = upcoming['id']
         st.session_state['flyover_flash'] = (
             f"{task['title']} completed. Next: {upcoming['title']}" if upcoming
             else 'All steps completed. Your route is assembled!')
         if api_url and not _cancel_task_reminders(api_url, task['id']):
             st.session_state['flyover_flash'] += (
                 ' A reminder for this step could not be cancelled and may still arrive.')
+    elif task['status'] == 'Completed' and returned['status'] != 'Completed':
+        st.session_state['flyover_flash'] = (f"{task['title']} reopened. "
+                                             f"Status: {returned['status']}.")
     else:
-        st.session_state['flyover_flash'] = 'Status saved.'
+        st.session_state['flyover_flash'] = f"Status saved: {returned['status']}."
     return returned
+
+
+def _status_control(data: dict, task: dict, api_url: str, widget: str, *,
+                    resolve: bool = False, checklist_link: bool = False) -> None:
+    """The status control every surface uses: the gate, each row's Edit status and the
+    Checklist tab, each with its own widget key. It always shows the API's status.
+
+    Ready and In Progress can be edited. Blocked explains what comes first (and offers the
+    blocker action when resolve=True). Completed offers Reopen task.
+    """
+    status = task['status']
+    editable = status in ('Ready', 'In Progress')
+    st.session_state[widget] = status  # mirror the API, never a stale pick
+    st.selectbox('Status', STATUS_CHOICES if editable else [status], key=widget,
+                 disabled=not editable, on_change=_save_status, args=(api_url, task['id'], widget),
+                 help='In Progress means waiting on an office. Completion is self-reported; '
+                      'prerequisites are enforced by the API.')
+    if editable:
+        st.caption('Changes save automatically.')
+    elif status == 'Blocked':
+        by_id = {item['id']: item for item in data['workflow']}
+        needs = [by_id[key]['title'] for key in task.get('prerequisites') or []
+                 if key in by_id and by_id[key]['status'] != 'Completed']
+        st.caption('Blocked until you finish: ' + ', '.join(needs) if needs
+                   else 'Blocked: something has to happen first. The checklist says what.')
+        if checklist_link:
+            st.button('Open checklist', key=widget + ':open', type='tertiary',
+                      icon=':material/checklist:', on_click=go, args=('checklist', task['id']))
+        if resolve:
+            _resolve_section(task, api_url, where=':' + widget)
+    else:
+        st.button('Reopen task', key=widget + ':reopen', icon=':material/undo:',
+                  on_click=_reopen, args=(api_url, task['id']),
+                  help='Moves this step back out of your completed list.')
+
+
+def _status_feedback(data: dict, boarding: dict | None) -> None:
+    """What the last save did: confetti and board once, then the message and any choices.
+
+    Drawn where the student is looking: under the map on Workflow and readiness, at the top
+    of other pages. A toast repeats the message for a control further down the page.
+    """
+    by_id = {task['id']: task for task in data['workflow']}
+    if st.session_state.pop('flyover_celebrate', False):
+        _confetti()
+    if boarding:
+        st.html(_boarding_board(boarding))
+    if error := st.session_state.pop('flyover_status_error', None):
+        st.error(error)
+        st.toast(error, icon=':material/error:')
+    if flash := st.session_state.pop('flyover_flash', None):
+        st.success(flash)
+        st.toast(flash, icon=':material/check_circle:')
+    if block := st.session_state.pop('flyover_reopen_block', None):
+        task = by_id.get(block['task_id'])
+        needing = [by_id[key] for key in block['dependents'] if key in by_id]
+        if task and needing:
+            names = ', '.join(item['title'] for item in needing)
+            st.warning(f'{task["title"]} can’t be reopened yet: {names} depends on it and is '
+                       f'completed. Reopen {names} first.')
+            for item in needing:
+                st.button(f'Go to {item["title"]}', key='flyover_reopen_dep:' + item['id'],
+                          on_click=_select_task, args=(item['id'],), icon=':material/east:')
+    offer = st.session_state.get('flyover_next_offer')
+    if offer in by_id and offer != st.session_state.get(TASK_KEY) \
+            and by_id[offer]['status'] != 'Completed':
+        st.button(f'Next suggested: {by_id[offer]["title"]}', key='flyover_take_next',
+                  on_click=_select_task, args=(offer,), icon=':material/arrow_forward:')
 
 
 def _confetti() -> None:
@@ -536,7 +720,18 @@ def _appointment_notice(tasks: list[dict]) -> None:
                   type='tertiary')
 
 
-def _workflow(data: dict, api_url: str) -> None:
+def _step_label(task: dict, tasks: list[dict]) -> str:
+    """'Step 03 of 08 · Now boarding': numbered by progress (completed, then the queue)."""
+    if task['status'] == 'Completed':
+        return 'Completed · Reopen it from the status control'
+    queue = task_queue(tasks)
+    done = sum(item['status'] == 'Completed' for item in tasks)
+    position = next((i for i, item in enumerate(queue) if item['id'] == task['id']), 0)
+    where = 'Now boarding' if position == 0 else 'Later in your route'
+    return f'Step {done + position + 1:02d} of {len(tasks):02d} · {where}'
+
+
+def _workflow(data: dict, api_url: str, boarding: dict | None = None) -> None:
     tasks = data['workflow']
     done = sum(task['status'] == 'Completed' for task in tasks)
     pieces = map_piece_count(done, len(tasks))
@@ -546,73 +741,51 @@ def _workflow(data: dict, api_url: str) -> None:
     with st.container(key='flyover_workflow'):
         st.html(flight_map(progress, animate=done > previous_done and not st.session_state.get('flyover_reduce_motion'),
                            previous=map_progress(previous_done, len(tasks))))
-        if st.session_state.pop('flyover_celebrate', False):
-            _confetti()
-        # Shown once per confirmed completion (set in _record_update), then consumed.
-        boarding = st.session_state.pop('flyover_boarding', None)
-        if boarding:
-            st.html(_boarding_board(boarding))
-        if error := st.session_state.pop('flyover_status_error', None):
-            st.error(error)
+        # The API's answer is already in `data`; the feedback below only describes it.
+        _status_feedback(data, boarding)
         st.subheader('Moving Forward (Workflow)')
         st.caption(f'{done} of {len(tasks)} steps completed · {pieces} of 3 route pieces assembled')
-        if flash := st.session_state.pop('flyover_flash', None):
-            st.success(flash)
-        current = active_task(tasks)
-        if current is None:
-            if tasks:
-                st.success('Your checklist is complete. Confirm requirements with the relevant offices before your visit.')
-            else:
-                st.info('No workflow steps are available. Generate a profile or try again.')
-        else:
-            task_id = current['id']
-            # Flip the title only when a completion just moved us to this step, never when the
-            # current step merely changed (a new profile, or Required-first reordering).
-            changing = bool(boarding) and boarding.get('next_id') == task_id
-            if st.session_state.get('flyover_active_id') != task_id:
-                st.session_state['flyover_active_id'] = task_id
-                st.session_state['flyover_status'] = current['status']
-            # Progress, not the rules file's position: tasks are shown Required-first (task_queue).
-            number = done + 1
-            with st.container(key='flyover_gate'):
-                title_col, status_col, action_col = st.columns([2.6, 1.3, 1.1], gap='large',
-                                                               vertical_alignment='center')
-                with title_col:
-                    st.html(f'<div class="gate-step">Step {number:02d} of {len(tasks):02d} · Now boarding</div>'
-                            + _board(current['title'], changing)
-                            + f'<span class="gate-priority">{esc(current["priority"])}</span>')
-                with status_col:
-                    options = [current['status']] if current['status'] == 'Blocked' else ['Ready', 'In Progress', 'Completed']
-                    st.selectbox('Status', options, key='flyover_status',
-                        on_change=_save_status, args=(api_url, task_id),
-                        disabled=current['status'] == 'Blocked',
-                        help='In Progress means waiting on an office. Completion is self-reported; prerequisites are enforced by the API.')
-                    st.caption('Changes save automatically.')
-                with action_col:
-                    st.button('View checklist', key='flyover_checklist', on_click=go, type='tertiary',
-                              args=('readiness', task_id), icon=':material/checklist:')
-            with st.container(key='fly_gate_notes'):
-                if note := due_note(current, data['as_of']):
-                    getattr(st, note[0])(note[1])
-                if current.get('next_action'):
-                    st.info(current['next_action']['text'])
-                for blocker in current.get('blockers') or []:
-                    st.warning(blocker['explanation'])
-                if not current.get('sources') or not all(source_verified(s) for s in current['sources']):
-                    st.caption('Not verified. Confirm with the office. Completing a step does not confirm eligibility.')
-                if current['status'] == 'Blocked':
-                    _resolve_section(current, api_url)
-                    other_ready = [t for t in tasks if t['status'] in ('Ready', 'In Progress')]
-                    if other_ready:
-                        st.caption('You can prepare another available task while this step is blocked:')
-                        for task in other_ready:
-                            st.button(task['title'], key='flyover_other:' + task['id'],
-                                      on_click=go, args=('readiness', task['id']))
+        if not tasks:
+            st.info('No workflow steps are available. Generate a profile or try again.')
+            return
+        if active_task(tasks) is None:
+            st.success('Your checklist is complete. Confirm requirements with the relevant offices before your visit.')
+        with st.container(key='flyover_choose_box'):
+            task_id = _task_picker(tasks, 'flyover_choose', 'Choose a task')
+        task = next(item for item in tasks if item['id'] == task_id)
+        # Flip the title only when a completion just moved us to this step, never when the
+        # student merely picked another task.
+        changing = bool(boarding) and boarding.get('next_id') == task_id
+        with st.container(key='flyover_gate'):
+            title_col, status_col, action_col = st.columns([2.6, 1.3, 1.1], gap='large',
+                                                           vertical_alignment='center')
+            with title_col:
+                st.html(f'<div class="gate-step">{esc(_step_label(task, tasks))}</div>'
+                        + _board(task['title'], changing)
+                        + f'<span class="gate-priority">{esc(task["priority"])}</span>')
+            with status_col:
+                _status_control(data, task, api_url, 'flyover_status')
+            with action_col:
+                st.button('View checklist', key='flyover_checklist', on_click=go, type='tertiary',
+                          args=('checklist', task_id), icon=':material/checklist:')
+        with st.container(key='fly_gate_notes'):
+            if note := due_note(task, data['as_of']):
+                getattr(st, note[0])(note[1])
+            if task.get('next_action'):
+                st.info(task['next_action']['text'])
+            for blocker in task.get('blockers') or []:
+                st.warning(blocker['explanation'])
+            if not task.get('sources') or not all(source_verified(s) for s in task['sources']):
+                st.caption('Not verified. Confirm with the office. Completing a step does not confirm eligibility.')
+            if task['status'] == 'Blocked':
+                _resolve_section(task, api_url)
+                other_ready = [t for t in tasks if t['status'] in ('Ready', 'In Progress')]
+                if other_ready:
+                    st.caption('You can prepare another available task while this step is blocked:')
+                    for other in other_ready:
+                        st.button(other['title'], key='flyover_other:' + other['id'],
+                                  on_click=_select_task, args=(other['id'],))
         _appointment_notice(tasks)
-        _, next_col = st.columns([4, 1])
-        with next_col:
-            st.button('Next', key='flyover_next', type='primary', icon=':material/arrow_forward:',
-                      icon_position='right', width='stretch', on_click=go, args=('readiness',))
 
 
 def _office_hours(task: dict) -> None:
@@ -837,10 +1010,13 @@ def _resolve(api_url: str, task_id: str) -> None:
     st.session_state['flyover_email'] = {'task_id': task_id, 'draft': draft}
 
 
-def _resolve_section(task: dict, api_url: str) -> None:
-    """For a blocked task: the "Resolve blocker" button and, once used, the API's email draft."""
+def _resolve_section(task: dict, api_url: str, where: str = '') -> None:
+    """For a blocked task: the "Resolve blocker" button and, once used, the API's email draft.
+
+    `where` keeps the button's key unique when a row's Edit status shows it on the same page.
+    """
     if task['status'] == 'Blocked' and task.get('next_action'):
-        st.button('Resolve blocker', key='flyover_resolve:' + task['id'], on_click=_resolve,
+        st.button('Resolve blocker', key='flyover_resolve:' + task['id'] + where, on_click=_resolve,
                   args=(api_url, task['id']), icon=':material/mail:',
                   help='Marks the missing step as waiting on an office and drafts an email to send.')
     if st.session_state.get('flyover_resolve_error') == task['id']:
@@ -932,17 +1108,20 @@ def _prereq_dialog(task: dict, by_id: dict) -> None:
             f'<h4>Our sources</h4>{_source_rows(sources)}</div>')
     st.caption('Not verified unless marked. Confirm requirements with the office before your visit.')
     if st.button('Open full checklist', key='flyover_prereq_full', type='primary'):
-        st.session_state['flyover_detail'] = task['id']
-        st.session_state['flyover_scroll'] = 'checklist'
+        go('checklist', task['id'])  # the Checklist tab, with this task selected
         st.rerun()
 
 
-def _tour() -> None:
+def _tour(page: str) -> None:
     """Send the spotlight tour once per session (and again on Settings → Replay tutorial).
 
     The browser remembers a finished or skipped tour for the tab (sessionStorage), so a sent
     tour that was already seen doesn't show again. Nothing here calls the API.
+    render_app calls this after every view (and on sign-in) with the current destination;
+    today's steps cover Workflow and readiness only (per-page steps: guide Part 2).
     """
+    if page != 'workflow':
+        return
     replay = st.session_state.pop('flyover_tour_replay', False)
     if st.session_state.get('flyover_tour_sent') and not replay:
         return
@@ -979,14 +1158,24 @@ setTimeout(() => {{
 </script>''', height=1)
 
 
-def _task_table(group: str, tasks: list[dict], by_id: dict, empty: str) -> None:
+def _task_table(group: str, tasks: list[dict], data: dict, api_url: str, empty: str) -> None:
+    """Rows of Task | Status | Needs first | Edit status. Each Edit status targets its row's
+    task ID and has its own widget key (fly_status:<group>:<id>), apart from the Checklist's."""
+    by_id = {task['id']: task for task in data['workflow']}
     with st.container(key=f'fly_table_{group}'):
-        st.html('<div class="fly-thead"><span>Task</span><span>Status</span><span>Needs first</span></div>')
+        st.html('<div class="fly-thead"><span>Task</span><span>Status</span>'
+                '<span>Needs first</span><span>Edit</span></div>')
         if not tasks:
             st.html(f'<p class="fly-empty">{esc(empty)}</p>')
         for task in tasks:
             with st.container(key=f'fly_row_{group}_{task["id"]}'):
-                left, mid, right = st.columns([1.7, 1, 1.25], vertical_alignment='center', gap='medium')
+                left, mid, right, edit = st.columns([1.6, .95, 1.2, .95], vertical_alignment='center',
+                                                    gap='small')
+                with edit, st.popover('Edit status', key=f'fly_edit:{group}:{task["id"]}',
+                                      icon=':material/edit:'):
+                    st.markdown(f'**{task["title"]}**')
+                    _status_control(data, task, api_url, f'fly_status:{group}:{task["id"]}',
+                                    resolve=True, checklist_link=True)
                 with left:
                     st.html(f'<div class="fly-task">{esc(task["title"])}<small>{esc(task["priority"])}</small></div>')
                 with mid:
@@ -1016,7 +1205,7 @@ def _focus_card(task: dict, kind: str) -> None:
             if task.get('next_action'):
                 st.caption(task['next_action']['text'])
             st.button('Open checklist', key='fly_focus_open', type='primary',
-                      icon=':material/checklist:', on_click=go, args=('readiness', task['id']))
+                      icon=':material/checklist:', on_click=go, args=('checklist', task['id']))
 
 
 def _quote_card() -> None:
@@ -1030,16 +1219,11 @@ def _quote_card() -> None:
 
 
 def _readiness(data: dict, api_url: str) -> None:
+    """Progress, Before you take off (every unfinished task) and completed history."""
     tasks = data['workflow']
     by_id = {task['id']: task for task in tasks}
-    back_col, skip_col = st.columns([1, 1], vertical_alignment='center')
-    with back_col:
-        st.button('Back to my journey', key='flyover_back', on_click=go, args=('home',),
-                  icon=':material/west:', type='tertiary')
-    with skip_col:
-        st.button('Skip to Airshow', key='flyover_skip', on_click=go, args=('assistant',),
-                  icon=':material/south:', icon_position='right', type='tertiary')
     done = sum(task['status'] == 'Completed' for task in tasks)
+    queue = task_queue(tasks)  # every unfinished task: Ready, In Progress and Blocked
     with st.container(key='fly_readiness'):
         head, meter = st.columns([2, 1], vertical_alignment='bottom')
         with head:
@@ -1048,42 +1232,66 @@ def _readiness(data: dict, api_url: str) -> None:
                        'the guidance comes from.')
         with meter:
             width = 100 * done / len(tasks) if tasks else 0
-            st.html(f'<div class="fly-meter"><b>{done} of {len(tasks)} steps complete</b>'
+            st.html(f'<div class="fly-meter" role="status"><b>{done} of {len(tasks)} steps '
+                    f'complete · {len(queue)} still ahead</b>'
                     f'<div class="bar"><span style="width:{width:.0f}%"></span></div></div>')
         main, aside = st.columns([2.4, 1], gap='large')
         with main:
-            _task_table('ready', [t for t in tasks if t['status'] in ('Completed', 'In Progress')], by_id,
+            st.markdown('#### Completed')
+            _task_table('done', [t for t in tasks if t['status'] == 'Completed'], data, api_url,
                         'Nothing finished yet. Your first completed step will land here.')
-            st.caption('Completing a step does not confirm eligibility. Backend status and prerequisites decide.')
+            st.caption('Completing a step does not confirm eligibility. Backend status and '
+                       'prerequisites decide. Use Edit status to reopen a step.')
         with aside, st.container(key='fly_quote_col'):
             _quote_card()
     with st.container(key='fly_takeoff'):
         st.subheader('Before you take off')
-        queue = task_queue(tasks)
         if queue:
             st.caption('One step at a time, most important first. A step another one needs '
                        'always comes before it.')
             _focus_card(queue[0], 'now')
             if len(queue) > 1:
                 _focus_card(queue[1], 'next')
-        else:
-            st.html('<p class="fly-empty">Nothing left ahead. Confirm requirements with each '
-                    'office before you visit.</p>')
-        ahead = [t for t in tasks if t['status'] in ('Ready', 'Blocked')]
-        with st.expander(f'View all tasks ahead ({len(ahead)})'):
-            _task_table('takeoff', ahead, by_id,
-                        'Nothing left ahead. Confirm requirements with each office before you visit.')
-        if tasks:
-            if st.session_state.get('flyover_detail') not in by_id:
-                st.session_state['flyover_detail'] = (active_task(tasks) or tasks[0])['id']
-            with st.container(key='fly_checklist'):
-                chosen = st.selectbox('Your checklist', list(by_id), key='flyover_detail',
-                                      format_func=lambda key: by_id[key]['title'])
-                _checklist(data, by_id[chosen], api_url)
-        else:
-            st.info('No workflow steps are available yet.')
+        _task_table('takeoff', queue, data, api_url,
+                    'Nothing left ahead. Confirm requirements with each office before you visit.')
     if (opened := st.session_state.pop('flyover_prereq_open', None)) in by_id:
         _prereq_dialog(by_id[opened], by_id)
+
+
+def _checklist_page(data: dict, api_url: str) -> None:
+    """The Checklist tab: the selected task's status control, then its full checklist."""
+    tasks = data['workflow']
+    if not tasks:
+        st.info('No workflow steps are available yet.')
+        return
+    by_id = {task['id']: task for task in tasks}
+    with st.container(key='fly_checklist'):
+        task_id = _task_picker(tasks, 'flyover_checklist_pick', 'Your checklist')
+        # Part 2 places this control beside the checklist title; its key is the Checklist's own.
+        _status_control(data, by_id[task_id], api_url, 'flyover_checklist_status')
+        _checklist(data, by_id[task_id], api_url)
+    if (opened := st.session_state.pop('flyover_prereq_open', None)) in by_id:
+        _prereq_dialog(by_id[opened], by_id)
+
+
+def _alerts(data: dict) -> None:
+    """The Alerts tab. Guide Part 2 fills it with each task's notices, grouped by task."""
+    with st.container(key='fly_alerts'):
+        st.subheader('Alerts')
+        st.caption('Task notices are being collected here. Until then, each task’s notices '
+                   'are in its checklist.')
+        task_id = selected_task_id(data['workflow'])
+        if task_id:
+            st.button('Open the selected task’s checklist', key='fly_alerts_open',
+                      icon=':material/checklist:', on_click=go, args=('checklist', task_id))
+
+
+def _updates() -> None:
+    """Updates and credits. Guide Part 2 adds flyover_about.py (Planned updates, Credits)."""
+    with st.container(key='fly_updates'):
+        st.subheader('Updates and credits')
+        st.caption('Planned updates and the full credits list are on their way to this page.')
+        st.link_button('Read the project credits', CREDITS_URL, icon=':material/open_in_new:')
 
 
 def _handoff_contact() -> str:
@@ -1101,7 +1309,8 @@ def _keep_handoff_email() -> None:
 def _profile_page(data: dict) -> None:
     """The profile dashboard: this session's answers, progress and handoff choices."""
     profile, tasks = data['student_profile'], data['workflow']
-    st.button('Back to my journey', key='flyover_profile_back', on_click=go, args=('home',),
+    st.button('Back to Workflow and readiness', key='flyover_profile_back', on_click=go,
+              args=('workflow',),
               icon=':material/west:', type='tertiary')
     with st.container(key='fly_profile_page'):
         st.subheader('Your profile')
@@ -1119,7 +1328,7 @@ def _profile_page(data: dict) -> None:
         st.html('<dl class="fly-facts">' + ''.join(
             f'<dt>{esc(label)}</dt><dd>{esc(value)}</dd>' for label, value in facts) + '</dl>')
         st.button('Edit in Profile setup', key='flyover_profile_edit', on_click=go,
-                  args=('home',), icon=':material/edit:')
+                  args=('workflow',), icon=':material/edit:')
     with st.container(key='fly_profile_progress'):
         st.subheader('Progress')
         columns = st.columns(4)
@@ -1129,7 +1338,7 @@ def _profile_page(data: dict) -> None:
         if upcoming := active_task(tasks):
             st.markdown(f'**Next step:** {upcoming["title"]}')
             st.button('Open its checklist', key='flyover_profile_next', type='primary',
-                      on_click=go, args=('readiness', upcoming['id']))
+                      on_click=go, args=('checklist', upcoming['id']))
         else:
             st.success('Every step is completed.')
     with st.container(key='fly_profile_more'):
@@ -1270,8 +1479,11 @@ def render_app() -> None:
     if not signed_in():
         # The demo sign-in is the first screen; it also asks the profile questions.
         render_signin(api_url)
+        _tour('signin')
         return
-    panel = _header()
+    # One page id, normalised once, drives the header, the tabs and the dispatch below.
+    page = st.session_state['flyover_page'] = destination(st.session_state.get('flyover_page'))
+    panel = _header(page)
     if 'flyover_data' not in st.session_state:
         try:
             st.session_state['flyover_data'] = client.fetch_fresh_workflow(api_url)
@@ -1283,23 +1495,32 @@ def render_app() -> None:
             st.stop()
     data = st.session_state['flyover_data']
     sync_profile_context(data['student_profile'])
-    page = st.session_state.get('flyover_page', 'home')
     with panel:
         _chat(data, api_url, page)
-    if page == 'home':
+    _tabs(page)
+    # Shown once per confirmed completion (set in _record_update), then consumed.
+    boarding = st.session_state.pop('flyover_boarding', None)
+    if page == 'workflow':
         _profile(data, api_url)
         if data.get('is_mock'):
             st.warning('Sample data. Not verified. Do not rely on it.')
         elif data['student_profile'].get('school_verified') is not True:
             st.caption('School-specific guidance is not verified. Confirm requirements with your DSO.')
-        _workflow(data, api_url)
-    elif page == 'profile':
-        _profile_page(data)
-    else:
+        _workflow(data, api_url, boarding)
         _readiness(data, api_url)
-        _assistant(data, api_url)
+    else:
+        _status_feedback(data, boarding)
+        if page == 'checklist':
+            _checklist_page(data, api_url)
+        elif page == 'alerts':
+            _alerts(data)
+        elif page == 'profile':
+            _profile_page(data)
+        elif page == 'handoff':
+            _assistant(data, api_url)
+        elif page == 'updates':
+            _updates()
     if target := st.session_state.pop('flyover_scroll', None):
         _scroll(target)
-    if page == 'home':
-        _tour()
+    _tour(page)
     st.html('<footer class="flyover-footer">Flyover · A little preparation. A world of possibility.</footer>')

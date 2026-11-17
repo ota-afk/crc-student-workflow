@@ -377,3 +377,54 @@
 .stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] p {
   color:#4A544E!important; opacity:1!important; }
 .stApp [data-testid="stHeaderActionElements"] { display:none!important; }
+
+/* ---- Navigation and task rows (guide Part 1): Go to, sibling tabs, Edit status ---- */
+/* Go to: its label sits beside the select, so the header keeps its height. */
+.st-key-flyover_header [data-testid="stColumn"]:nth-child(2) { justify-content:flex-end; }
+.st-key-flyover_goto { width:100%!important; max-width:340px; }
+.st-key-flyover_goto [data-testid="stSelectbox"] { display:flex; flex-direction:row; align-items:center; gap:10px; }
+.st-key-flyover_goto [data-testid="stWidgetLabel"] { margin:0; min-height:0; flex:0 0 auto; }
+.st-key-flyover_goto [data-testid="stWidgetLabel"] p { font-weight:800; font-size:.9rem; color:var(--flyover-ink); white-space:nowrap; }
+.st-key-flyover_goto [data-testid="stSelectbox"] > div:last-child { flex:1 1 auto; min-width:0; }
+/* The sibling tabs: one row, the active one filled in deep sage (ivory on #3D6350 is 6.9:1). */
+.st-key-flyover_tabs { margin-top:14px; align-items:center; }
+.st-key-flyover_tabs [data-testid="stButtonGroup"] > div { flex-wrap:wrap; justify-content:center; }
+.st-key-flyover_tabs button[role="radio"] { min-height:44px; padding:0 18px; background:#FFFFFF;
+  color:var(--flyover-ink); border-color:#C9D3C6; font-weight:700; }
+.st-key-flyover_tabs button[role="radio"][aria-checked="true"] { background:#3D6350; color:#F7F4EF; border-color:#3D6350; }
+.st-key-flyover_tabs button[role="radio"][aria-checked="true"] p { color:#F7F4EF; }
+/* Hover keeps the same contrast: an outline, never a paler fill. */
+.st-key-flyover_tabs button[role="radio"]:hover { border-color:var(--flyover-ink); color:var(--flyover-ink); }
+.st-key-flyover_tabs button[role="radio"][aria-checked="true"]:hover { background:#3D6350; color:#F7F4EF; border-color:var(--flyover-ink); }
+.st-key-flyover_tabs button[role="radio"]:focus-visible { outline:3px solid var(--flyover-ink); outline-offset:2px; }
+/* Choose a task sits between the progress line and the gate; the Checklist's own status
+   control stays a compact select, not a full-width bar. */
+.st-key-flyover_choose_box { max-width:720px; }
+.st-key-flyover_checklist_status, .st-key-flyover_checklist_pick { max-width:420px; }
+/* Task tables: Task | Status | Needs first | Edit, matching the row columns' widths. */
+.fly-thead { grid-template-columns:1.6fr .95fr 1.2fr .95fr; }
+.fly-thead span:nth-child(4) { text-align:right; }
+[class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(4) [data-testid="stVerticalBlock"] { align-items:flex-end; }
+[class*="st-key-fly_edit"] button { white-space:nowrap; min-height:40px; }
+@media(max-width:760px) {
+  /* Logo, AI Help and Settings stay on the first row; Go to gets the full second row. */
+  .st-key-flyover_header [data-testid="stHorizontalBlock"] { flex-wrap:wrap!important; row-gap:2px; }
+  .st-key-flyover_header [data-testid="stColumn"]:nth-child(2) { order:4; flex:1 1 100%!important;
+    width:100%!important; min-width:100%!important; justify-content:stretch; }
+  .st-key-flyover_goto { max-width:none; }
+  .st-key-flyover_tabs button[role="radio"] { padding:0 10px; font-size:.85rem; }
+  .st-key-flyover_tabs [data-testid="stButtonGroup"] > div { flex-wrap:nowrap; }
+  /* Rows: the title gets its own line; status, prerequisite and Edit share the next one. */
+  .fly-thead { display:none; }
+  [class*="st-key-fly_row_"] [data-testid="stHorizontalBlock"] { flex-wrap:wrap!important; row-gap:8px; }
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:first-child { flex:1 1 100%!important; width:100%!important; min-width:100%!important; }
+  /* Then status and Edit status on one line, and what it needs first below them. */
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(2) { flex:1 1 auto!important; width:auto!important; min-width:0!important; }
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(4) { flex:0 0 auto!important; width:auto!important; }
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) { order:5; flex:1 1 100%!important; width:100%!important; min-width:100%!important; }
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) [data-testid="stVerticalBlock"] { align-items:flex-start; }
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) button,
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) button p,
+  [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) button div { text-align:left!important; }
+  [class*="st-key-fly_row_"] .fly-center { text-align:left; }
+}
