@@ -241,3 +241,7 @@
   checklist text: status and priority pills, sourced visit facts with per-fact "Not verified"
   badges, one "Not on file yet" line, and a palette note instead of the blue info box
   (`flyover.py`, `flyover_appointments.fact_verified`, `style.css`), with tests.
+
+- STU-D07-FE-signin (Nov 17 2026): AI assistance (Claude Code) built Flyover's demo sign-in
+  first screen (`flyover_signin.py`), its gate and Sign out (`flyover.py`, `style.css`), and
+  `tests/test_flyover_signin.py`; Flyover tests now start signed in.

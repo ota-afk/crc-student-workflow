@@ -9,7 +9,14 @@ from test_streamlit import FakeResponse, base_payload, values
 
 from student_workflow import flyover_client
 
-APP =Path(__file__).resolve().parents[1] / 'app/flyover_app.py'
+APP = Path(__file__).resolve().parents[1] / 'app/flyover_app.py'
+
+
+def signed_in_app(app_path) -> AppTest:
+    """Flyover past the demo sign-in (tested on its own in test_flyover_signin.py)."""
+    app = AppTest.from_file(str(app_path), default_timeout=30)
+    app.session_state['flyover_account'] = {'email': 'student@example.com'}
+    return app.run()
 
 
 def app_with(monkeypatch, payload=None):
@@ -24,7 +31,7 @@ def app_with(monkeypatch, payload=None):
     # given. The real fresh start (a POST with empty progress) is tested in test_flyover.py
     # and against the real API in test_flyover_live_api.py.
     monkeypatch.setattr(flyover_client, 'fetch_fresh_workflow', flyover_client.fetch_workflow)
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     assert not app.exception
     return app
 
