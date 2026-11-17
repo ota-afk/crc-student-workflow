@@ -45,12 +45,23 @@
 .st-key-flyover_header > [data-testid="stVerticalBlock"] { gap:0; }
 .st-key-flyover_header [data-testid="stImage"] img { width:190px; height:auto; }
 .st-key-flyover_header [data-testid="stColumn"]:not(:first-child) { display:flex; justify-content:flex-end; }
-/* Header controls use charcoal: sage on the peach header is 2.3:1, below the 4.5:1 text minimum. */
-.st-key-flyover_ai button { min-height:36px!important; height:36px; padding:0 12px; border:2.5px solid var(--flyover-ink)!important;
-  background:transparent!important; color:var(--flyover-ink)!important; box-shadow:none; border-radius:10px;
-  font-family:var(--fly-display)!important; font-weight:700; letter-spacing:.1em; }
-.st-key-flyover_ai button p { font-family:var(--fly-display); font-weight:700; font-size:1rem; }
-.st-key-flyover_ai button:hover { background:var(--flyover-deep)!important; color:var(--flyover-paper)!important; }
+/* AI Help launcher: the logo (ai-help-icon.svg, set as background-image by flyover.py) on a
+   48px target. The "AI Help" label stays in the button for screen readers but is drawn at
+   size 0, like the settings button; the popover's chevron is hidden the same way.
+   Header controls use charcoal: sage on the peach header is 2.3:1, below the minimums. */
+.st-key-flyover_ai button { min-height:48px!important; height:48px; width:52px; padding:0!important;
+  border:0!important; background-color:transparent!important; background-repeat:no-repeat!important;
+  background-position:center!important; background-size:46px 46px!important;
+  color:var(--flyover-ink)!important; box-shadow:none; border-radius:12px; font-size:0!important; gap:0!important; }
+.st-key-flyover_ai button p, .st-key-flyover_ai button [data-testid="stMarkdownContainer"],
+.st-key-flyover_ai button [data-testid="stIconMaterial"] { font-size:0!important; width:0; overflow:hidden; }
+/* Hover: a charcoal ring (8.6:1 on the header) instead of a fill, so the logo stays readable. */
+.st-key-flyover_ai button:hover { background-color:rgba(247,244,239,.6)!important;
+  outline:2.5px solid var(--flyover-ink); outline-offset:1px; color:var(--flyover-ink)!important; }
+/* The dropdown: under the logo, never wider than the screen, scrolling inside if long. */
+[data-testid="stPopoverBody"]:has(.fly-chat-badge) { width:min(420px, calc(100vw - 32px))!important;
+  max-height:min(70vh, 640px); overflow-y:auto; background:var(--flyover-card); border-radius:18px; }
+.fly-chat-badge { display:block; width:96px; height:auto; margin:0 auto 4px; }
 /* The default twilight focus ring is 2.6:1 on the peach header; charcoal keeps it visible. */
 .st-key-flyover_header button:focus-visible { outline-color:var(--flyover-ink); }
 .st-key-flyover_settings button { border:0!important; background:transparent!important; box-shadow:none; font-size:0!important; gap:0!important; min-height:44px; }

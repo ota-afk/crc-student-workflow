@@ -48,10 +48,12 @@ def open_checklist(app: AppTest, task_id: str) -> AppTest:
 
 
 def ask(app: AppTest, question: str) -> str:
+    """Ask in the AI Help dropdown and return the newest answer's text."""
     app.text_input(key='flyover_question').input(question)
-    next(b for b in app.button if b.label == 'Ask Airshow').click().run()
+    next(b for b in app.button if b.label == 'Send').click().run()
     assert not app.exception
-    return ' '.join(values(app.markdown))
+    history = app.session_state.get('flyover_popup_history', [])
+    return history[-1]['answer'] if history else ''
 
 
 def test_resolve_shows_the_api_draft_and_moves_the_prerequisite(live):
@@ -101,7 +103,9 @@ def test_airshow_timeout_shows_a_helpful_message(live, monkeypatch):
     ask(app, 'What next?')
     assert any('took too long' in v for v in values(app.error))
     assert not any('internal timeout details' in v for v in values(app.error))
-    assert 'flyover_answer' not in app.session_state
+    assert 'flyover_popup_history' not in app.session_state
+    # The unsent question stays in the box so it can be sent again.
+    assert app.text_input(key='flyover_question').value == 'What next?'
 
 
 def confetti_shown(app: AppTest) -> bool:
@@ -144,3 +148,68 @@ def test_reduce_motion_completion_shows_the_message_without_confetti(live):
     app.button(key='flyover_detail_complete').click().run()
     assert not confetti_shown(app)
     assert any('completed. Next:' in v for v in values(app.success))
+
+
+def chat_bodies(bridge: Bridge) -> list[dict]:
+    return [body for path, body in bridge.posts() if path == '/assistant']
+
+
+def test_dropdown_is_named_ai_help_and_asking_does_not_navigate(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    # AppTest has no Popover class; the label (the accessible name) is on the block's proto.
+    assert [p.proto.popover.label for p in app.get('popover')] == ['AI Help']
+    ask(app, 'What next?')
+    # No jump to page 2 or Airshow (the app only sets flyover_page when you navigate).
+    assert app.session_state.get('flyover_page', 'home') == 'home'
+    assert 'flyover_scroll' not in app.session_state
+
+
+def test_dropdown_sends_journey_and_the_current_step_on_page_one(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    ask(app, 'What next?')
+    body, = chat_bodies(live)
+    assert body['page_context'] == 'journey'
+    assert body['task_id'] == app.session_state['flyover_active_id']
+
+
+def test_dropdown_sends_readiness_and_the_chosen_task_on_page_two(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    answer = ask(app, 'Why is my ID blocked?')
+    body, = chat_bodies(live)
+    assert (body['page_context'], body['task_id']) == ('readiness', DMV)
+    assert answer.startswith('What this step needs before you go. Task status: Blocked.')
+
+
+def test_clearing_the_chat_keeps_the_handoff(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app.text_area(key='flyover_goal').input('Get my California ID').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    ask(app, 'What next?')
+    app.button(key='flyover_chat_clear').click().run()
+    assert 'flyover_popup_history' not in app.session_state
+    assert app.session_state['flyover_handoff']['title'] == 'Handoff for your DMV clerk'
+
+
+def test_generating_a_handoff_sends_nothing_to_the_assistant(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app.text_area(key='flyover_goal').input('Get my California ID').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    assert chat_bodies(live) == []
+
+
+def test_answer_is_marked_earlier_after_progress_changes(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    ask(app, 'Why is my ID blocked?')
+    assert not any('Earlier answer' in v for v in values(app.caption))
+    app.button(key='flyover_resolve:' + DMV).click().run()
+    assert any('Earlier answer' in v for v in values(app.caption))
+
+
+def test_chat_history_is_bounded(live, monkeypatch):
+    from student_workflow import flyover
+    monkeypatch.setattr(flyover, 'CHAT_LIMIT', 2)
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    for number in range(3):
+        ask(app, f'Question {number}?')
+    assert [e['question'] for e in app.session_state['flyover_popup_history']] == [
+        'Question 1?', 'Question 2?']

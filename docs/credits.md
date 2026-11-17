@@ -187,3 +187,10 @@
 - STU-D06-BE-assistant-page-context (Nov 17 2026): AI assistance (Claude Code) added the
   optional `page_context` hint to `POST /assistant` (`contract.py`, `assistant.py`,
   `docs/contract.md`) and its tests in `tests/test_api_assistant.py`.
+
+- STU-D06-FE-airshow-popup (Nov 17 2026): AI assistance (Claude Code) moved Flyover's live chat
+  into an "AI Help" dropdown (`st.popover`) under a new logo traced from the owner's sketch
+  (`app/assets/flyover/ai-help-icon.svg`, `ai-help.svg`), sending `page_context`; the
+  Airshow section is now the template handoff only. Files: `flyover.py`, `flyover_art.py`,
+  `flyover_client.py`, `style.css` (FE's, under the team's advance approval of the v2 plan),
+  tests and READMEs.

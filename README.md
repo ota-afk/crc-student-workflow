@@ -18,7 +18,8 @@ How it works:
 - Every fact carries its source and verification state. Today every rule is still
   `needs_verification`, so the dashboard must label it "Not verified".
 - `GET /workflow` serves the sample file (`data/mock/workflow.mock.json`, `is_mock: true`) while
-  `USE_MOCK=true`, the local default. The AI layer (OpenAI) is not wired into the API yet.
+  `USE_MOCK=true`, the local default. `POST /assistant` uses OpenAI when the API has
+  `OPENAI_API_KEY` and `OPENAI_MODEL`, and returns a safe fallback message without them.
 - Set up for Render's free plan ([docs/deploy.md](docs/deploy.md)); the live URLs go there
   after the first deploy.
 
@@ -62,8 +63,8 @@ below. After editing files under
 
 Flyover has two pages. Page 1 is profile setup over the travel banner and the workflow, one
 step at a time: the step title flips in like a departures board, the status in the centre
-saves to the live API, and the three-piece flight map fills in behind it. Page 2 (Next,
-View checklist or AI) has Readiness and Before you take off (task left, status centre,
+saves to the live API, and the three-piece flight map fills in behind it. Page 2 (Next or
+View checklist) has Readiness and Before you take off (task left, status centre,
 prerequisite right; a prerequisite opens its documents and sources), a quote card, a
 scroll-driven flight into Airshow, and the handoff template with .txt/.md export. A blocked
 task's checklist has **Resolve blocker** (`POST /tasks/{task_id}/resolve`), which shows the
@@ -74,10 +75,14 @@ OS reduced-motion preferences are also respected, and browsers without CSS scrol
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile.
 
-**Ask Airshow** calls `POST /assistant` with the workflow's `as_of` and progress, so an
-answer reflects "Resolve blocker" and "Mark done"; it never sends `student_id`. A timeout
-shows its own message. The handoff below it is still a local template, not model-generated
-advice, and is labeled that way. Verification warnings and official sources remain
+The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either
+page, without leaving the page. It calls `POST /assistant` with the workflow's `as_of` and
+progress, the task in view, and `page_context` (`journey` on page 1, `readiness` on page 2),
+so an answer reflects "Resolve blocker" and "Mark done"; it never sends `student_id`. The
+last 10 questions stay in the dropdown for the session; answers from before a progress change
+are marked "Earlier answer". A timeout shows its own message and keeps the unsent question.
+The Airshow section at the bottom of page 2 is separate: a handoff drafted from a local
+template, not by AI, and labeled that way. Verification warnings and official sources remain
 visible. Generated-art provenance and prompts are in
 [`app/assets/flyover/README.md`](app/assets/flyover/README.md).
 

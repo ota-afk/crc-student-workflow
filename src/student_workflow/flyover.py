@@ -10,7 +10,7 @@ import requests
 import streamlit as st
 
 from . import flyover_client as client
-from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo
+from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
 from .flyover_state import ENCOURAGEMENTS, active_task, map_piece_count, map_progress
 from .frontend import safe_url, source_verified
 from .frontend_state import sync_profile_context
@@ -37,6 +37,8 @@ PROFESSIONALS = {
 }
 OTHER_OFFICE = 'Another office'  # the preset that asks for its own office name
 OFFICE_NAME_MAX = 80
+CHAT_LIMIT = 10  # questions kept in the dropdown's history for this session
+PAGE_NAMES = {'journey': 'Your journey', 'readiness': 'Readiness and checklist'}
 
 
 def esc(value) -> str:
@@ -69,18 +71,110 @@ def settings() -> None:
         st.rerun()
 
 
-def _header() -> None:
+def _header():
+    """The sticky header. Returns the AI Help dropdown, filled once the workflow has loaded."""
     with st.container(key='flyover_header'):
         brand, ai, gear = st.columns([8, 1, 1], vertical_alignment='center')
         with brand:
             st.image(logo(), width=185)
         with ai:
-            st.button('AI', key='flyover_ai', help='Meet Airshow, your assistant',
-                      on_click=go, args=('assistant',))
+            # A dropdown anchored under the logo (not a page jump, not a modal). Its label is the
+            # accessible name; CSS shows the AI Help logo in its place.
+            panel = st.popover('AI Help', key='flyover_ai',
+                               help='Ask Airshow about the step you are on')
         with gear:
             if st.button('Settings', icon=':material/settings:', key='flyover_settings',
                          help='Settings and motion preferences'):
                 settings()
+    return panel
+
+
+def _chat_context(data: dict, page: str) -> tuple[str, str | None]:
+    """(page_context, task_id) for the dropdown: the page it is opened on and the task in view."""
+    tasks = data['workflow']
+    if page == 'home':
+        current = active_task(tasks)
+        return 'journey', current['id'] if current else None
+    # Page 2: the task chosen in "Your checklist", else the current one.
+    chosen = st.session_state.get('flyover_detail')
+    if chosen in {task['id'] for task in tasks}:
+        return 'readiness', chosen
+    current = active_task(tasks)
+    return 'readiness', current['id'] if current else None
+
+
+def _context_key(data: dict, page_context: str, task_id: str | None) -> str:
+    # Changes when the task, page, date or progress changes, so older answers can be labelled.
+    return json.dumps([page_context, task_id, data['as_of'], data['student_profile']],
+                      sort_keys=True)
+
+
+def _send_chat(api_url: str, page_context: str, task_id: str | None) -> None:
+    """Send callback: ask POST /assistant; clear the box only after an answer arrives."""
+    st.session_state.pop('flyover_chat_error', None)
+    question = (st.session_state.get('flyover_question') or '').strip()
+    if not question:
+        return
+    data = st.session_state['flyover_data']
+    try:
+        answer = client.ask_airshow(api_url, data, question, task_id, page_context)
+    except requests.Timeout:
+        # The question stays in the box so the student can send it again.
+        st.session_state['flyover_chat_error'] = 'timeout'
+        return
+    except (requests.RequestException, ValueError):
+        st.session_state['flyover_chat_error'] = 'failed'
+        return
+    history = st.session_state.setdefault('flyover_popup_history', [])
+    history.append({'question': question,
+                    'context': _context_key(data, page_context, task_id), **answer})
+    del history[:-CHAT_LIMIT]  # bounded: a long session never grows without limit
+    st.session_state['flyover_question'] = ''
+
+
+def _clear_chat() -> None:
+    # Only the chat: the handoff below has its own state and is never touched here.
+    st.session_state.pop('flyover_popup_history', None)
+    st.session_state.pop('flyover_chat_error', None)
+
+
+def _chat(data: dict, api_url: str, page: str) -> None:
+    """The AI Help dropdown: a live chat on POST /assistant, separate from the handoff."""
+    page_context, task_id = _chat_context(data, page)
+    titles = {task['id']: task['title'] for task in data['workflow']}
+    current = _context_key(data, page_context, task_id)
+    st.html(f'<img class="fly-chat-badge" src="{svg_asset("ai-help.svg")}" alt="">')
+    st.caption(f'Asking about: {titles.get(task_id, "your workflow")} · '
+               f'{PAGE_NAMES[page_context]}')
+    st.caption('Answers come from your workflow and our sources. Do not include your name, '
+               'SSN or document numbers.')
+    with st.container(key='fly_chat_log'):
+        for entry in st.session_state.get('flyover_popup_history', []):
+            st.markdown('**You:** ' + esc(entry['question']))
+            if entry['context'] != current:
+                st.caption('Earlier answer, before your latest progress or a different step.')
+            if not entry['verified'] or not all(source_verified(s) for s in entry['sources']):
+                st.warning('Not verified. Confirm with the office.')
+            st.markdown(entry['answer'])
+            for number, step in enumerate(entry['steps'], 1):
+                st.write(f'{number}. {step}')
+            if entry['contact']:
+                st.write('Who to contact: ' + entry['contact'])
+            if entry['sources']:
+                st.html(f'<div class="fly-sheet">{_source_rows(entry["sources"])}</div>')
+    if (error := st.session_state.get('flyover_chat_error')) == 'timeout':
+        st.error('Airshow took too long to answer. The service may be starting up: wait a '
+                 'minute and send again. Your progress has been kept.')
+    elif error:
+        st.error('Airshow could not answer right now. Send again, or use your checklist and its '
+                 'sources. Your progress has been kept.')
+    with st.form('flyover_chat_form', border=False):
+        st.text_input('Your question', max_chars=500, key='flyover_question',
+                      placeholder='For example: why is my California ID blocked?')
+        st.form_submit_button('Send', type='primary', on_click=_send_chat,
+                              args=(api_url, page_context, task_id))
+    st.button('Clear conversation', key='flyover_chat_clear', on_click=_clear_chat,
+              type='tertiary')
 
 
 def _profile(data: dict, api_url: str) -> None:
@@ -140,7 +234,8 @@ def _profile(data: dict, api_url: str) -> None:
                             st.session_state['flyover_clear_reset_confirmation'] = True
                             for key in ('flyover_active_id', 'flyover_status', 'flyover_detail', 'flyover_handoff',
                                         'flyover_map_done', 'flyover_celebrate', 'flyover_status_error',
-                                        'flyover_email', 'flyover_resolve_error', 'flyover_answer'):
+                                        'flyover_email', 'flyover_resolve_error', 'flyover_popup_history',
+                                        'flyover_chat_error'):
                                 st.session_state.pop(key, None)
                             for key in list(st.session_state):
                                 if key.startswith('flyover_doc:'):
@@ -562,53 +657,13 @@ def _clear_handoff() -> None:
     st.session_state.pop('flyover_handoff', None)
 
 
-def _ask(data: dict, api_url: str) -> None:
-    """Ask Airshow: a live answer from POST /assistant, grounded in this workflow."""
-    with st.container(key='fly_ask'):
-        st.subheader('Ask Airshow')
-        st.caption('Ask about the task in your checklist. Answers come from your workflow and our '
-                   'sources. Do not include your name, SSN or document numbers.')
-        with st.form('flyover_ask_form', border=False, clear_on_submit=True):
-            question = st.text_input('Your question', max_chars=500, key='flyover_question',
-                                     placeholder='For example: why is my California ID blocked?')
-            asked = st.form_submit_button('Ask Airshow', type='primary')
-        if asked and question.strip():
-            try:
-                with st.spinner('Airshow is checking your workflow…'):
-                    answer = client.ask_airshow(api_url, data, question,
-                                                st.session_state.get('flyover_detail'))
-            except requests.Timeout:
-                # Its own message: on the free host the API may still be waking up.
-                st.error('Airshow took too long to answer. The service may be starting up: wait '
-                         'a minute and ask again. Your progress has been kept.')
-            except (requests.RequestException, ValueError):
-                st.error('Airshow could not answer right now. Try again, or use your checklist '
-                         'and its sources. Your progress has been kept.')
-            else:
-                st.session_state['flyover_answer'] = {'question': question.strip(), **answer}
-        if answer := st.session_state.get('flyover_answer'):
-            st.caption('You asked: ' + answer['question'])
-            if not answer['verified'] or not all(source_verified(s) for s in answer['sources']):
-                st.warning('Not verified. Confirm with the office.')
-            st.markdown(answer['answer'])
-            for number, step in enumerate(answer['steps'], 1):
-                st.write(f'{number}. {step}')
-            if answer['contact']:
-                st.write('Who to contact: ' + answer['contact'])
-            if answer['sources']:
-                st.html(f'<div class="fly-sheet">{_source_rows(answer["sources"])}</div>')
-
-
 def _assistant(data: dict, api_url: str) -> None:
     st.html(flight_scene(static=bool(st.session_state.get('flyover_reduce_motion'))))
     with st.container(key='fly_airshow'):
         context = json.dumps([st.session_state.get('flyover_detail'), data['student_profile']], sort_keys=True)
         if st.session_state.get('flyover_handoff_context') != context:
             st.session_state.pop('flyover_handoff', None)
-            # An answer about another task or older progress would now be out of date.
-            st.session_state.pop('flyover_answer', None)
             st.session_state['flyover_handoff_context'] = context
-        _ask(data, api_url)
         st.subheader('Handoff for your visit')
         st.info('The handoff below is drafted from a template on this page, not by AI, and '
                 'nothing is sent.')
@@ -669,17 +724,24 @@ def render_app() -> None:
         st.html('<style>' + (ASSETS / 'reduce-motion.css').read_text() + '</style>')
     elif st.session_state.get('flyover_pause_banner'):
         st.html('<style>.flyover-slide{animation-play-state:paused!important}</style>')
-    _header()
+    # The launcher's logo comes from our own committed SVG; the rest of its look is in style.css.
+    st.html('<style>.st-key-flyover_ai [data-testid="stPopoverButton"]{background-image:url('
+            + svg_asset('ai-help-icon.svg') + ')!important}</style>')
+    panel = _header()
     if 'flyover_data' not in st.session_state:
         try:
             st.session_state['flyover_data'] = client.fetch_workflow(api_url)
         except (requests.RequestException, ValueError):
+            with panel:
+                st.caption('Airshow can answer once your workflow has loaded.')
             st.error('Could not load your workflow. Check that the API is running and try again.')
             st.button('Retry', key='flyover_retry')
             st.stop()
     data = st.session_state['flyover_data']
     sync_profile_context(data['student_profile'])
     page = st.session_state.get('flyover_page', 'home')
+    with panel:
+        _chat(data, api_url, page)
     if page == 'home':
         _profile(data, api_url)
         if data.get('is_mock'):

@@ -52,3 +52,14 @@ CSS header background is exactly #E6CCBE. Generated raster tones can vary slight
 
 The map now reveals more of its three interlocking pieces on every confirmed
 completion. Full-piece milestones remain first completion / halfway / final.
+
+## AI Help logo (STU-D06-FE-airshow-popup)
+
+`ai-help-icon.svg` (the header launcher, drawn at 46px) and `ai-help.svg` (the badge at the
+top of the chat dropdown) are hand-written SVG traced from the owner's pencil sketch: an
+"AI HELP" speech bubble with a four-point sparkle, a graduation cap with tassel at the upper
+left, an open book at the upper right, a flight-path swoosh underneath and a small plane at
+the lower right. No image generator or stock art. Colours are the Flyover palette: charcoal
+#28323C outlines and text, ivory #F7F4EF bubble, peach #E6CCBE cap, twilight #777DA7 book and
+sparkle, deep sage #3D6350 swoosh, sage #629677 plane. The compact icon shows "AI" only,
+because "HELP" is unreadable at 46px; the button's accessible name is "AI Help".

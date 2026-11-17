@@ -83,12 +83,17 @@ def resolve_blocker(api_url: str, data: dict, task_id: str) -> tuple[dict, dict 
     return result.workflow.model_dump(mode='json'), draft
 
 
-def ask_airshow(api_url: str, data: dict, question: str, task_id: str | None) -> dict:
+def ask_airshow(api_url: str, data: dict, question: str, task_id: str | None,
+                page_context: str | None = None) -> dict:
     """POST /assistant: an answer built from this workflow's own date and progress."""
     profile = data['student_profile']
     body = {'question': question.strip(), 'task_id': task_id, 'as_of': data['as_of'],
             'student_profile': {key: profile[key] for key in ASSISTANT_PROFILE_FIELDS
                                 if key in profile}}
+    if page_context is not None:
+        # Where the question was asked ("journey" or "readiness"); a display hint, see the
+        # contract. Omitted rather than sent as null, so an older API never sees the key.
+        body['page_context'] = page_context
     # 10 seconds, like the other dashboard: the API keeps its model calls inside that budget.
     response = requests.post(f'{api_url.rstrip("/")}/assistant', json=body,
                              headers=_headers(), timeout=10)
