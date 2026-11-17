@@ -5,14 +5,15 @@ The dates match the demo: arrived 2026-08-11, "as of" 2026-08-14 (3 days later).
 """
 
 import json
+import typing
 from datetime import date
 from typing import Any
 
 import pytest
 
-from student_workflow.contract import StudentProfile, Workflow
+from student_workflow.contract import BeforeYouGo, Citation, StudentProfile, Workflow
 from student_workflow.engine import RulesError, resolve
-from student_workflow.rules import Rule, RulesFile, load_rules
+from student_workflow.rules import VISIT_FIELDS, Rule, RulesFile, load_rules
 
 ARRIVAL = date(2026, 8, 11)
 AS_OF = date(2026, 8, 14)
@@ -491,6 +492,149 @@ def test_unknown_profile_key_is_rejected():
     raw = profile().model_dump(mode="json") | {"completed_task": ["task_checkin"]}
     with pytest.raises(ValueError, match="completed_task"):
         StudentProfile.model_validate(raw)
+
+
+# Visit details (STU-D05-BE-before-you-go): every fact cites a rule
+
+
+def fact(text: str, rule_id: str) -> dict[str, str]:
+    return {"text": f"{text} (sample)", "rule_id": rule_id}
+
+
+def visit_rules() -> dict[str, Any]:
+    """school_rules(), with check-in details from three layers and a cited-only fee rule."""
+    raw = school_rules()
+    checkin = next(t for t in raw["tasks"] if t["id"] == "checkin")
+    checkin["before_you_go"] = {
+        "phone": fact("CRC phone", "crc_checkin"),
+        "fees": fact("Shared fee", "fee_rule"),
+        "warnings": [fact("Generic warning", "generic_checkin")],
+    }
+    raw["rules"].append(rule("fee_rule", layer="california"))
+    return raw
+
+
+def visit_of(school_id: str | None, raw: dict[str, Any] | None = None):
+    return by_id(for_school(school_id, raw or visit_rules()), "checkin").before_you_go
+
+
+def test_visit_details_keep_their_strings_and_add_one_citation_per_fact():
+    visit = visit_of("crc")
+    assert visit.phone == "CRC phone (sample)"
+    assert [(c.field, c.rule_id) for c in visit.citations] == [
+        ("fees", "fee_rule"),
+        ("phone", "crc_checkin"),
+    ]
+
+
+def test_citation_carries_each_rules_own_verification_state():
+    # crc_checkin verified, fee_rule not: each citation must show its own rule's state.
+    raw = crc_verified(visit_rules(), "crc_checkin")
+    states = {c.rule_id: c.verification_status for c in visit_of("crc", raw).citations}
+    assert states == {"crc_checkin": "verified", "fee_rule": "needs_verification"}
+
+
+@pytest.mark.parametrize("school_id", [None, "_generic", "unknown_school", "other_school"])
+def test_students_on_generic_steps_get_the_generic_facts(school_id):
+    assert visit_of(school_id).warnings == ["Generic warning (sample)"]
+
+
+def test_completed_task_keeps_its_visit_details():
+    workflow = for_school("crc", visit_rules(), completed=["shared", "checkin"])
+    checkin = by_id(workflow, "checkin")
+    assert checkin.status == "Completed"
+    assert checkin.before_you_go.phone == "CRC phone (sample)"
+
+
+def test_task_outside_the_workflow_does_not_affect_school_verified():
+    # other_task has only another school's rule, so CRC students never see it or its facts.
+    raw = crc_verified(school_rules(), "crc_checkin", "crc_fee_rule")
+    other = next(t for t in raw["tasks"] if t["id"] == "other_task")
+    other["before_you_go"] = {"warnings": [fact("Generic warning", "generic_checkin")]}
+    assert for_school("crc", raw).student_profile.school_verified is True
+
+
+def test_repeated_fact_in_a_list_is_rejected():
+    raw = visit_rules()
+    raw["tasks"][1]["before_you_go"]["warnings"] *= 2
+    with pytest.raises(ValueError, match="repeats a fact"):
+        RulesFile.model_validate(raw)
+
+
+def test_field_lists_match_the_response_model():
+    # Citation.field and BeforeYouGo are written out in contract.py; they must not drift.
+    citation_fields = typing.get_args(Citation.model_fields["field"].annotation)
+    response_fields = tuple(f for f in BeforeYouGo.model_fields if f != "citations")
+    assert citation_fields == VISIT_FIELDS == response_fields
+
+
+def test_rule_cited_only_by_a_fact_is_added_to_sources_once():
+    workflow = for_school("crc", visit_rules())
+    assert source_ids(workflow, "checkin") == ["crc_checkin", "fee_rule"]
+
+
+def test_other_schools_fact_never_reaches_this_student():
+    # A student at another school gets the generic check-in, never CRC's phone number.
+    visit = visit_of("other_school")
+    assert visit.phone is None
+    assert visit.warnings == ["Generic warning (sample)"]
+
+
+def test_generic_fact_is_dropped_when_the_school_has_its_own_step():
+    assert visit_of("crc").warnings == []
+
+
+def test_no_fact_left_gives_null_visit_details():
+    raw = visit_rules()
+    checkin = next(t for t in raw["tasks"] if t["id"] == "checkin")
+    checkin["before_you_go"] = {"phone": fact("CRC phone", "crc_checkin")}
+    # None = nothing to show this student: never a sign that nothing is needed.
+    assert visit_of(None, raw) is None
+
+
+def test_visit_details_never_change_a_tasks_status():
+    with_details = for_school("crc", visit_rules(), completed=["shared"])
+    without = for_school("crc", school_rules(), completed=["shared"])
+    assert [t.status for t in with_details.workflow] == [
+        t.status for t in without.workflow
+    ]
+
+
+def test_rule_cited_only_by_visit_details_cannot_add_a_timing_blocker():
+    raw = visit_rules()
+    fee_rule = next(r for r in raw["rules"] if r["rule_id"] == "fee_rule")
+    fee_rule["timing"] = {"from": "arrival_date", "days": 10}
+    workflow = for_school("crc", raw, completed=["shared"])
+    checkin = by_id(workflow, "checkin")
+    assert checkin.status == "Ready"
+    assert checkin.blockers == []
+    assert "fee_rule" in source_ids(workflow, "checkin")
+    assert checkin.before_you_go.fees == "Shared fee (sample)"
+
+
+def test_unverified_school_fact_keeps_the_school_unverified():
+    # CRC's own check-in and fee rules verified, but a shown CRC fact cites an unverified rule.
+    raw = crc_verified(visit_rules(), "crc_checkin", "crc_fee_rule")
+    checkin = next(t for t in raw["tasks"] if t["id"] == "checkin")
+    checkin["before_you_go"]["hours"] = fact("CRC hours", "crc_hours")
+    raw["rules"].append(rule("crc_hours", layer="school", school_id="crc"))
+    assert for_school("crc", raw).student_profile.school_verified is False
+
+
+def test_visit_fact_citing_an_unknown_rule_is_rejected():
+    raw = visit_rules()
+    raw["tasks"][1]["before_you_go"]["fees"]["rule_id"] = "rule_typo"
+    with pytest.raises(
+        ValueError, match="before_you_go.fees cites unknown rule rule_typo"
+    ):
+        RulesFile.model_validate(raw)
+
+
+def test_unknown_key_in_a_visit_fact_is_rejected():
+    raw = visit_rules()
+    raw["tasks"][1]["before_you_go"]["fees"]["source"] = "typo"
+    with pytest.raises(ValueError, match="source"):
+        RulesFile.model_validate(raw)
 
 
 # Loading the real file

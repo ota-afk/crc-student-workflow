@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .config import schools_path
-from .rules import GENERIC, RulesFile, applicable_rules
+from .rules import GENERIC, RulesFile, applicable_facts, applicable_rules
 
 
 class School(BaseModel):
@@ -32,12 +32,20 @@ def school_is_verified(rules: RulesFile, school_id: str | None) -> bool:
     """True only if every school step this student sees is the school's own, verified rule."""
     if not school_id or school_id == GENERIC:
         return False
-    # The school-layer rules this student would actually see, task by task.
+    # Only the tasks in this student's workflow (a task with only other schools' rules is not).
+    shown = [task for task in rules.tasks if applicable_rules(rules, task, school_id)]
+    # The school-layer rules this student would actually see, task by task: the task's own
+    # rules, plus the rules behind its visit details (a shown CRC phone number counts too).
     school_rules = [
         rule
-        for task in rules.tasks
+        for task in shown
         for rule in applicable_rules(rules, task, school_id)
         if rule.layer == "school"
+    ] + [
+        rule
+        for task in shown
+        for _field, fact in applicable_facts(rules, task, school_id)
+        if (rule := rules.rule(fact.rule_id)).layer == "school"
     ]
     # A generic fallback on any task means part of the workflow is not checked for this school.
     return bool(school_rules) and all(

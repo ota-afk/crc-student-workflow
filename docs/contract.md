@@ -149,6 +149,23 @@ list of allowed values.
 | `phone` | string or null | `null` |
 | `official_url` | string or null | `null` |
 | `warnings` | array of strings | `[]` |
+| `citations` | array of Citation objects (in review, STU-D05-BE-before-you-go) | `[]` |
+
+**Citation** (one per fact above, in field order):
+
+| Field | JSON type | Meaning |
+| --- | --- | --- |
+| `field` | string: one of the seven field names above | Which field the fact is in |
+| `text` | string | The fact, exactly as shown in that field |
+| `rule_id` | string | The rule the fact comes from (also listed in the task's `sources`) |
+| `verification_status` | string: `verified` or `needs_verification` | That rule's state |
+
+The string fields stay as they were, so a dashboard that reads them keeps working. `citations`
+is added beside them; no dashboard reads it yet. **Proposed for FE:** show each fact from
+`citations` (field and text together, since two facts can share the same text) and label it
+"Not verified" unless its `verification_status` is `verified`. Until then, the cited rules
+are also in the task's `sources`, which FE already labels. An empty `citations` (the mock, or
+an older response) means no per-fact source was supplied, so every fact counts as unverified.
 
 ### Source
 
@@ -321,8 +338,8 @@ verification" above):
 - `next_action: null`: the task isn't blocked by a missing prerequisite.
 - `blockers: []` on the DMV task: it is blocked only by its missing prerequisite. ENG's rules
   have no waiting period, so there is no `timing` blocker and no unlock date.
-- `before_you_go: null`: the rules file has no visit details yet. It is `null` on every task
-  (see "Readiness" below).
+- `before_you_go: null`: `rules.json` on `main` has no visit details. Once ENG adds them and
+  this branch's support merges, they appear here with `citations` (see "The rules file").
 - `last_verified: null` with `needs_verification`: no human check recorded yet.
 
 ### Errors
@@ -470,13 +487,15 @@ Returns a Workflow. Real answer for step 3, trimmed the same way:
 
 ## Readiness: what "Ready" means
 
-**Status: a known gap.** The proposal at the end is not built.
+**Status: a known gap.** Item 1 of the proposal at the end is built in review
+(STU-D05-BE-before-you-go); items 2 and 3 are not.
 
 The plan's readiness check ("Are you ready, and when will you be?") isn't fully supported yet:
 
-- **`before_you_go` is `null` on every task in a live response.** `rules.json` has no visit
-  details (documents, fees, hours, appointment rules, phone), so the resolver has nothing to
-  fill in. The model fields exist; only the mock fills them, with sample data.
+- **`before_you_go` is `null` on every task with `rules.json` on `main`**, which has no visit
+  details. ENG has a draft with visit details for the check-in and DMV tasks. The backend can
+  read that shape once this branch merges; before that, the current models reject it, so it
+  must not merge first.
 - **No request field says which documents the student has.** The dashboard (FE's #16, on `main`)
   keeps a local checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness
   uses checkboxes like "I have my passport". The `document` blocker type exists in the model, but
@@ -486,10 +505,10 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
   guidance, `null`, or an empty list is **not** proof of readiness, and FE shows "Not verified"
   for missing guidance.
 
-**Proposed, pending ENG, FE and BE agreement** (nothing below is built):
+**Proposed, pending ENG, FE and BE agreement:**
 
-1. ENG adds sourced visit details per task to `rules.json` (the `BeforeYouGo` fields, each with
-   its rule and verification state), and the resolver copies them into `before_you_go`.
+1. *(Built in review.)* ENG adds sourced visit details per task to `rules.json`, each fact
+   citing its rule, and the resolver copies them into `before_you_go` with `citations`.
 2. The profile gains `documents_on_hand: dict[str, list[str]]` (task ID to the documents the
    student ticked). This widens the student inputs, so the team decides it with the ground
    rules in mind.
@@ -549,6 +568,46 @@ The file has two lists: `tasks` and `rules`.
 | `priority` | string: `Required`, `Recommended`, or `Optional` | Required |
 | `prerequisites` | array of task IDs from this file | `[]` |
 | `rule_ids` | array of rule IDs from this file, at least one | Required |
+| `before_you_go` | object or null (in review, STU-D05-BE-before-you-go) | `null` |
+
+`before_you_go` has the same seven fields as the response's BeforeYouGo, but **every fact
+cites its rule**: `{"text": "...", "rule_id": "..."}`. `required_documents` and `warnings` are
+lists of these; the other five are one each or `null`. Unknown keys are rejected, and every
+`rule_id` must be a rule in this file. A cited rule doesn't have to be in the task's `rule_ids`.
+
+Example task (trimmed):
+
+```json
+{
+  "id": "task_dmv_id",
+  "before_you_go": {
+    "fees": {"text": "$40 for a regular original ID card.", "rule_id": "rule_dmv_id_fee"},
+    "required_documents": [
+      {
+        "text": "Bring two different printed California address documents.",
+        "rule_id": "rule_california_real_id_residency"
+      }
+    ]
+  }
+}
+```
+
+What the resolver does with it:
+
+- It keeps only facts whose rule applies to this student: federal and California rules always;
+  a school rule only if it is the student's own school's, or a `_generic` rule while the task
+  uses the generic steps. So a CRC phone number never reaches a student at another school. A
+  task with no school rules at all uses the generic steps for everyone, so its `_generic` facts
+  reach every student (and keep `school_verified` false, like any generic step).
+- `required_documents` and `warnings` can't repeat the same fact (same text and rule); that is
+  rejected as a likely copy-paste slip.
+- It copies each kept fact's `text` into the response's matching field, and adds a `citations`
+  entry with the rule's `verification_status`. Each cited rule is also added to the task's
+  `sources` (after the task's own rules, without repeats).
+- If no fact is left, `before_you_go` is `null`.
+- `school_verified` counts the school rules behind kept facts too: a shown CRC fact that isn't
+  verified keeps `school_verified` false.
+- Visit details never change a task's status.
 
 ### Rule
 
@@ -677,7 +736,8 @@ Other fields on each task:
   text `Finish "<title>" first.`; otherwise `null`.
 - `sources`: one per applicable rule, with its `source_url`, `last_verified`, and explicit
   `verification_status`, including after a timing blocker expires or a task is completed.
-- `before_you_go`: `null` (the rules file has no visit details yet).
+- `before_you_go`: the task's visit details from the rules file, filtered to this student's
+  school, with `citations` (see "The rules file"); `null` when there are none.
 
 The result is a Workflow with `schema_version: "1.0"` and `is_mock: false`, tasks in file order.
 It passes the same consistency checks as the mock.
@@ -742,6 +802,11 @@ unreadable rules file raises the corresponding file error.
   `completed_tasks` and `awaiting_reply` list at 1,000 items. Larger lists return `422`
   before the resolver runs; existing duplicate-ID errors keep the same message.
 
+- 2026-11-16, STU-D05-BE-before-you-go (in review): a rules-file task can carry
+  `before_you_go`, each fact citing a rule. The resolver keeps only facts whose rule applies to
+  the student's school, adds the cited rules to `sources`, and the response's BeforeYouGo gains
+  `citations` (additive; the string fields are unchanged). `school_verified` counts the school
+  rules behind shown facts.
 - 2026-11-16, STU-D05-BE docs: status labels now say what is on `main`, in review, deployed or
   proposed (D03 to D05 are open PRs, nothing is deployed). Real request and response examples
   for `POST /workflow` and both task actions, a field-by-field request guide, the stateless round

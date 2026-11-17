@@ -28,6 +28,18 @@ class Blocker(BaseModel):
     explanation: str
 
 
+class Citation(BaseModel):
+    """Where one before-you-go fact comes from, so FE can label it "Not verified"."""
+
+    field: Literal[
+        'required_documents', 'fees', 'hours', 'appointment_rules', 'phone',
+        'official_url', 'warnings',
+    ]
+    text: str
+    rule_id: str
+    verification_status: Literal['verified', 'needs_verification']
+
+
 class BeforeYouGo(BaseModel):
     required_documents: list[str] = []
     fees: str | None = None
@@ -36,6 +48,9 @@ class BeforeYouGo(BaseModel):
     phone: str | None = None
     official_url: str | None = None
     warnings: list[str] = []
+    # Added beside the strings (not replacing them), so dashboards that read the strings keep
+    # working. [] = no per-fact source supplied (the mock), so every fact counts as unverified.
+    citations: list[Citation] = []
 
 
 class Source(BaseModel):
