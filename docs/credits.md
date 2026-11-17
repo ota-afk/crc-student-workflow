@@ -132,6 +132,10 @@
 - STU-D05-BE-docs-status (Nov 16 2026): AI assistance (Claude Code) updated the status wording
   in `docs/contract.md`, `README.md`, `docs/deploy.md` and `docs/release-checklist.md` after
   #20, #21 and #22 merged. Documentation only. Pending the BE owner's review.
+- STU-D04-AI (Nov 16 2026): AI assistance (Claude) drafted `scripts/run_ai_questions.py`,
+  `data/ai_test_questions.json`, `docs/cost-and-scale.md` and `docs/ai-readme-section.md`.
+  The English word-list bug was found by running the real model. Token numbers are measured
+  by the runner; the price is from OpenAI's pricing page.
 
 - STU-D03-AI (Nov 16 2026): AI assistance (Codex) drafted the citation validator,
   engine-grounded task explanations, placeholder email drafts, and regression tests
