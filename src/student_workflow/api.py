@@ -40,6 +40,7 @@ from .contract import (
     AssistantRequest,
     ReminderRequest,
     ReminderResult,
+    ReminderStatus,
     ResolveResult,
     StudentProfile,
     Task,
@@ -209,6 +210,19 @@ def schedule_reminder(request: ReminderRequest) -> ReminderResult:
         raise HTTPException(status_code=502, detail=str(error)) from error
     return ReminderResult(reminder_id=email_id, status='scheduled', task_id=task.id,
                           send_at=send_at)
+
+
+@app.get('/notifications/reminders/{reminder_id}', response_model=ReminderStatus,
+         dependencies=NEEDS_KEY)
+def reminder_status(reminder_id: str = Path(pattern=REMINDER_ID)) -> ReminderStatus:
+    key = resend_api_key()
+    if not key:
+        raise HTTPException(status_code=503, detail='Reminders are not configured')
+    try:
+        event = notifications.status(key, reminder_id)
+    except notifications.ProviderError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    return ReminderStatus(reminder_id=reminder_id, provider_status=event)
 
 
 @app.post('/notifications/reminders/{reminder_id}/cancel', response_model=ReminderResult,

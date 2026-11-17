@@ -660,6 +660,13 @@ Same `X-API-Key` and rate limit as every route. Request (strict; unknown keys ar
 - `200` → `{"reminder_id": "<Resend email ID>", "status": "scheduled", "task_id": "…",
   "send_at": "<UTC>"}`. Resend refusing or not answering → 502 with a safe message.
 
+### `GET /notifications/reminders/{reminder_id}`
+
+`200` → `{"reminder_id": "…", "provider_status": "<Resend last_event>"}`: one of `scheduled`,
+`queued`, `sent`, `delivered`, `delivery_delayed`, `bounced`, `failed`, `suppressed`, `canceled`,
+`opened`, `clicked`, `complained`, or `unknown` for anything else. Same ID check (422) and 502
+when Resend doesn't answer. Lets the dashboard show what happened to a reminder.
+
 ### `POST /notifications/reminders/{reminder_id}/cancel`
 
 `reminder_id` must look like Resend's email ID (hex and dashes, 8–64), else 422. `200` →
@@ -938,6 +945,9 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D07-reminder-status: `GET /notifications/reminders/{id}` returns Resend's
+  latest event, so the dashboard can explain an undelivered reminder.
 
 - 2026-11-17, STU-D07-BE-reminders: `POST /notifications/reminders` and
   `POST /notifications/reminders/{id}/cancel` (Resend scheduled email, allow-listed recipients,

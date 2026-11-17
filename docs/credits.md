@@ -272,3 +272,7 @@
 - STU-D07-FE-reminders (Nov 17 2026): AI assistance (Claude Code) added Flyover's "Email me a
   reminder" (schedule, list, cancel, cancel on completion) in `flyover.py` and
   `flyover_client.py`, with `tests/test_flyover_reminders.py` (Resend faked).
+
+- STU-D07-reminder-status (Nov 17 2026): AI assistance (Claude Code) added the reminder status
+  route (`api.py`, `notifications.py`, `contract.py`) and Flyover's "Check status" with
+  plain-language results (`flyover.py`, `flyover_client.py`), with tests.

@@ -224,6 +224,14 @@ class ReminderResult(BaseModel):
     send_at: datetime | None = None
 
 
+class ReminderStatus(BaseModel):
+    """GET /notifications/reminders/{id}: what the email service last did with it."""
+
+    reminder_id: str
+    # Resend's last_event (scheduled, sent, delivered, bounced, failed, ...) or 'unknown'.
+    provider_status: str
+
+
 class EmailDraft(BaseModel):
     """A placeholder draft for the student to review and send."""
 

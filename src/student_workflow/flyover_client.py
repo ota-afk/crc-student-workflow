@@ -177,3 +177,16 @@ def cancel_reminder(api_url: str, reminder_id: str) -> None:
             from error
     if getattr(response, 'status_code', 200) >= 400:
         raise _reminder_error(response)
+
+
+def reminder_status(api_url: str, reminder_id: str) -> str:
+    """The email service's latest status for a reminder ('scheduled', 'delivered', ...)."""
+    try:
+        response = requests.get(
+            f'{api_url.rstrip("/")}/notifications/reminders/{quote(reminder_id, safe="")}',
+            headers=_headers(), timeout=15)
+    except requests.RequestException as error:
+        raise ReminderError('Could not check this reminder right now.') from error
+    if getattr(response, 'status_code', 200) >= 400:
+        raise _reminder_error(response)
+    return response.json().get('provider_status', 'unknown')
