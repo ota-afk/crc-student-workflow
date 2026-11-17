@@ -161,3 +161,9 @@
   (sticky header, departures-board step title, readiness tables, quote card), drew the
   low-poly airplane as SVG, and built the scroll-driven flight into Airshow and its
   handoff template.
+
+- STU-D06-BE-flyover-live (Nov 17 2026): AI assistance (Claude Code) connected Flyover to the
+  live API: "Resolve blocker" with the API's email draft, and "Ask Airshow" on
+  `POST /assistant`, in `src/student_workflow/flyover.py` and `flyover_client.py` (FE's
+  files, at the owner's request). Added `tests/test_flyover_live_api.py` and client tests;
+  updated two Airshow wording tests. Pending FE's review.
