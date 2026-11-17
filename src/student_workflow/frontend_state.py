@@ -19,7 +19,7 @@ def sync_profile_context(profile: dict) -> None:
     if old is not None and old != context:
         for key in list(st.session_state):
             if key.startswith('document:') or key in {
-                'documents_on_hand', 'assistant_history', 'email_preview', 'email_context',
+                'documents_on_hand', 'assistant_history', 'api_email_draft',
             }:
                 del st.session_state[key]
         st.info('Profile context changed. Reconfirm your documents for this workflow. '

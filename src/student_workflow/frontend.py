@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 import requests
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
+from .frontend_api import api_get
 from .schools import School
 
 
@@ -36,8 +37,7 @@ def search_school_directory(api_url: str, query: str) -> list[School]:
     query = query.strip()
     if len(query) > 100:
         raise ValueError('School search must contain at most 100 characters.')
-    response = requests.get(f'{api_url.rstrip("/")}/schools',
-                            params={'q': query, 'limit': 20}, timeout=10)
+    response = api_get(f'{api_url.rstrip("/")}/schools', params={'q': query, 'limit': 20})
     response.raise_for_status()
     schools = TypeAdapter(list[School]).validate_python(response.json(), strict=True)
     ids = [school.school_id for school in schools]

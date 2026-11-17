@@ -7,6 +7,7 @@ import requests
 import streamlit as st
 
 from .frontend import ask_assistant, safe_url, source_verified
+from .frontend_api import ApiError, complete_task, resolve_task
 from .frontend_state import open_task
 
 
@@ -28,8 +29,7 @@ def show_readiness(task: dict) -> None:
         st.info('Listed documents checked. This does not confirm eligibility or change task status.')
     if task.get('missing_prerequisites'):
         st.warning('Some prerequisite tasks still need to be completed.')
-    st.caption('This is your document inventory, not a backend readiness decision. '
-               'Task updates are not connected yet.')
+    st.caption('This is your document inventory, not a backend readiness decision.')
     if st.button('Close readiness', key='close_readiness'):
         st.rerun()
 
@@ -50,7 +50,31 @@ def render_sources(sources: list[dict]) -> None:
         )
 
 
-def render_task_details(tasks: list[dict], is_mock: bool) -> str | None:
+def _run_action(kind: str, task_id: str, title: str, api_url: str) -> None:
+    """Call the task action, then replace the held profile and workflow with the answer."""
+    profile = st.session_state.get('workflow_profile') or {}
+    as_of = st.session_state.get('session_as_of')
+    try:
+        if kind == 'resolve':
+            workflow, draft = resolve_task(api_url, task_id, profile, as_of)
+        else:
+            workflow, draft = complete_task(api_url, task_id, profile, as_of), None
+    except ApiError as error:
+        st.session_state['action_error'] = {'task_id': task_id, 'message': str(error)}
+        return
+    st.session_state.pop('action_error', None)
+    st.session_state['workflow_data'] = workflow  # carries the updated profile for next time
+    if kind == 'resolve':
+        if draft:
+            st.session_state['api_email_draft'] = {'task_id': task_id, **draft}
+        st.session_state['flash_message'] = (
+            f'Blocker resolved for "{title}". Review the email draft below. No email was sent.'
+            if draft else f'Blocker resolved for "{title}".')
+    else:
+        st.session_state['flash_message'] = f'"{title}" marked done.'
+
+
+def render_task_details(tasks: list[dict], is_mock: bool, api_url: str) -> str | None:
     st.subheader('Task details')
     if not tasks:
         st.info('No tasks available. Try again when your workflow is available.')
@@ -117,9 +141,16 @@ def render_task_details(tasks: list[dict], is_mock: bool) -> str | None:
 
     if st.button('View readiness', key='show_readiness'):
         show_readiness(task)
-    st.caption('Task updates are not connected yet. Your checks do not resolve or complete tasks.')
-    st.button('Resolve blocker', key='resolve_task', disabled=True)
-    st.button('Mark done', key='complete_task', disabled=True)
+    st.caption('Your document checks do not change task status. Use these buttons to update '
+               'the task.')
+    st.button('Resolve blocker', key='resolve_task', disabled=task['status'] != 'Blocked',
+              on_click=_run_action, args=('resolve', task_id, task['title'], api_url))
+    st.button('Mark done', key='complete_task',
+              disabled=task['status'] not in ('Ready', 'In Progress'),
+              on_click=_run_action, args=('complete', task_id, task['title'], api_url))
+    failed = st.session_state.get('action_error') or {}
+    if failed.get('task_id') == task_id:
+        st.error(failed['message'])
 
     st.markdown('#### Before your visit')
     for label, key in [('Hours', 'hours'), ('Fees', 'fees'),

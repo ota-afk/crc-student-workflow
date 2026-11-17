@@ -477,8 +477,8 @@ Returns a Workflow. Real answer for step 3, trimmed the same way:
   (`/docs`, `/redoc`, `/openapi.json`) stay open: they show the API's shape, never any data, and
   `/docs` still needs the key to call an endpoint. When `API_KEY` is empty (local development and
   tests), the check is off and the server logs a warning at startup. The deployed API must set it.
-  FE sends the header from its own `API_KEY` setting; the dashboard on `main` doesn't yet, so a
-  deployed dashboard gets `401` until it does. The key lives in each host's secret settings, never
+  The dashboard sends the header from its own `API_KEY` setting on every request (workflow,
+  school search and task actions); set the same value in the dashboard's service settings. The key lives in each host's secret settings, never
   in code or a page.
 - **Rate limit.** `RATE_LIMIT` (default `60/minute`), over it `429`; `/health` is exempt and
   keeps answering after the limit is reached.

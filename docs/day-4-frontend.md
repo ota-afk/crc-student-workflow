@@ -2,18 +2,15 @@
 
 ## Implemented locally
 
-Task details now offers a placeholder email template for the selected blocked
-task. Click **Preview sample email draft**; it shows a subject, body, supplied
-blocker context and prerequisite titles. It is explicitly sample/unverified,
-with no invented recipient address. Use the native copy icon to copy subject and
-body together, or select the text manually. Complete placeholders in your own
-mail app. The app neither sends email nor changes task status.
+Task details shows the email draft returned by `POST /tasks/{id}/resolve` (the
+earlier sample template was removed). It is labeled unverified, with no invented
+recipient address. Use the native copy icon to copy subject and body together, or
+select the text manually. Complete placeholders in your own mail app. The app never
+sends email. If the API returns no draft, none is shown.
 
-The preview remains in transient Streamlit session memory. It clears when task,
-profile, workflow date or relevant task data changes. **Clear email draft**
-does not clear document selections or chat. Rerenders do not rebuild a draft.
-Missing or invalid template data shows a friendly retry error and preserves the
-checklist. There is no new email API contract or live email mode.
+The draft lives in transient Streamlit session memory, only for the task it was
+generated for. It clears when the profile changes or on **Clear email draft**,
+which does not clear document selections or chat.
 
 Workflow loading now shows a spinner and validates the shared `Workflow` model
 before rendering. Request and validation failures show retry guidance without
@@ -55,12 +52,13 @@ Proposed service settings to apply after review:
 | Health check | `/_stcore/health` (checks Streamlit, not backend connectivity) |
 | `PYTHON_VERSION` | `3.12.15` (version used for local verification) |
 | `API_URL` | Actual deployed FastAPI base URL, supplied by owner; never hosted `localhost` |
+| `API_KEY` | Same secret as the API service; set in Render's secret settings, never committed |
 | `ASSISTANT_MODE` | `mock` until the reviewed backend assistant endpoint is live |
 
 No OpenAI key is needed by this frontend preview. Keep backend secrets in the
 backend service's secret settings. No disk or database is needed for FE state.
-The email fixture must stay available at `data/mock/email.mock.json` in the
-deployed repository checkout.
+Set `API_KEY` to the same value as the API service; the dashboard sends it as
+`X-API-Key` on every request (it stays on the server and never reaches the browser).
 
 Render supports uv when `uv.lock` is at the service root; its web service must
 listen on `0.0.0.0` and should use `$PORT`. References checked November 15, 2026:
