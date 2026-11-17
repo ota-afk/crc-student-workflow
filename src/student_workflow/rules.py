@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .config import rules_path
-from .contract import Priority
+from .contract import EnrollmentTerm, Priority
 
 # extra='forbid': an unknown key (a typo like "timming") is an error, not silently ignored.
 STRICT = ConfigDict(extra="forbid")
@@ -33,13 +33,14 @@ class Timing(BaseModel):
 class Deadline(BaseModel):
     """A due date worked out from a date in the student's profile (STU-D07-due-dates).
 
-    For CRC Fall 2026 fees (docs/sources.md): enrolled on or before `cutoff` → due on
+    For the selected term (docs/sources.md): enrolled on or before `cutoff` → due on
     `due_if_by_cutoff`; enrolled later → due `days_after` days after enrolling.
     """
 
     model_config = STRICT
 
     from_: Literal["enrollment_date"] = Field(alias="from")
+    term: EnrollmentTerm | None = None
     cutoff: date
     due_if_by_cutoff: date
     days_after: int = Field(ge=0)

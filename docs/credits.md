@@ -286,3 +286,8 @@
   deadlines: the `deadline` on the verified CRC fee rule (`rules.json`, ENG's file, no new
   facts), the models and engine (`rules.py`, `contract.py`, `engine.py`), the reminder email's
   Due line, and Flyover's enrollment-date inputs and due notes, with tests.
+
+- ENG Spring 2027 (Nov 17, 2026): Codex added the official CRC enrollment timeline,
+  semester-specific payment rule, profile semester choice and source notes. Regression
+  checks cover both payment cutoffs, missing semester inputs and the sign-in workflow.
+  The Spring source records await human review.

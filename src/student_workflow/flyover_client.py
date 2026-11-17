@@ -13,7 +13,8 @@ from .schools import School
 # The profile fields POST /assistant accepts (AssistantProfile); it rejects any other key, and
 # student_id and school_verified must never reach it.
 ASSISTANT_PROFILE_FIELDS = ('institution', 'visa_type', 'arrival_date', 'has_ssn', 'school_id',
-                            'completed_tasks', 'awaiting_reply', 'enrollment_date')
+                            'completed_tasks', 'awaiting_reply', 'enrollment_date',
+                            'enrollment_term')
 
 
 def _headers() -> dict[str, str]:

@@ -3,6 +3,7 @@
   "is_mock": true,
   "as_of": "2026-08-14",
   "student_profile": {
+    "enrollment_term": "fall_2026",
     "student_id": "demo_001",
     "institution": "Cosumnes River College",
     "school_id": "crc",

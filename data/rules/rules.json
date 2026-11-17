@@ -177,7 +177,8 @@
       "priority": "Required",
       "prerequisites": [],
       "rule_ids": [
-        "rule_crc_fall_2026_payment_deadline"
+        "rule_crc_fall_2026_payment_deadline",
+        "rule_crc_spring_2027_payment_deadline"
       ],
       "offices": [
         "crc_business_services"
@@ -340,7 +341,8 @@
         "from": "enrollment_date",
         "cutoff": "2026-07-24",
         "due_if_by_cutoff": "2026-08-07",
-        "days_after": 1
+        "days_after": 1,
+        "term": "fall_2026"
       }
     },
     {
@@ -522,6 +524,29 @@
       "second_checker": null,
       "second_check_date": null,
       "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_crc_spring_2027_payment_deadline",
+      "statement": "For CRC Spring 2027, students who enroll on or before December 25, 2026 must pay by January 8, 2027. For enrollment on or after December 26, payment is due the day after enrollment. For the latter group, nonpayment does not cause a drop, but unpaid fees after the term ends place a hold on future enrollment until payment is received.",
+      "layer": "school",
+      "school_id": "crc",
+      "high_risk": false,
+      "source_url": "https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines",
+      "evidence": "December 25, 2026, or earlier | January 8, 2027; December 26, 2026, or later | The next day after enrollment date*",
+      "last_checked": "2026-11-17",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "changed": null,
+      "verification_status": "needs_verification",
+      "deadline": {
+        "from": "enrollment_date",
+        "term": "spring_2027",
+        "cutoff": "2026-12-25",
+        "due_if_by_cutoff": "2027-01-08",
+        "days_after": 1
+      }
     }
   ],
   "offices": [

@@ -26,7 +26,7 @@ from .flyover_appointments import (
     notice_key,
 )
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
-from .flyover_signin import masked, render_signin, sign_out, signed_in
+from .flyover_signin import ENROLLMENT_TERMS, masked, render_signin, sign_out, signed_in
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
@@ -385,6 +385,11 @@ def _profile(data: dict, api_url: str) -> None:
                     visa = st.selectbox('Visa type', ['F-1'], key='flyover_visa')
                 ssn = st.radio('Do you have an SSN?', ['No', 'Yes'], horizontal=True,
                     index=int(profile['has_ssn']), key='flyover_ssn', help='Yes or no only. Never enter the number.')
+                term = st.selectbox(
+                    'Enrollment term', list(ENROLLMENT_TERMS),
+                    index=list(ENROLLMENT_TERMS).index(profile.get('enrollment_term')),
+                    format_func=ENROLLMENT_TERMS.get, key='flyover_term',
+                    help='Choose the semester these classes belong to.')
                 enrolled = st.date_input(
                     'Enrollment date (optional)', key='flyover_enrollment',
                     value=date.fromisoformat(profile['enrollment_date'])
@@ -402,7 +407,8 @@ def _profile(data: dict, api_url: str) -> None:
                         changes = {'school_id': school_id, 'institution': schools[school_id]['institution']
                             if school_id else 'School not listed', 'visa_type': visa,
                             'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
-                            'enrollment_date': enrolled.isoformat() if enrolled else None}
+                            'enrollment_date': enrolled.isoformat() if enrolled else None,
+                            'enrollment_term': term}
                         try:
                             # The spinner is the feedback; the page itself no longer dims.
                             with st.spinner('Building your workflow…'):
@@ -1316,6 +1322,7 @@ def _profile_page(data: dict) -> None:
         facts = [('School', profile['institution']), ('Visa type', profile['visa_type']),
                  ('Arrival date', f'{arrival:%B} {arrival.day}, {arrival.year} · {since}'),
                  ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No'),
+                 ('Enrollment term', ENROLLMENT_TERMS.get(profile.get('enrollment_term'))),
                  ('Enrollment date', date.fromisoformat(profile['enrollment_date']).strftime('%B %d, %Y')
                   if profile.get('enrollment_date') else 'Not given')]
         st.html('<dl class="fly-facts">' + ''.join(

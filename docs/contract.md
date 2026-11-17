@@ -624,23 +624,31 @@ intended task with the Render model configuration.
 
 ## Deadlines (STU-D07-due-dates)
 
-**Status: on main once this merges.** A rule may carry a `deadline`; today only the verified
-CRC Fall 2026 fee rule does:
+CRC fee deadlines are selected by the student's semester. `StudentProfile` and
+`AssistantProfile` accept optional `enrollment_term` (`fall_2026`, `spring_2027`, or null)
+and `enrollment_date` (date or null). Flyover asks for the semester at sign-in and in Profile
+setup and preserves it in task actions and assistant requests.
+
+A deadline may carry an optional `term`. When a term is supplied, task sources include only
+the matching term's deadline rules. With no term, they include both so the sources remain
+available while the student chooses. Existing unscoped deadline rules keep their behavior.
 
 ```json
-"deadline": {"from": "enrollment_date", "cutoff": "2026-07-24",
-             "due_if_by_cutoff": "2026-08-07", "days_after": 1}
+"deadline": {"from": "enrollment_date", "term": "spring_2027", "cutoff": "2026-12-25",
+             "due_if_by_cutoff": "2027-01-08", "days_after": 1}
 ```
 
-Enrolled on or before `cutoff` → due `due_if_by_cutoff`; later → due `days_after` days after
-enrolling (docs/sources.md, verified by two people). `StudentProfile` and `AssistantProfile`
-gain an optional `enrollment_date` (null = not given).
+Enrolled on or before `cutoff` → due `due_if_by_cutoff`; later → due `days_after` calendar
+days after enrolling. The new Spring rule is `needs_verification` and carries no human
+checker names. Sources and recorded verification states are in `docs/sources.md`.
 
-Each task gets `due` (null when no rule sets a deadline, or the task is Completed):
-`{"due_on": "2026-08-14", "needs": null, "rule_id": "…", "verification_status": "verified",
-"past_due": false}`. Without an enrollment date: `due_on` null, `needs: "enrollment_date"`,
-`past_due` null; the due date is never guessed. `past_due` is `as_of > due_on`. A deadline
-never changes a task's status or blocks it. Reminder emails include a known due date.
+Each task gets `due` (null when no rule sets a deadline, or the task is Completed).
+For a term-specific deadline, a missing term gives `due_on: null`,
+`needs: "enrollment_term"` and `past_due: null`. Once a term is selected, a missing date
+gives `needs: "enrollment_date"`. Older profiles are accepted and receive these prompts.
+The August mock explicitly selects Fall 2026. A calculated deadline carries its own rule's
+verification status. `past_due` is `as_of > due_on`. Reminder emails include a known date.
+A deadline never changes the task status.
 
 ## Reminder emails (STU-D07-BE-reminders)
 
@@ -939,22 +947,9 @@ unreadable rules file raises the corresponding file error.
 
 ## Open questions for the team
 
-- **Enrollment date (ENG, FE and the team).** ENG's handoff merged with #18
-  (`docs/day2-rules-handoff.md`) asks BE to "add optional enrollment_date and a separate
-  deadline field": for the agreed demo, enrolling on August 13 means payment is due August 14
-  under the CRC fee rule (`rule_crc_fall_2026_payment_deadline`), and a missing enrollment date
-  must not fall back to `arrival_date`. Today the contract has neither field. Because the
-  profile rejects unknown keys (#20), sending `enrollment_date` now gets a `422`; the fee task
-  shows its source but no date. It isn't built because the plan's ground rules list what a
-  student gives us (school, state, visa type, arrival date, whether they have an SSN), and this
-  widens that list. **Proposed, pending ENG, FE and team agreement:**
-  - `student_profile.enrollment_date: date | null` (default `null` = not given: no deadline is
-    shown, and it is never estimated from `arrival_date`).
-  - `Task.due_on: date | null`, filled only when the rule has a deadline and the date is given.
-  - A rules-file `deadline` field such as `{"from": "enrollment_date", "days": 1}`; ENG confirms
-    that "the next day" means one calendar day.
-  - A deadline never blocks a task or changes its status. It is shown beside the task, with
-    the rule's verification state.
+- **Additional semesters.** Fall 2026 and Spring 2027 CRC fee deadlines are supported by the
+  semester field and the [deadline contract](#deadlines-stu-d07-due-dates). Other semesters
+  need sourced rules and an update to the supported term options.
 - **State.** School search returns California rows only, the profile has no state field, and
   every profile gets the California rules. Supporting other states needs a contract decision.
 - **Unknown `school_id`.** It is accepted and gets the generic steps (`school_verified:

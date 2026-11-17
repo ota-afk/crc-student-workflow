@@ -89,10 +89,14 @@ yes/no). "Sign in and start" builds the workflow from those answers through the 
 Profile setup opens pre-filled. There are no accounts: the email stays in the browser session,
 never reaches the model, and goes to the API only when you schedule a reminder.
 
-An optional **enrollment date** (sign-in or Profile setup) lets Flyover show the CRC tuition
-deadline from the verified fee rule: "Due today · Double-checked by our team", "Due Thu, Aug 20
-(in 6 days)" or "Past due since…", on page 1's current step, the Now card and the checklist.
-Without it, Flyover asks for the date instead of guessing.
+Choose an **enrollment term** (Fall 2026 or Spring 2027) and optionally enter the actual
+**enrollment date** at sign-in or in Profile setup. Flyover uses that semester's CRC payment
+table. For Spring 2027, students enrolled by December 25, 2026 pay by January 8, 2027;
+students enrolled from December 26 pay the following day. Spring rules show **Not verified**
+until their human checks are complete. A missing term or date prompts for that input.
+[Official enrollment timeline](https://crc.losrios.edu/admissions/enroll-in-classes) and
+[payment dates](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
+are recorded in `docs/sources.md`.
 
 Each unfinished task's checklist has **Email me a reminder**: a day and time (Pacific, up to 30
 days ahead) and a consent box. The API schedules it with Resend, so it arrives even if you
