@@ -259,3 +259,7 @@
   `docs/sources.md` (ENG's files, named by the owner) as needs_verification, with the
   `offices` models and validation (`rules.py`), response (`contract.py`), engine scoping and
   `in_effect`, contract text and `tests/test_offices.py`.
+
+- STU-D07-FE-hours-matching (Nov 17 2026): AI assistance (Claude Code) matched students' free
+  times with offices' published hours and added the checklist's Office hours block
+  (`flyover_appointments.py`, `flyover.py`), with tests.

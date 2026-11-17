@@ -93,3 +93,69 @@ def notice_key(guidance: dict, windows: list[dict]) -> str:
     so a dismissed notice comes back only when something it says has changed."""
     availability = hashlib.sha256(describe_windows(windows).encode()).hexdigest()[:8]
     return f'{guidance["task_id"]}:{guidance["revision"]}:{availability}'
+
+
+# ---- Office hours from the rules file (STU-D07-FE-hours-matching) ----
+
+def _t(value) -> time:
+    # The API sends times as 'HH:MM:SS'; tests may pass time objects.
+    return value if isinstance(value, time) else time.fromisoformat(value)
+
+
+def in_person_hours(office: dict) -> list[dict] | None:
+    """The office's in-person opening hours, or None when the source publishes none."""
+    hours = office.get('weekly_hours')
+    if hours is None:
+        return None
+    return [{'day': h['day'], 'open': _t(h['open']), 'close': _t(h['close'])}
+            for h in hours if h['mode'] == 'in_person']
+
+
+def hours_summary(office: dict) -> str:
+    """'Mon–Thu 08:00–17:00 · Fri 08:00–16:30', grouping consecutive days with equal hours."""
+    hours = in_person_hours(office)
+    if not hours:
+        return 'No hours published'
+    by_day = {h['day']: (h['open'], h['close']) for h in hours}
+    groups: list[list] = []
+    for day in DAYS:
+        if day not in by_day:
+            continue
+        span = by_day[day]
+        last = groups[-1] if groups else None
+        if last and last[2] == span and DAYS.index(day) == DAYS.index(last[1]) + 1:
+            last[1] = day
+        else:
+            groups.append([day, day, span])
+    return ' · '.join(
+        f'{first[:3]}{"–" + last[:3] if last != first else ""} {s:%H:%M}–{e:%H:%M}'
+        for first, last, (s, e) in groups)
+
+
+def overlaps(windows: list[dict], office: dict) -> list[dict]:
+    """The parts of the student's free times when the office is open in person, by day."""
+    found = []
+    for hours in in_person_hours(office) or []:
+        for window in windows:
+            if window['day'] != hours['day']:
+                continue
+            start, end = max(window['start'], hours['open']), min(window['end'], hours['close'])
+            if start < end:
+                found.append({'day': window['day'], 'start': start, 'end': end})
+    return normalize_windows(found) if found else []
+
+
+def match_line(office: dict, windows: list[dict]) -> str:
+    """One honest sentence comparing free times with this office's published hours."""
+    name = office['name']
+    if in_person_hours(office) is None:
+        return f'{name} publishes no hours: check with the office before you go.'
+    if office.get('in_effect') is False:
+        return (f"{name}'s published hours are for {office['period_note'].rstrip('.')}, "
+                "not your workflow's date: check the office's current hours.")
+    caveat = '' if office.get('in_effect') else ' These hours may differ from your workflow\'s date.'
+    found = overlaps(windows, office)
+    if found:
+        return (f'Your free times overlap {name}\'s published hours: {describe_windows(found)}. '
+                f'Confirm before you go; this is not a booking.{caveat}')
+    return f'No overlap with {name}\'s published hours ({hours_summary(office)}).{caveat}'

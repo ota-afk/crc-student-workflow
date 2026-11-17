@@ -372,12 +372,16 @@ def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
                    for v in values(app.markdown))  # never claims an appointment is required
 
 
-def test_free_times_show_without_claiming_a_match(live):
-    from student_workflow.flyover_appointments import NO_HOURS_NOTE
-    app = add_free_time(signed_in_app(APP),
-                        'Monday', (9, 0), (12, 0))
-    assert any(v == f'Your free times: Monday 09:00–12:00. {NO_HOURS_NOTE}'
-               for v in values(app.caption))
+def test_free_times_are_matched_against_published_office_hours(live):
+    app = add_free_time(signed_in_app(APP), 'Monday', (7, 0), (9, 30))
+    captions = values(app.caption)
+    assert 'Your free times: Monday 07:00–09:30.' in captions
+    # Admissions & Records opens at 08:00 on Mondays (Fall 2026 hours, in effect on the demo date).
+    assert any(c.startswith("Your free times overlap CRC Admissions and Records Office's "
+                            'published hours: Monday 08:00–09:30.') for c in captions)
+    # The International Students Office publishes none, and the notice says so.
+    assert ('CRC International Students Office publishes no hours: check with the office '
+            'before you go.') in captions
 
 
 def test_a_backwards_free_time_is_refused(live):
@@ -497,3 +501,12 @@ def test_email_joins_the_handoff_only_when_switched_on(live):
     who = dict(app.session_state['flyover_handoff']['sections'])['Who I am'][0]
     assert who.endswith('Contact: student@example.com')
     assert 'student@example.com' not in str(live.calls)  # still never sent to the API
+
+
+def test_checklist_lists_the_tasks_offices_with_their_hours(live):
+    app = open_checklist(signed_in_app(APP), DMV)
+    shown = values(app.markdown)
+    assert '#### Office hours' in shown
+    assert '**California DMV, Sacramento South** :orange-badge[Not verified]' in shown
+    assert 'Mon–Tue 08:00–17:00 · Wed 09:00–17:00 · Thu–Fri 08:00–17:00 (Pacific time)' in values(
+        app.get('markdown')) or any('Wed 09:00–17:00' in v for v in values(app.markdown))
