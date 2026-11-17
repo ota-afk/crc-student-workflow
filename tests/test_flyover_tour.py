@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from test_flyover_app import app_with
+from test_flyover_app import app_with, go_to
 
 from student_workflow import flyover
 from student_workflow.flyover_tour import TOUR_STEPS, tour_code, tour_script
@@ -84,18 +84,18 @@ def test_flyover_sends_the_tour_once_per_session(monkeypatch):
 def test_replay_in_settings_sends_it_again_on_page_one(monkeypatch):
     calls = _sent(monkeypatch)
     app = app_with(monkeypatch)
-    app.button(key='flyover_next').click().run()  # page 2 first: Replay must come back home
+    go_to(app, 'checklist')  # another page first: Replay must come back to the workflow
     app.button(key='flyover_settings').click().run()
     app.button(key='flyover_tour_replay_btn').click().run()
     assert not app.exception
-    assert app.session_state['flyover_page'] == 'home'
+    assert app.session_state['flyover_page'] == 'workflow'
     assert calls[-1] == (True, False)
 
 
 def test_the_tour_is_not_sent_on_page_two(monkeypatch):
     calls = _sent(monkeypatch)
     app = app_with(monkeypatch)
-    app.session_state['flyover_page'] = 'readiness'
+    app.session_state['flyover_page'] = 'checklist'
     app.session_state['flyover_tour_sent'] = False
     calls.clear()
     app.run()

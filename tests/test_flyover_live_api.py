@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import requests
 from streamlit.testing.v1 import AppTest
-from test_flyover_app import signed_in_app
+from test_flyover_app import go_to, open_checklist, signed_in_app
 from test_live_api import KEY, Bridge
 from test_streamlit import values
 
@@ -43,11 +43,6 @@ def status_of(app: AppTest, task_id: str) -> str:
                 if t['id'] == task_id)
 
 
-def open_checklist(app: AppTest, task_id: str) -> AppTest:
-    app.button(key='flyover_next').click().run()  # page 2: readiness and the checklist
-    return app.selectbox(key='flyover_detail').select(task_id).run()
-
-
 def ask(app: AppTest, question: str) -> str:
     """Ask in the AI Help dropdown and return the newest answer's text."""
     app.text_area(key='flyover_question').input(question)
@@ -75,8 +70,8 @@ def test_airshow_answer_follows_resolve_and_mark_done(live):
     app = open_checklist(signed_in_app(APP), DMV)
     assert 'Task status: Blocked.' in ask(app, 'Why is my ID blocked?')
     app.button(key='flyover_resolve:' + DMV).click().run()
-    app.selectbox(key='flyover_detail').select(RESIDENCY).run()
-    app.button(key='flyover_detail_complete').click().run()  # back to page 1
+    app.selectbox(key='flyover_checklist_pick').select(RESIDENCY).run()
+    app.button(key='flyover_detail_complete').click().run()
     assert status_of(app, DMV) == 'Ready'
     app = open_checklist(app, DMV)
     # The same kind of question now gets the new status, not the old one.
@@ -118,7 +113,7 @@ def test_checklist_completion_celebrates_once_like_the_status_selector(live):
     app.button(key='flyover_detail_complete').click().run()
     assert not app.exception
     assert status_of(app, RESIDENCY) == 'Completed'  # the API's answer, not the click
-    assert app.session_state['flyover_page'] == 'home'
+    assert app.session_state['flyover_page'] in ('workflow', 'checklist')
     assert confetti_shown(app)
     assert any('completed. Next:' in v for v in values(app.success))
     app.run()
@@ -158,10 +153,10 @@ def chat_bodies(bridge: Bridge) -> list[dict]:
 def test_dropdown_is_named_ai_help_and_asking_does_not_navigate(live):
     app = signed_in_app(APP)
     # AppTest has no Popover class; the label (the accessible name) is on the block's proto.
-    assert [p.proto.popover.label for p in app.get('popover')] == ['AI Help']
+    assert next(p.proto.popover.label for p in app.get('popover')) == 'AI Help'
     ask(app, 'What next?')
-    # No jump to page 2 or Airshow (the app only sets flyover_page when you navigate).
-    assert app.session_state.get('flyover_page', 'home') == 'home'
+    # No jump to another page (the app only changes flyover_page when you navigate).
+    assert app.session_state['flyover_page'] == 'workflow'
     assert 'flyover_scroll' not in app.session_state
 
 
@@ -170,7 +165,7 @@ def test_dropdown_sends_journey_and_the_current_step_on_page_one(live):
     ask(app, 'What next?')
     body, = chat_bodies(live)
     assert body['page_context'] == 'journey'
-    assert body['task_id'] == app.session_state['flyover_active_id']
+    assert body['task_id'] == app.session_state['flyover_detail']
 
 
 def test_dropdown_sends_readiness_and_the_chosen_task_on_page_two(live):
@@ -182,7 +177,7 @@ def test_dropdown_sends_readiness_and_the_chosen_task_on_page_two(live):
 
 
 def test_clearing_the_chat_keeps_the_handoff(live):
-    app = open_checklist(signed_in_app(APP), DMV)
+    app = go_to(open_checklist(signed_in_app(APP), DMV), 'handoff')
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
     ask(app, 'What next?')
@@ -192,7 +187,7 @@ def test_clearing_the_chat_keeps_the_handoff(live):
 
 
 def test_generating_a_handoff_sends_nothing_to_the_assistant(live):
-    app = open_checklist(signed_in_app(APP), DMV)
+    app = go_to(open_checklist(signed_in_app(APP), DMV), 'handoff')
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
     assert chat_bodies(live) == []
@@ -272,8 +267,7 @@ def card_titles(app: AppTest) -> list[str]:
 
 def test_take_off_shows_one_now_card_then_up_next_required_first(live):
     from student_workflow.flyover_state import task_queue
-    app = signed_in_app(APP)
-    app.button(key='flyover_next').click().run()
+    app = signed_in_app(APP)  # Before you take off shares the workflow's page
     queue = task_queue(app.session_state['flyover_data']['workflow'])
     assert queue[0]['priority'] == 'Required'  # ENG's rules have Required tasks
     assert card_titles(app) == [queue[0]['title'], queue[1]['title']]
@@ -283,10 +277,10 @@ def test_page_one_and_the_now_card_focus_the_same_step(live):
     from student_workflow.flyover_state import task_queue
     app = signed_in_app(APP)
     first = task_queue(app.session_state['flyover_data']['workflow'])[0]
-    assert app.session_state['flyover_active_id'] == first['id']
-    app.button(key='flyover_next').click().run()
-    app.button(key='fly_focus_open').click().run()
     assert app.session_state['flyover_detail'] == first['id']
+    app.button(key='fly_focus_open').click().run()
+    assert app.session_state['flyover_page'] == 'checklist'
+    assert app.selectbox(key='flyover_checklist_pick').value == first['id']
 
 
 def test_residency_is_queued_before_the_real_id_task_that_needs_it(live):
@@ -309,7 +303,8 @@ def test_completion_shows_the_boarding_board_once(live):
     assert 'class="fly-board" role="status"' in html
     assert ('aria-label="Gather residency evidence for California REAL ID completed. '
             f'Now boarding: {upcoming["title"]}.') in html.replace('&#x27;', "'")
-    assert 'gate-title is-changing' in html  # the title flips with it
+    # The completed task stays selected, so its title does not flip; the next is offered.
+    assert app.button(key='flyover_take_next').label == f'Next suggested: {upcoming["title"]}'
     app.run()
     assert 'class="fly-board"' not in page_html(app)  # consumed once
     assert 'gate-title is-changing' not in page_html(app)
@@ -337,6 +332,8 @@ def test_step_number_counts_progress_not_file_position(live):
     assert 'Step 01 of 08 · Now boarding' in page_html(app)
     app = open_checklist(app, RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
+    go_to(app, 'workflow')
+    app.button(key='flyover_take_next').click().run()  # take the offered next step
     assert 'Step 02 of 08 · Now boarding' in page_html(app)
 
 
@@ -487,14 +484,13 @@ def test_profile_progress_counts_follow_the_api(live):
 
 
 def test_email_joins_the_handoff_only_when_switched_on(live):
-    app = open_checklist(signed_in_app(APP), DMV)
+    app = go_to(open_checklist(signed_in_app(APP), DMV), 'handoff')
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
     assert 'student@example.com' not in str(app.session_state['flyover_handoff'])
-    app.button(key='flyover_back').click().run()
-    app = open_profile(app)
+    app = go_to(app, 'profile')
     app.toggle(key='flyover_handoff_email_widget').set_value(True).run()
-    app = open_checklist(app.button(key='flyover_profile_back').click().run(), DMV)
+    app = go_to(app, 'handoff')
     assert 'flyover_handoff' not in app.session_state  # the old handoff no longer matches
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()

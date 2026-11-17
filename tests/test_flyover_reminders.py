@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import requests
-from test_flyover_app import signed_in_app
+from test_flyover_app import open_checklist, signed_in_app
 from test_live_api import KEY, Bridge
 from test_streamlit import values
 
@@ -34,9 +34,7 @@ def live(monkeypatch):
 
 
 def checklist(task_id):
-    app = signed_in_app(APP)
-    app.button(key='flyover_next').click().run()
-    return app.selectbox(key='flyover_detail').select(task_id).run()
+    return open_checklist(signed_in_app(APP), task_id)
 
 
 def remind(app, task_id, consent=True):
@@ -91,8 +89,7 @@ def test_completing_a_task_cancels_its_reminders(live):
 def test_a_completed_task_offers_no_reminder(live):
     app = checklist(RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
-    app.button(key='flyover_next').click().run()
-    app.selectbox(key='flyover_detail').select(RESIDENCY).run()
+    open_checklist(app, RESIDENCY)
     assert '#### Email me a reminder' not in values(app.markdown)
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 import requests
 from streamlit.testing.v1 import AppTest
+from test_flyover_app import open_checklist
 from test_live_api import KEY, Bridge
 from test_streamlit import values
 
@@ -97,14 +98,11 @@ def test_an_enrollment_date_at_sign_in_shows_the_tuition_deadline(live):
     app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 7, 1))
     app = sign_in(app)
     assert app.session_state['flyover_data']['student_profile']['enrollment_date'] == '2026-07-01'
-    app.button(key='flyover_next').click().run()
-    app = app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
+    app = open_checklist(app, 'task_crc_fee_payment')
     # Enrolled before the July 24 cutoff: due August 7, 2026 (the verified CRC rule).
     assert any(v.startswith('Past due since Fri, Aug 7, 2026.') for v in values(app.warning))
 
 
 def test_without_an_enrollment_date_flyover_asks_for_it(live):
-    app = sign_in(first_screen())
-    app.button(key='flyover_next').click().run()
-    app = app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
+    app = open_checklist(sign_in(first_screen()), 'task_crc_fee_payment')
     assert 'Add your enrollment date in Profile setup to see when this is due.' in values(app.info)
