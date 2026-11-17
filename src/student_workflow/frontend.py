@@ -1,14 +1,13 @@
 """Frontend-only helpers and the proposed assistant client; no workflow mutations."""
 
 import json
-from datetime import date
 from pathlib import Path
-from typing import Literal
 from urllib.parse import urlsplit
 
 import requests
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import TypeAdapter
 
+from .contract import AnswerSource, AssistantAnswer  # noqa: F401 - keep the existing exports
 from .frontend_api import api_get
 from .schools import School
 
@@ -44,27 +43,6 @@ def search_school_directory(api_url: str, query: str) -> list[School]:
     if len(set(ids)) != len(ids):
         raise ValueError('School search returned duplicate identifiers.')
     return schools
-
-
-class AnswerSource(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    rule_id: str
-    url: str | None
-    last_verified: date | None
-    verification_status: Literal['verified', 'needs_verification', 're-checking']
-
-
-class AssistantAnswer(BaseModel):
-    """Proposed FE adapter contract, pending BE/AI agreement."""
-
-    model_config = ConfigDict(extra='forbid')
-    answer: str = Field(min_length=1)
-    steps: list[str]
-    sources: list[AnswerSource]
-    verified: bool = Field(strict=True)
-    contact: str | None
-    task_id: str | None
-    is_mock: bool = Field(strict=True)
 
 
 def ask_assistant(question: str, task_id: str | None, profile: dict,

@@ -20,10 +20,20 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from starlette.concurrency import run_in_threadpool
 
 from .ai_day3 import generate_email
+from .assistant import answer_question
 from .config import api_key, cors_origins, mock_path, rate_limit, use_mock
-from .contract import ResolveResult, StudentProfile, Task, Workflow, WorkflowRequest
+from .contract import (
+    AssistantAnswer,
+    AssistantRequest,
+    ResolveResult,
+    StudentProfile,
+    Task,
+    Workflow,
+    WorkflowRequest,
+)
 from .engine import RulesError, resolve
 from .rules import RulesFile, load_rules
 from .schools import School, search_schools
@@ -143,6 +153,22 @@ def post_workflow(request: WorkflowRequest) -> Workflow:
     return _workflow(request.student_profile, _as_of(request))
 
 
+@app.post('/assistant', response_model=AssistantAnswer, dependencies=NEEDS_KEY)
+async def post_assistant(request: AssistantRequest) -> AssistantAnswer:
+    rules, workflow = await run_in_threadpool(_assistant_workflow, request)
+    if request.task_id is not None:
+        _find(workflow, request.task_id)
+    return await answer_question(request, workflow, rules)
+
+
+def _assistant_workflow(request: AssistantRequest) -> tuple[RulesFile, Workflow]:
+    # The resolver does not require a real identifier. Reuse the same rules snapshot
+    # for the workflow and its assistant risk flags.
+    profile = StudentProfile(student_id='assistant', **request.student_profile.model_dump())
+    rules = _rules()
+    return rules, _workflow(profile, request.as_of, rules=rules)
+
+
 @app.post('/tasks/{task_id}/complete', response_model=Workflow, dependencies=NEEDS_KEY)
 def complete_task(task_id: str, request: WorkflowRequest) -> Workflow:
     # One date for both steps, so the check and the answer can't fall on different days.
@@ -224,9 +250,11 @@ def _rules() -> RulesFile:
 
 
 def _workflow(
-    profile: StudentProfile, as_of: date, *, from_client: bool = True
+    profile: StudentProfile, as_of: date, *, from_client: bool = True,
+    rules: RulesFile | None = None,
 ) -> Workflow:
-    rules = _rules()  # read fresh: the workflow fetch is never cached (plan's ground rule)
+    if rules is None:
+        rules = _rules()  # read fresh: the workflow fetch is never cached (plan's ground rule)
     try:
         return resolve(rules, profile, as_of)
     except ValidationError as error:

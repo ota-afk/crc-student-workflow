@@ -1,0 +1,205 @@
+import json
+from threading import Event
+from types import SimpleNamespace
+
+import pytest
+from fastapi.testclient import TestClient
+from openai import OpenAIError
+
+from student_workflow import ai_assistant, api, assistant
+from student_workflow.config import rules_path
+from student_workflow.contract import AssistantAnswer
+
+DMV = 'task_dmv_id'
+RESIDENCY = 'task_proof_of_residency'
+client = TestClient(api.app)
+
+
+@pytest.fixture
+def workflow_request():
+    demo = json.loads(api.mock_path().read_text(encoding='utf-8'))
+    return {'as_of': demo['as_of'], 'student_profile': demo['student_profile']}
+
+
+@pytest.fixture
+def provider(monkeypatch):
+    fake = SimpleNamespace(task=DMV, clients=[], calls=[], before_parse=lambda _kind: None)
+
+    class ModelClient:
+        def __init__(self, **kwargs):
+            fake.clients.append(kwargs)
+            self.responses = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+        def close(self):
+            pass
+
+        def parse(self, **kwargs):
+            fake.calls.append(kwargs)
+            kind = kwargs['text_format'].__name__
+            fake.before_parse(kind)
+            data = {'task_id': fake.task}
+            if kind == 'CitationChoice':
+                blockers = json.loads(kwargs['input'])['blockers']
+                data = {'rule_ids': [item['rule_id'] for item in reversed(blockers)]}
+            return SimpleNamespace(output_parsed=kwargs['text_format'](**data))
+
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-provider-key')
+    monkeypatch.setenv('OPENAI_MODEL', 'test-model')
+    monkeypatch.setattr(ai_assistant, 'OpenAI', ModelClient)
+    return fake
+
+
+def assistant_body(workflow, task_id=DMV, question='Why is this task blocked?'):
+    profile = dict(workflow['student_profile'])
+    profile.pop('student_id')
+    profile.pop('school_verified', None)
+    return {'as_of': workflow['as_of'], 'student_profile': profile,
+            'task_id': task_id, 'question': question}
+
+
+def ask(body):
+    response = client.post('/assistant', json=body)
+    assert response.status_code == 200, response.text
+    return AssistantAnswer.model_validate(response.json())
+
+
+def test_answer_tracks_resolve_and_mark_done(workflow_request, provider):
+    before = ask(assistant_body(workflow_request))
+    assert before.task_id == DMV
+    assert before.answer.startswith('Task status: Blocked.')
+    assert before.steps[0].startswith('Finish ')
+    assert before.sources[0].rule_id == 'rule_california_real_id_residency'
+    assert before.verified == (before.sources[0].verification_status == 'verified')
+    assert before.is_mock is False
+    assert provider.calls[0]['input'] == 'Why is this task blocked?'
+    assert f'The dashboard has selected {DMV}.' in provider.calls[0]['instructions']
+    assert workflow_request['as_of'] not in provider.calls[0]['instructions']
+    assert provider.calls[0]['store'] is False
+
+    resolved = client.post(f'/tasks/{DMV}/resolve', json=workflow_request)
+    assert resolved.status_code == 200, resolved.text
+    workflow = resolved.json()['workflow']
+    provider.task = RESIDENCY
+    assert ask(assistant_body(workflow, RESIDENCY)).answer == 'Task status: In Progress.'
+
+    done_request = {key: workflow[key] for key in ('as_of', 'student_profile')}
+    done = client.post(f'/tasks/{RESIDENCY}/complete', json=done_request)
+    assert done.status_code == 200, done.text
+    assert ask(assistant_body(done.json(), RESIDENCY)).answer == 'Task status: Completed.'
+    provider.task = DMV
+    assert ask(assistant_body(done.json())).answer == 'Task status: Ready.'
+
+
+def test_question_guardrails_run_before_openai(workflow_request, provider):
+    referral = ask(assistant_body(workflow_request, None, 'Can I work off campus?'))
+    assert 'DSO' in referral.contact
+    assert not referral.steps and not referral.sources and referral.task_id is None
+    privacy = ask(assistant_body(workflow_request, question='My name is Jane and I need help.'))
+    assert privacy.answer == ai_assistant.REPHRASE_MESSAGE
+    assert provider.clients == []
+
+    provider.task = 'task_confirm_sevis_active'
+    matched_referral = ask(assistant_body(workflow_request))
+    assert matched_referral.contact == referral.contact
+    assert len(provider.calls) == 1
+
+
+def test_invalid_selection_profile_and_auth_are_rejected(workflow_request, provider, monkeypatch):
+    payload = assistant_body(workflow_request)
+    monkeypatch.setenv('API_KEY', 'test-dashboard-key')
+    assert client.post('/assistant', json=payload).status_code == 401
+    headers = {'X-API-Key': 'test-dashboard-key'}
+    assert client.post('/assistant', json={**payload, 'task_id': 'missing'},
+                       headers=headers).status_code == 404
+    assert client.post('/assistant', json={**payload, 'question': '   '},
+                       headers=headers).status_code == 422
+    assert client.post('/assistant', json={**payload, 'as_of': None},
+                       headers=headers).status_code == 422
+    payload['student_profile']['student_id'] = 'demo_001'
+    assert client.post('/assistant', json=payload, headers=headers).status_code == 422
+    assert provider.clients == []
+
+
+def test_missing_key_and_provider_failure_return_safe_answer(workflow_request, provider,
+                                                              monkeypatch):
+    body = assistant_body(workflow_request)
+    with monkeypatch.context() as settings:
+        settings.delenv('OPENAI_API_KEY')
+        assert ask(body).answer == ai_assistant.ERROR_MESSAGE
+        assert provider.clients == []
+
+    def fail(_kind):
+        raise OpenAIError('private provider error')
+
+    provider.before_parse = fail
+    fallback = ask(body)
+    assert fallback.answer == ai_assistant.ERROR_MESSAGE
+    assert not fallback.verified and not fallback.sources and not fallback.is_mock
+
+
+def test_waiting_for_intent_is_bounded(workflow_request, provider, monkeypatch):
+    entered, release, finished = Event(), Event(), Event()
+
+    def block_intent(_kind):
+        entered.set()
+        release.wait(4)
+        finished.set()
+
+    provider.before_parse = block_intent
+    monkeypatch.setattr(assistant, 'INTENT_TIMEOUT', 0.25)
+    try:
+        assert ask(assistant_body(workflow_request)).answer == ai_assistant.ERROR_MESSAGE
+        assert entered.is_set() and not finished.is_set()
+    finally:
+        release.set()
+    assert finished.wait(1)
+    assert provider.clients[0]['timeout'] == 0.25
+    assert provider.clients[0]['max_retries'] == 0
+
+
+def test_timing_and_citations_survive_ranking_timeout(workflow_request, provider, tmp_path,
+                                                      monkeypatch):
+    rules = json.loads(rules_path().read_text(encoding='utf-8'))
+    timing_rule_id = 'rule_california_id_application'
+    rule = next(item for item in rules['rules'] if item['rule_id'] == timing_rule_id)
+    rule['timing'] = {'from': 'arrival_date', 'days': 10}
+    path = tmp_path / 'rules.json'
+    path.write_text(json.dumps(rules), encoding='utf-8')
+    monkeypatch.setenv('RULES_PATH', str(path))
+
+    body = assistant_body(workflow_request)
+    ranked = ask(body)
+    assert ranked.sources[1].rule_id == timing_rule_id
+    assert provider.calls[-1]['text_format'].__name__ == 'CitationChoice'
+    assert any('Unlock date: 2026-08-21.' in step for step in ranked.steps)
+
+    entered, release, finished = Event(), Event(), Event()
+
+    def block_ranking(kind):
+        if kind == 'CitationChoice':
+            entered.set()
+            release.wait(4)
+            finished.set()
+
+    provider.before_parse = block_ranking
+    monkeypatch.setattr(assistant, 'CITATION_TIMEOUT', 0.25)
+    try:
+        fallback = ask(body)
+        assert entered.is_set() and not finished.is_set()
+        assert fallback.answer == ranked.answer
+        assert fallback.sources == list(reversed(ranked.sources))
+        assert fallback.sources[0].rule_id == timing_rule_id
+    finally:
+        release.set()
+    assert finished.wait(1)
+
+    body['as_of'] = '2026-08-21'
+    after_unlock = ask(body)
+    assert all('Unlock date' not in step for step in after_unlock.steps)
+    assert all(source.rule_id != timing_rule_id for source in after_unlock.sources)

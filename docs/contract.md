@@ -522,31 +522,48 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
 
 ## AI integration
 
-**Status: draft integration in review.** This branch connects the local placeholder
-template to "Resolve blocker". The assistant route and its HTTP response remain to be agreed.
+### `POST /assistant`
 
-| Plan item | Where | State |
-| --- | --- | --- |
-| Intent mapping: `map_intent(text, tasks) -> IntentResult` (`matched`, `no_match`, `dso_referral`, `error`) | AI's PR #15, `ai_assistant.py` | Helper in PR #15; not called by the API. |
-| Privacy filtering | #15: `has_name()` and `has_sensitive_data()` refuse detected personal details; `scrub()` adds backup redaction and a length cap | Review regressions covered; patterns cannot guarantee all personal data is detected. Use presets for the demo. |
-| High-risk referral | #15: `is_high_risk(text)` patterns give `dso_referral`; so does a matched task with `high_risk: true` | Missing or non-bool risk flags return `error` before a model call. SEVIS state and employment patterns refer before a model call. API integration remains pending. |
-| Timeout | #15: `timeout=30` on the OpenAI client it creates | Exists in #15. |
-| One retry | #15 sets `max_retries=0` | **Missing** (the plan asks for one retry). |
-| Cited explanations and the citation validator | `src/student_workflow/ai_day3.py` | Available to BE as a helper. The assistant route is pending. |
-| `generate_email()` | `src/student_workflow/ai_day3.py` | "Resolve blocker" returns its placeholder draft in this review branch. |
-| Caching of AI explanations | No branch | **Missing** (the plan's only allowed cache). |
-| Assistant route | No BE route. The dashboard (#16, on `main`) calls only an explicitly set `ASSISTANT_ENDPOINT` (no default) when `ASSISTANT_MODE=live` | **Not agreed.** |
+Use the same `X-API-Key` header and rate limit as the dashboard workflow calls. The server
+resolves the submitted workflow snapshot at `as_of` on every request. `task_id` can be null
+and otherwise selects a task in that workflow as a hint for follow-up questions. Unknown
+selected tasks return `404`. Invalid dates, questions or profiles return `422`.
 
-**Open assistant decisions for AI, FE and BE:**
+```json
+{
+  "question": "Why is this task blocked?",
+  "task_id": "task_dmv_id",
+  "as_of": "2026-08-14",
+  "student_profile": {
+    "institution": "Cosumnes River College",
+    "visa_type": "F-1",
+    "arrival_date": "2026-08-11",
+    "has_ssn": false,
+    "school_id": "crc",
+    "completed_tasks": ["task_i94_retrieval", "task_sevis_fee"],
+    "awaiting_reply": []
+  }
+}
+```
 
-- The assistant route's name (no `/api/` prefix) and request: which profile fields reach the
-  model. FE's client sends `institution`, `visa_type`, `arrival_date`, `has_ssn` and
-  `school_id`; never `student_id`.
-- The answer shape. FE's #16 proposes an `AssistantAnswer` (answer, steps, sources with
-  verification state, `verified`, contact, task ID, `is_mock`); AI and BE haven't agreed.
-- Where `high_risk` comes from. BE's proposal: the API fills it from the rules each task cites,
-  and a missing flag never counts as safe.
-- Where the timeout, the one retry and the explanation cache live (AI's module or the API).
+Send `as_of` from the workflow response and both progress lists from its latest profile.
+Questions contain 1–500 characters after trimming. `school_id` may be omitted or null.
+Both progress lists default to empty. The profile schema excludes `student_id`,
+`school_verified`, document choices and chat history. OpenAI sees the filtered question and
+the scoped candidate task IDs and titles. Progress and dates stay in the resolver.
+
+The `200` response uses `AssistantAnswer` for explanations, referrals and fallbacks. Fields
+are `answer`, `steps`, `sources`, `verified`, `contact`, `task_id`, and `is_mock`. Sources
+carry `rule_id`, `url`, `last_verified` and `verification_status`. Referrals include the
+school's DSO as `contact`. A referral or fallback has empty `steps` and `sources`, a null task
+ID and `verified: false`. All endpoint replies set `is_mock: false`.
+
+The route gives intent matching up to five seconds. A missing model configuration, provider
+error or timeout yields a message directing the student to their task list. If there are
+multiple citations, optional ranking has two additional seconds. Ranking failure keeps the
+rules-based explanation and citation order. The request uses zero model retries so both
+stages fit within the dashboard's 10-second timeout. Risks and verification come from the
+school-scoped rules, including the prerequisite used for a next action.
 
 ### Intent mapping helper (PR #15)
 
@@ -584,10 +601,8 @@ or one at the start of a sentence can pass). For a demo that must never send a
 name to the model, use the preset questions (`PRESET_QUESTIONS` in
 `ai_assistant.py`) instead of free text.
 
-Demo integration remains pending: FE/BE should offer only the five preset
-questions before enabling free text, and verify each button opens the intended
-task. The existing preset tests verify input filtering with a fake model; they
-do not establish real-model routing accuracy or enforce a preset-only API.
+The dashboard demo should use the five preset questions and verify that each one opens the
+intended task with the Render model configuration.
 
 ## The rules file: `data/rules/rules.json`
 

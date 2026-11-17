@@ -4,9 +4,8 @@ Both services run on Render's free plan, set up from [`render.yaml`](../render.y
 "Blueprint": one file that describes both services). Only the BE owner's Render account is
 used; teammates don't need one.
 
-**Status (2026-11-16): deployed from `main`.** The API passed the full smoke test. The dashboard
-is up, but its calls get `401` until FE's change that sends the API key is on `main`; Render
-redeploys it by itself once that merges and CI passes.
+The API and dashboard are deployed from `main`. PR #30 connected Generate Workflow,
+Resolve Blocker and Mark Done to the authenticated API.
 
 ## Live URLs
 
@@ -15,16 +14,10 @@ redeploys it by itself once that merges and CI passes.
 | API | https://crc-workflow-api.onrender.com |
 | Dashboard | https://crc-workflow-dashboard.onrender.com |
 
-## Before the first deploy: the dashboard must send the API key
+## Dashboard API access
 
-The deployed API needs the `X-API-Key` header on every endpoint except `/health`
-([contract](contract.md#access-api-key-and-rate-limit)). The dashboard on `main` does
-not send it yet, and it only calls `GET /workflow`. So:
-
-- **FE** adds the header (from the dashboard's `API_KEY` setting) to every request, and wires
-  onboarding, "Resolve blocker" and "Mark done" to the `POST` endpoints.
-- Until that is merged, a deployed dashboard gets `401` from a deployed API. Deploy the API
-  first and smoke test it (below); deploy the dashboard once FE's change is on `main`.
+The deployed API needs the `X-API-Key` header on every endpoint except `/health`. Configure
+the same `API_KEY` on both services. See the [API contract](contract.md#access-api-key-and-rate-limit).
 
 ## One-time setup
 
@@ -57,9 +50,16 @@ not send it yet, and it only calls `GET /workflow`. So:
 5. Put both URLs in the "Live URLs" table above (a small docs pull request).
 
 After this, every merge to `main` deploys both services once CI passes (`autoDeployTrigger:
-checksPass`). The OpenAI key is not needed yet: the backend makes no OpenAI calls until the AI
-layer (#15) is wired in. When it is, add `OPENAI_API_KEY` and `OPENAI_MODEL` on the API's
-Environment page only, never in `render.yaml`.
+checksPass`).
+
+## Enable the Assistant API
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` on the `crc-workflow-api` Render Environment page.
+Use a model supported by the existing AI helpers and keep the key in Render's service
+environment. After redeploy, make an authenticated `POST /assistant` using the request
+example in the [Assistant API contract](contract.md#post-assistant). Confirm the answer
+matches the current task and that a status or work-authorization question returns a DSO
+referral. Enable the dashboard's live Assistant mode after the frontend integration passes.
 
 ## After every deploy: smoke test
 
