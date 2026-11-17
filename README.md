@@ -107,12 +107,12 @@ labeled sample response: no LLM request is made. **Clear conversation** removes
 chat history without clearing document selections. Neither is written to disk;
 a new browser session starts fresh. Do not enter personal identifiers in chat.
 
-The assistant endpoint and answer contract are **proposed, pending BE/AI agreement**.
-There is no hardcoded live route. Keep `ASSISTANT_MODE=mock`; only after agreement,
-set `ASSISTANT_ENDPOINT` to the exact full URL and opt into live mode. Without a
-configured URL, no live assistant request is made. See
-[Day 3 implementation and integration blockers](docs/day-3-frontend.md).
-The frontend never calls a model directly.
+With `ASSISTANT_MODE=live`, the tab calls the API's `POST /assistant`
+([contract](docs/contract.md#post-assistant)) at `API_URL`, with the same `X-API-Key`
+header and 10-second timeout as the workflow calls. It sends the current workflow's
+`as_of` and progress (`completed_tasks`, `awaiting_reply`), so an answer reflects
+"Resolve blocker" and "Mark done"; it never sends `student_id`. A timeout shows its own
+message. The frontend never calls a model directly.
 
 In **Profile**, prepare a California-only school/profile draft using **Search
 schools**. Other states are unsupported; a missing-school choice remains
@@ -152,8 +152,7 @@ preparation and the missing live backend dependencies.
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
-| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview. Switch to `live` after the dashboard integration is verified. |
-| `ASSISTANT_ENDPOINT` | empty | Full URL of `POST /assistant` for the dashboard's live mode. |
+| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview. `live` calls the API's `POST /assistant` at `API_URL`. |
 
 ## School search and rule scope
 

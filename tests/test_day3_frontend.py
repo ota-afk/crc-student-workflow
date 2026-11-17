@@ -86,11 +86,11 @@ def test_chat_history_is_session_only(monkeypatch):
 def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_context):
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
     monkeypatch.setenv('API_URL', 'http://localhost:8000')
-    monkeypatch.setenv('ASSISTANT_ENDPOINT', 'http://localhost:8000/configured-assistant')
+    monkeypatch.setenv('API_KEY', 'test-key')
     captured = []
 
-    def post(url, *, json, timeout):
-        captured.append((url, json, timeout))
+    def post(url, *, json, headers, timeout):
+        captured.append((url, json, headers, timeout))
         return FakeResponse({
             'answer': 'Contact your DSO about this requirement.',
             'steps': ['Review the official source.'], 'verified': False,
@@ -113,12 +113,17 @@ def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_
     app = select_dmv(run_dashboard(monkeypatch, payload))
     app.chat_input[0].set_value('What is my next step?').run()
     assert not app.exception
-    assert captured == [('http://localhost:8000/configured-assistant', {
+    # The API's own route with the same key and timeout as the workflow calls. The workflow's
+    # date and progress go along; student_id and school_verified never do.
+    assert captured == [('http://localhost:8000/assistant', {
         'question': 'What is my next step?', 'task_id': 'task_dmv_id',
+        'as_of': payload['as_of'],
         'student_profile': {'institution': 'Cosumnes River College',
                             'visa_type': 'F-1', 'arrival_date': '2026-08-11',
-                            'has_ssn': False, **school_context},
-    }, 30)]
+                            'has_ssn': False,
+                            'completed_tasks': ['task_i94_retrieval', 'task_sevis_fee'],
+                            **school_context},
+    }, {'X-API-Key': 'test-key'}, 10)]
     assert any('Contact your DSO' in x for x in values(app.markdown))
     assert any('Not verified' in x for x in values(app.warning))
     app.run()
@@ -128,7 +133,6 @@ def test_live_chat_sends_minimal_context_and_renders_answer(monkeypatch, school_
 @pytest.mark.parametrize('failure', ['timeout', 'http', 'invalid'])
 def test_chat_failure_preserves_checklist_and_can_retry(monkeypatch, failure):
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
-    monkeypatch.setenv('ASSISTANT_ENDPOINT', 'http://localhost:8000/configured-assistant')
 
     def post(*args, **kwargs):
         if failure == 'timeout':
@@ -142,7 +146,9 @@ def test_chat_failure_preserves_checklist_and_can_retry(monkeypatch, failure):
     app.checkbox[0].check().run()
     app.chat_input[0].set_value('What next?').run()
     assert not app.exception
-    assert any('Could not get an answer' in x for x in values(app.error))
+    # A timeout says the service may be starting up; other failures keep the general message.
+    expected = 'took too long' if failure == 'timeout' else 'Could not get an answer'
+    assert any(expected in x for x in values(app.error))
     assert not any('secret internal details' in x for x in values(app.error))
     assert len(app.chat_message) == 1
     assert app.checkbox[0].value

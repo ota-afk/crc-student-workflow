@@ -145,6 +145,13 @@
   verification, SEVIS-status and tuition-wording regressions, rules-derived risk
   in the manual evaluator, and intent contract corrections.
 
+- STU-D06-FE-assistant (Nov 17 2026): AI assistance (Claude Code) connected the dashboard's
+  Assistant tab to `POST /assistant` (#32) in `src/student_workflow/frontend.py`,
+  `src/student_workflow/frontend_views.py` and `app/streamlit_app.py`, with the same key and
+  timeout as #30, the workflow's `as_of` and progress, and a timeout message. Updated the
+  assistant tests and added round-trip tests in `tests/test_live_api.py`. Done by BE in FE's
+  files at the owner's request. Pending the BE owner's review.
+
 - Flyover frontend (Nov 17 2026): the user supplied the logo, page sketches and
   travel photo references. Codex implemented the travel layout, backend-connected
   sequential workflow, readiness and session-only handoff template. The built-in

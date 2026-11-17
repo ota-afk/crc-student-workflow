@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 from streamlit.testing.v1 import AppTest
 from test_streamlit import APP_PATH, values
 
-from student_workflow import api
+from student_workflow import api, assistant
+from student_workflow.ai_assistant import IntentResult
 from student_workflow.api import app as api_app
 
 KEY = 'test-key-123'
@@ -259,3 +260,77 @@ def test_generated_profile_change_clears_old_draft(bridge):
                             'institution': 'Another College'}}
     app.run()
     assert 'api_email_draft' not in app.session_state
+
+
+@pytest.fixture
+def assistant_live(bridge, monkeypatch):
+    """Live assistant mode, with the model's intent pick faked: it always picks the DMV task.
+
+    Everything else is real: the dashboard request, the API route, the resolver and the
+    rules-based explanation. No OpenAI key is set, so nothing leaves the machine.
+    """
+    monkeypatch.setenv('ASSISTANT_MODE', 'live')
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.setattr(assistant, 'map_intent', lambda *a, **k: IntentResult(
+        outcome='matched', task_id='task_dmv_id'))
+    return bridge
+
+
+def ask(app: AppTest, question: str) -> str:
+    """Ask in the Assistant tab and return the newest answer's text."""
+    app.chat_input[0].set_value(question).run()
+    assert not app.exception
+    return ' '.join(values(app.chat_message[-1].markdown))
+
+
+def assistant_bodies(bridge: Bridge) -> list[dict]:
+    return [body for path, body in bridge.posts() if path == '/assistant']
+
+
+def test_assistant_answer_follows_resolve_and_mark_done(assistant_live):
+    app = start()
+    pick(app, 'task_dmv_id')
+    assert 'Task status: Blocked.' in ask(app, 'Why is my ID blocked?')
+    app.button(key='resolve_task').click().run()
+    assert 'Task status: Blocked.' in ask(app, 'Why is my ID blocked?')
+    pick(app, 'task_proof_of_residency')
+    app.button(key='complete_task').click().run()
+    # After "Mark done" the same question gets the new status, not the old one.
+    assert 'Task status: Ready.' in ask(app, 'Can I apply for my ID now?')
+    first, after_resolve, after_done = assistant_bodies(assistant_live)
+    assert first['student_profile']['awaiting_reply'] == []
+    assert after_resolve['student_profile']['awaiting_reply'] == ['task_proof_of_residency']
+    assert 'task_proof_of_residency' in after_done['student_profile']['completed_tasks']
+
+
+def test_assistant_sends_the_workflow_date_and_no_identifiers(assistant_live):
+    app = start()
+    pick(app, 'task_dmv_id')
+    ask(app, 'What next?')
+    body, = assistant_bodies(assistant_live)
+    # The workflow's own date, so the answer can't fall on a different day than the screen.
+    assert body['as_of'] == app.session_state['session_as_of'] == '2026-08-14'
+    assert body['task_id'] == 'task_dmv_id'
+    assert 'student_id' not in body['student_profile']
+    assert 'school_verified' not in body['student_profile']
+    headers = [h for m, p, _, h in assistant_live.calls if p == '/assistant']
+    assert headers == [{'X-API-Key': KEY}]
+
+
+def test_assistant_timeout_shows_a_helpful_message(assistant_live, monkeypatch):
+    app = start()
+    pick(app, 'task_dmv_id')
+    real_post = requests.post
+
+    def slow(url, **kwargs):
+        if url.endswith('/assistant'):
+            raise requests.Timeout('internal timeout details')
+        return real_post(url, **kwargs)
+
+    monkeypatch.setattr(requests, 'post', slow)
+    app.chat_input[0].set_value('What next?').run()
+    assert not app.exception
+    assert any('took too long' in v for v in values(app.error))
+    assert not any('internal timeout details' in v for v in values(app.error))
+    # Only the question is in the chat: no half answer, and asking again works.
+    assert len(app.chat_message) == 1

@@ -63,7 +63,20 @@ Use a model supported by the existing AI helpers and keep the key in Render's se
 environment. After redeploy, make an authenticated `POST /assistant` using the request
 example in the [Assistant API contract](contract.md#post-assistant). Confirm the answer
 matches the current task and that a status or work-authorization question returns a DSO
-referral. Enable the dashboard's live Assistant mode after the frontend integration passes.
+referral.
+
+Then set `ASSISTANT_MODE` to `live` on the `crc-workflow-dashboard` Environment page. The
+dashboard calls `POST /assistant` at its `API_URL` with its `API_KEY`; there is no separate
+assistant URL to set. Check it in the browser:
+
+1. Generate a workflow, open the REAL ID task, and ask "Why is my ID blocked?". The answer
+   says `Task status: Blocked.`
+2. **Resolve blocker**, ask again: still Blocked, with residency awaiting a reply.
+3. Mark residency done, ask again: the answer says `Task status: Ready.`
+4. Ask "Can I work off campus?": the answer refers you to the DSO.
+
+If the API was asleep, the first question may show "The assistant took too long to answer";
+ask again after a minute.
 
 ## After every deploy: smoke test
 
