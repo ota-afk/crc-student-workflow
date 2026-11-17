@@ -144,3 +144,13 @@
 - PR #15 pre-merge review (Nov 16 2026): Codex assisted with teammate-comment
   verification, SEVIS-status and tuition-wording regressions, rules-derived risk
   in the manual evaluator, and intent contract corrections.
+
+- Flyover frontend (Nov 17 2026): the user supplied the logo, page sketches and
+  travel photo references. Codex implemented the travel layout, backend-connected
+  sequential workflow, readiness and session-only handoff template. The built-in
+  imagegen tool generated the three city illustrations; prompts and provenance
+  are recorded in `app/assets/flyover/README.md`.
+- Flyover revision (Nov 17 2026): Claude restyled both pages to the user's sketches
+  (sticky header, departures-board step title, readiness tables, quote card), drew the
+  low-poly airplane as SVG, and built the scroll-driven flight into Airshow and its
+  handoff template.
