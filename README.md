@@ -95,8 +95,10 @@ seen; Settings → Replay tutorial shows it again.
 When the current or next step has appointment guidance (school check-in, REAL ID), page 1
 shows it word for word from `rules.json` with its "Not verified" label and official link. The
 student can add weekly free times (Pacific time) under it; they stay in the browser session,
-are never sent to the API or the model, and are cleared by Start fresh. With no structured
-office hours on file, Flyover never claims a match: it says to check the office's calendar.
+are never sent to the API or the model, and are cleared by Start fresh. Free times are
+compared with each office's published in-person hours from `rules.json` (all "Not verified";
+undated hours carry a "may differ" note), and the checklist lists each office's hours. An
+office with no published hours gets "check with the office"; Flyover never books anything.
 The notice can be dismissed; the same text stays in the task's checklist.
 
 The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either

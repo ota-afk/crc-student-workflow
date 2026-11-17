@@ -17,6 +17,8 @@ from .flyover_appointments import (
     describe_windows,
     fact_verified,
     first_with_guidance,
+    hours_summary,
+    match_line,
     normalize_windows,
     notice_key,
 )
@@ -504,7 +506,12 @@ def _appointment_notice(tasks: list[dict]) -> None:
         if link := safe_url(guidance['url']):
             st.link_button('Official visit information', link)
         if windows:
-            st.caption(f'Your free times: {describe_windows(windows)}. {NO_HOURS_NOTE}')
+            st.caption(f'Your free times: {describe_windows(windows)}.')
+            task = next((t for t in tasks if t['id'] == guidance['task_id']), {})
+            # One line per office on file (rules.json offices), else the honest no-hours note.
+            for line in [match_line(o, windows) for o in task.get('offices') or []] or [
+                    NO_HOURS_NOTE]:
+                st.caption(line)
         with st.expander('Your free times (optional)'):
             _availability_editor()
         st.button('Dismiss', key='fly_appt_dismiss', on_click=_dismiss_notice, args=(key,),
@@ -588,6 +595,24 @@ def _workflow(data: dict, api_url: str) -> None:
                       icon_position='right', width='stretch', on_click=go, args=('readiness',))
 
 
+def _office_hours(task: dict) -> None:
+    """The task's offices with their published hours, and how they meet the free times."""
+    offices = task.get('offices') or []
+    if not offices:
+        return
+    windows = _windows()
+    st.markdown('#### Office hours')
+    for office in offices:
+        badge = '' if office['verification_status'] == 'verified' else ' :orange-badge[Not verified]'
+        st.markdown(f'**{office["name"]}**{badge}')
+        if office.get('address'):
+            st.caption(office['address'])
+        st.write(hours_summary(office) + ' (Pacific time)')
+        st.caption(office['period_note'])
+        if windows:
+            st.caption(match_line(office, windows))
+
+
 def _checklist(data: dict, task: dict, api_url: str) -> None:
     st.markdown('### ' + task['title'])
     st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
@@ -619,6 +644,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
             # The fact as sourced (it may contain a link), with a badge when it's unverified.
             badge = '' if fact_verified(guide, field) else ' :orange-badge[Not verified]'
             st.markdown(f'**{label}:** {value}{badge}')
+        _office_hours(task)
         if missing:
             # One line for everything not on file, instead of the same warning four times.
             st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
