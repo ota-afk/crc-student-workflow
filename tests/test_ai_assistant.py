@@ -255,8 +255,8 @@ def test_job_fair_is_not_a_work_authorization_question(question):
 @pytest.mark.parametrize(
     'question',
     [
-        '我可以在校外工作吗',
-        'Puedo trabajar fuera del campus por favor',
+        '我想申请加州身份证',
+        'Quiero sacar mi identificacion de California por favor',
         '¿Cómo obtengo una identificación de California?',
     ],
 )
@@ -265,4 +265,42 @@ def test_unsupported_language_is_refused_without_calling_the_model(question):
     result = map_intent(question, TASKS, client=client, model='x')
     assert result.outcome == 'no_match'
     assert 'English' in result.message
+    assert client.calls == []
+
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        "i'm jane doe, how do I get a DMV ID?",
+        'i am li ming and I want an ID',
+        'my friend jane needs a dmv id',
+        'my roommate carlos asked about an ID',
+        'a student named wei wants an ID',
+        '我叫李明 how do I get an ID',
+        'me llamo carlos, how do I get an ID',
+    ],
+)
+def test_lowercase_and_multilingual_names_are_refused(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert 'rephrase' in result.message
+    assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        '我可以在校外工作吗',
+        '我能打工吗',
+        '我想找兼职工作',
+        'Puedo trabajar fuera del campus?',
+        'Necesito un permiso de trabajo?',
+        'can I trabajar en el campus',
+    ],
+)
+def test_work_questions_in_other_languages_get_dso_referral(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'dso_referral'
     assert client.calls == []

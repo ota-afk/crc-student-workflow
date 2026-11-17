@@ -8,6 +8,7 @@ treated as "no match".
 
 import os
 import re
+import unicodedata
 from typing import Literal
 
 from openai import OpenAI, OpenAIError
@@ -54,21 +55,48 @@ HIGH_RISK_PATTERNS = [
     r'violat\w* (my )?(visa|status)',
     r'legal advice',
 ]
-HIGH_RISK_REGEXES = [re.compile(p, re.IGNORECASE) for p in HIGH_RISK_PATTERNS]
+# Chinese (simplified and traditional) and Spanish. Spanish is matched with
+# accents removed. "身份证" (ID card) is excluded on purpose.
+MULTILINGUAL_HIGH_RISK_PATTERNS = [
+    r'(工作|打工|兼职|兼職|实习|實習|就业|就業|签证|簽證|移民|身份(?!证)|身分(?!證))',
+    r'\b(trabajar|trabajo|trabajos|trabajando|empleo|pasantia|pasantias)\b',
+    r'\bestatus migratorio\b',
+    r'\binmigracion\b',
+    r'\bdeportacion\b|\bdeportar',
+]
+HIGH_RISK_REGEXES = [
+    re.compile(p, re.IGNORECASE)
+    for p in HIGH_RISK_PATTERNS + MULTILINGUAL_HIGH_RISK_PATTERNS
+]
 
 _RELATIVES = (
     'friend|roommate|classmate|brother|sister|mother|father|parent|cousin|'
     'advisor|professor|teacher|boyfriend|girlfriend|spouse|wife|husband|partner'
 )
+_SAFE_AFTER_IM = (
+    'trying|not|a|an|the|new|here|in|on|at|from|looking|going|wondering|asking|'
+    'applying|ready|still|just|also|planning|confused|worried|unsure|'
+    'international|first|currently|studying|enrolled|so|very|really|sure'
+)
+_SAFE_AFTER_RELATIVE = (
+    'needs|wants|is|has|was|asked|told|said|can|will|would|should|who|from|at|'
+    'in|and|also|just|got|had|does|did|may|might|must|thinks'
+)
 NAME_REGEXES = [
     re.compile(r'\bmy name is\b', re.IGNORECASE),
     re.compile(r'\bcall me\b', re.IGNORECASE),
     re.compile(r'\bname\s*[:=-]', re.IGNORECASE),
-    # The intro words are case-insensitive, the name must be capitalized:
-    # "i'm Jane" and "my friend Jane" are names, "I'm trying" is not.
-    re.compile(r"(?i:\bi(?:['\u2019]m| am)) [A-Z][a-z]+"),
-    re.compile(r'(?i:\bmy (?:' + _RELATIVES + r')) [A-Z][a-z]+'),
-    re.compile(r'(?i:\b(?:named|called)) [A-Z][a-z]+'),
+    # Any word after these intros is treated as a possible name, in any case,
+    # unless it is a known harmless word ("I'm trying", "my friend needs").
+    re.compile(r"\bi(?:['\u2019]m| am)\s+(?!(?:" + _SAFE_AFTER_IM + r")\b)[a-z]+", re.IGNORECASE),
+    re.compile(
+        r'\bmy (?:' + _RELATIVES + r')\s+(?!(?:' + _SAFE_AFTER_RELATIVE + r')\b)[a-z]+',
+        re.IGNORECASE,
+    ),
+    re.compile(r'\b(?:named|called)\s+[a-z]+', re.IGNORECASE),
+    # Chinese and Spanish name phrases
+    re.compile(r'(我叫|我的名字|名字是|姓名|我姓|我是)'),
+    re.compile(r'\b(me llamo|mi nombre es|mi nombre)\b', re.IGNORECASE),
 ]
 
 # When we cannot redact reliably, we refuse instead.
@@ -129,8 +157,16 @@ class IntentResult(BaseModel):
     message: str | None = None
 
 
+def _fold_accents(text: str) -> str:
+    decomposed = unicodedata.normalize('NFKD', text)
+    return ''.join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
 def is_high_risk(text: str) -> bool:
-    return any(regex.search(text) for regex in HIGH_RISK_REGEXES)
+    folded = _fold_accents(text)
+    return any(
+        regex.search(text) or regex.search(folded) for regex in HIGH_RISK_REGEXES
+    )
 
 
 def has_name(text: str) -> bool:
