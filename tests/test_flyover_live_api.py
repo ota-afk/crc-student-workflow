@@ -258,3 +258,38 @@ def test_a_new_visitor_starts_with_no_completed_tasks(live):
     assert any(v.startswith('0 of 8 steps completed') for v in values(app.caption))
     # Statuses still come from the API: the REAL ID task is blocked by residency.
     assert status_of(app, DMV) == 'Blocked'
+
+
+def card_titles(app: AppTest) -> list[str]:
+    """Titles in the Now and Up next cards, in page order."""
+    import html
+    import re
+    page = ' '.join(str(e.value) for e in app.get('html'))
+    # The card HTML-escapes titles (an apostrophe becomes &#x27;), so undo that to compare.
+    return [html.unescape(t) for t in re.findall(r'class="fly-card-title">([^<]*)<', page)]
+
+
+def test_take_off_shows_one_now_card_then_up_next_required_first(live):
+    from student_workflow.flyover_state import task_queue
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app.button(key='flyover_next').click().run()
+    queue = task_queue(app.session_state['flyover_data']['workflow'])
+    assert queue[0]['priority'] == 'Required'  # ENG's rules have Required tasks
+    assert card_titles(app) == [queue[0]['title'], queue[1]['title']]
+
+
+def test_page_one_and_the_now_card_focus_the_same_step(live):
+    from student_workflow.flyover_state import task_queue
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    first = task_queue(app.session_state['flyover_data']['workflow'])[0]
+    assert app.session_state['flyover_active_id'] == first['id']
+    app.button(key='flyover_next').click().run()
+    app.button(key='fly_focus_open').click().run()
+    assert app.session_state['flyover_detail'] == first['id']
+
+
+def test_residency_is_queued_before_the_real_id_task_that_needs_it(live):
+    from student_workflow.flyover_state import task_queue
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    order = [t['id'] for t in task_queue(app.session_state['flyover_data']['workflow'])]
+    assert order.index(RESIDENCY) < order.index(DMV)

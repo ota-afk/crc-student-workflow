@@ -11,7 +11,13 @@ import streamlit as st
 
 from . import flyover_client as client
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
-from .flyover_state import ENCOURAGEMENTS, active_task, map_piece_count, map_progress
+from .flyover_state import (
+    ENCOURAGEMENTS,
+    active_task,
+    map_piece_count,
+    map_progress,
+    task_queue,
+)
 from .frontend import safe_url, source_verified
 from .frontend_state import sync_profile_context
 from .frontend_views import render_sources
@@ -578,6 +584,24 @@ def _task_table(group: str, tasks: list[dict], by_id: dict, empty: str) -> None:
                               args=(task['id'],))
 
 
+def _focus_card(task: dict, kind: str) -> None:
+    """kind 'now': the step to do first, with its checklist button. 'next': a quieter preview."""
+    with st.container(key=f'fly_{kind}_card'):
+        label = 'Now' if kind == 'now' else 'Up next'
+        st.html(f'<div class="fly-card-label">{label}</div>'
+                f'<div class="fly-card-title">{esc(task["title"])}</div>'
+                f'<div class="fly-card-meta"><span class="gate-priority">{esc(task["priority"])}'
+                f'</span>{_pill(task["status"])}</div>')
+        if task['status'] == 'In Progress':
+            # In Progress means waiting on an office, never that the task is done.
+            st.caption('Waiting on an office.')
+        if kind == 'now':
+            if task.get('next_action'):
+                st.caption(task['next_action']['text'])
+            st.button('Open checklist', key='fly_focus_open', type='primary',
+                      icon=':material/checklist:', on_click=go, args=('readiness', task['id']))
+
+
 def _quote_card() -> None:
     index = st.session_state.get('flyover_quote', 0) % len(ENCOURAGEMENTS)
     dots = ''.join(f'<i class="{"on" if k == index else ""}"></i>' for k in range(len(ENCOURAGEMENTS)))
@@ -618,9 +642,20 @@ def _readiness(data: dict, api_url: str) -> None:
             _quote_card()
     with st.container(key='fly_takeoff'):
         st.subheader('Before you take off')
-        st.caption('Steps still ahead. Line up what each one needs so one visit covers it.')
-        _task_table('takeoff', [t for t in tasks if t['status'] in ('Ready', 'Blocked')], by_id,
-                    'Nothing left ahead. Confirm requirements with each office before you visit.')
+        queue = task_queue(tasks)
+        if queue:
+            st.caption('One step at a time, most important first. A step another one needs '
+                       'always comes before it.')
+            _focus_card(queue[0], 'now')
+            if len(queue) > 1:
+                _focus_card(queue[1], 'next')
+        else:
+            st.html('<p class="fly-empty">Nothing left ahead. Confirm requirements with each '
+                    'office before you visit.</p>')
+        ahead = [t for t in tasks if t['status'] in ('Ready', 'Blocked')]
+        with st.expander(f'View all tasks ahead ({len(ahead)})'):
+            _task_table('takeoff', ahead, by_id,
+                        'Nothing left ahead. Confirm requirements with each office before you visit.')
         if tasks:
             if st.session_state.get('flyover_detail') not in by_id:
                 st.session_state['flyover_detail'] = (active_task(tasks) or tasks[0])['id']

@@ -2,9 +2,54 @@
 
 from math import ceil
 
+# Lower comes first. An unknown or missing priority/status sorts after the known ones.
+PRIORITY_ORDER = {'Required': 0, 'Recommended': 1, 'Optional': 2}
+STATUS_ORDER = {'Ready': 0, 'In Progress': 1, 'Blocked': 2}
+
+
+def task_queue(tasks: list[dict]) -> list[dict]:
+    """Unfinished tasks in the order to show them: a display order, not a deadline.
+
+    Required before Recommended before Optional; a prerequisite always comes before the
+    tasks that need it and takes the highest priority among them (an Optional step that a
+    Required task waits on is shown first). At equal priority: Ready, then In Progress,
+    then Blocked, then the rules file's order. Statuses are shown as the API returned them.
+    """
+    pending = [task for task in tasks if task['status'] != 'Completed']
+    ids = {task['id'] for task in pending}
+    index = {task['id']: i for i, task in enumerate(tasks)}
+    effective = {task['id']: PRIORITY_ORDER.get(task.get('priority'), 3) for task in pending}
+    # Pass each task's priority down to its unfinished prerequisites, until nothing changes
+    # (a chain a -> b -> c needs more than one pass; at most one per task).
+    for _ in range(len(pending)):
+        changed = False
+        for task in pending:
+            for prerequisite in task.get('prerequisites') or []:
+                if prerequisite in ids and effective[task['id']] < effective[prerequisite]:
+                    effective[prerequisite] = effective[task['id']]
+                    changed = True
+        if not changed:
+            break
+
+    def rank(task: dict) -> tuple:
+        return (effective[task['id']], STATUS_ORDER.get(task['status'], 3), index[task['id']])
+
+    ordered, placed, remaining = [], set(), sorted(pending, key=rank)
+    while remaining:
+        # The best-ranked task whose unfinished prerequisites are all placed already.
+        ready = [t for t in remaining
+                 if all(p in placed or p not in ids for p in t.get('prerequisites') or [])]
+        chosen = ready[0] if ready else remaining[0]  # a cycle in the data: don't loop forever
+        ordered.append(chosen)
+        placed.add(chosen['id'])
+        remaining.remove(chosen)
+    return ordered
+
 
 def active_task(tasks: list[dict]) -> dict | None:
-    return next((task for task in tasks if task['status'] != 'Completed'), None)
+    """The task to focus on now: the first in task_queue, or None when all are done."""
+    queue = task_queue(tasks)
+    return queue[0] if queue else None
 
 
 def map_piece_count(completed: int, total: int) -> int:

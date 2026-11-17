@@ -204,3 +204,9 @@
   visitor with no completed steps (`fetch_fresh_workflow` in `flyover_client.py`, used by
   `flyover.py`), instead of the shared demo's two completed tasks. Tests in
   `tests/test_flyover.py` and `tests/test_flyover_live_api.py`.
+
+- STU-D06-FE-task-order (Nov 17 2026): AI assistance (Claude Code) added Flyover's task queue
+  (`task_queue` in `flyover_state.py`: Required first, prerequisites before what needs them
+  and inheriting its priority, then Ready/In Progress/Blocked) and the "Now" / "Up next"
+  cards in Before you take off (`flyover.py`, `style.css`). Tests in `tests/test_flyover.py`
+  and `tests/test_flyover_live_api.py`.
