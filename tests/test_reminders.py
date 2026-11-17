@@ -154,3 +154,25 @@ def test_send_time_limits_are_one_minute_to_thirty_days():
     with pytest.raises(ValueError):
         notifications.check_send_time(datetime.now(UTC) + timedelta(seconds=30))
     assert notifications.check_send_time(datetime.now(UTC) + timedelta(days=29))
+
+
+@pytest.mark.parametrize(('event', 'expected'), [('delivered', 'delivered'), ('failed', 'failed'),
+                                                 ('something_new', 'unknown')])
+def test_status_reports_resends_last_event(resend, monkeypatch, event, expected):
+    seen = []
+    monkeypatch.setattr(notifications.requests, 'get', lambda url, **kw: seen.append(url) or Reply(
+        payload={'object': 'email', 'last_event': event}))
+    reply = client.get('/notifications/reminders/49a3999c-0ce1-4ea6-ab68-afcd6dc2e794')
+    assert reply.status_code == 200
+    assert reply.json()['provider_status'] == expected
+    assert seen == ['https://api.resend.com/emails/49a3999c-0ce1-4ea6-ab68-afcd6dc2e794']
+
+
+def test_status_failure_is_a_safe_502(resend, monkeypatch):
+    monkeypatch.setattr(notifications.requests, 'get', lambda *a, **k: Reply(500))
+    reply = client.get('/notifications/reminders/49a3999c-0ce1-4ea6-ab68-afcd6dc2e794')
+    assert reply.status_code == 502
+
+
+def test_status_refuses_an_id_that_is_not_an_email_id(resend):
+    assert client.get('/notifications/reminders/not!an!id').status_code == 422

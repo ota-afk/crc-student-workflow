@@ -94,3 +94,16 @@ def test_a_completed_task_offers_no_reminder(live):
     app.button(key='flyover_next').click().run()
     app.selectbox(key='flyover_detail').select(RESIDENCY).run()
     assert '#### Email me a reminder' not in values(app.markdown)
+
+
+@pytest.mark.parametrize(('event', 'kind', 'words'), [
+    ('scheduled', 'info', 'Waiting to be sent'),
+    ('delivered', 'success', 'Check Spam and Promotions'),
+    ('failed', 'error', "only the Resend account's own email address"),
+])
+def test_check_status_explains_the_result_in_plain_words(live, monkeypatch, event, kind, words):
+    monkeypatch.setattr(notifications, 'status', lambda key, email_id: event)
+    app = remind(checklist(DMV), DMV)
+    reminder_id = app.session_state['flyover_reminders'][0]['reminder_id']
+    app.button(key=f'fly_rem_status:{reminder_id}').click().run()
+    assert any(words in v for v in values(getattr(app, kind)))

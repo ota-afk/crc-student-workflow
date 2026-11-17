@@ -677,6 +677,25 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
 
 
 PACIFIC = ZoneInfo('America/Los_Angeles')
+TEST_SENDER_NOTE = ("While the team uses Resend's test sender, only the Resend account's own "
+                    'email address can receive reminders.')
+# What each email-service status means for the student, in plain words.
+REMINDER_STATUS_TEXT = {
+    'scheduled': ('info', 'Waiting to be sent at the time you picked.'),
+    'queued': ('info', 'About to be sent.'),
+    'sent': ('info', 'Sent. It should reach your inbox in a minute or two.'),
+    'delivered': ('success', ("Delivered to your email provider. Can't see it? Check Spam and "
+                             'Promotions.')),
+    'opened': ('success', 'Delivered and opened.'),
+    'clicked': ('success', 'Delivered and opened.'),
+    'delivery_delayed': ('warning', ("Delayed: the email service is still trying (for up to "
+                                    '14 hours).')),
+    'canceled': ('info', 'Cancelled. It will not be sent.'),
+    'bounced': ('error', 'Not delivered: your email provider rejected it. ' + TEST_SENDER_NOTE),
+    'failed': ('error', 'Not delivered: the email service could not send it. ' + TEST_SENDER_NOTE),
+    'suppressed': ('error', 'Not sent: this address is on the email service\'s blocked list.'),
+    'complained': ('warning', 'Delivered, but marked as spam.'),
+}
 
 
 def _reminders() -> list[dict]:
@@ -714,6 +733,17 @@ def _cancel_one(api_url: str, reminder_id: str) -> None:
     _reminders().remove(reminder)
     st.session_state['flyover_reminder_note'] = (reminder['task_id'], 'info',
                                                  'Reminder cancelled.')
+
+
+def _check_status(api_url: str, reminder_id: str) -> None:
+    """Check status callback: ask the email service what happened to this reminder."""
+    try:
+        event = client.reminder_status(api_url, reminder_id)
+    except client.ReminderError as error:
+        result = ('error', str(error))
+    else:
+        result = REMINDER_STATUS_TEXT.get(event, ('info', 'Status unknown. Try again later.'))
+    st.session_state.setdefault('flyover_reminder_status', {})[reminder_id] = result
 
 
 def _reminder_section(data: dict, task: dict, api_url: str) -> None:
@@ -765,6 +795,12 @@ def _reminder_section(data: dict, task: dict, api_url: str) -> None:
         with button:
             st.button('Cancel', key=f'fly_rem_cancel:{reminder["reminder_id"]}', type='tertiary',
                       on_click=_cancel_one, args=(api_url, reminder['reminder_id']))
+        st.button('Check status', key=f'fly_rem_status:{reminder["reminder_id"]}',
+                  type='tertiary', on_click=_check_status, args=(api_url, reminder['reminder_id']))
+        if shown := st.session_state.get('flyover_reminder_status', {}).get(
+                reminder['reminder_id']):
+            kind, text = shown
+            getattr(st, kind)(text)
 
 
 def _resolve(api_url: str, task_id: str) -> None:

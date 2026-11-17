@@ -87,3 +87,21 @@ def cancel(api_key: str, email_id: str) -> None:
     except requests.RequestException as error:
         logger.warning('reminder cancel failed (%s)', type(error).__name__)
         raise ProviderError('Cancellation not confirmed: the reminder may still arrive.') from error
+
+
+# Resend's last_event values (Email Events overview). Anything else is reported as 'unknown'.
+PROVIDER_STATUSES = {'scheduled', 'queued', 'sent', 'delivered', 'delivery_delayed', 'bounced',
+                     'failed', 'suppressed', 'canceled', 'opened', 'clicked', 'complained'}
+
+
+def status(api_key: str, email_id: str) -> str:
+    """Resend's latest event for a scheduled email (e.g. 'scheduled', 'delivered', 'failed')."""
+    try:
+        response = requests.get(f'{RESEND_EMAILS}/{email_id}', timeout=TIMEOUT,
+                                headers={'Authorization': f'Bearer {api_key}'})
+        response.raise_for_status()
+        event = response.json().get('last_event')
+    except (requests.RequestException, ValueError, AttributeError) as error:
+        logger.warning('reminder status failed (%s)', type(error).__name__)
+        raise ProviderError('Could not get the status from the email service.') from error
+    return event if event in PROVIDER_STATUSES else 'unknown'
