@@ -224,3 +224,7 @@
   appointment notice and session-only weekly free times (`flyover_appointments.py`,
   `flyover.py`, `style.css`), with tests in `tests/test_flyover_appointments.py` and
   `tests/test_flyover_live_api.py`. Guidance only; matching waits for structured office hours.
+
+- STU-D06-FE-session-tour (Nov 17 2026): AI assistance (Claude Code) wrote Flyover's
+  first-session spotlight tour (`flyover_tour.py`), its Settings replay and wiring
+  (`flyover.py`, `style.css`), and `tests/test_flyover_tour.py`.

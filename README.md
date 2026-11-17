@@ -75,6 +75,11 @@ OS reduced-motion preferences are also respected, and browsers without CSS scrol
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile with no steps completed yet.
 
+On a first visit a spotlight tour dims the page and walks through page 1 one control at a
+time (profile, Generate, the current step, View checklist, AI Help, Next, Settings), with Back,
+Next, Skip and Escape. It only explains; it never changes anything. The tab remembers it was
+seen; Settings → Replay tutorial shows it again.
+
 When the current or next step has appointment guidance (school check-in, REAL ID), page 1
 shows it word for word from `rules.json` with its "Not verified" label and official link. The
 student can add weekly free times (Pacific time) under it; they stay in the browser session,

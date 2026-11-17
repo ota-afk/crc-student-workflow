@@ -136,7 +136,8 @@
 @keyframes flyover-confetti-fall { 0% {transform:translate(0,-20px) rotate(0);opacity:1} 80% {opacity:1} 100% {transform:translate(var(--drift),95vh) rotate(var(--spin));opacity:0} }
 
 /* ---- Page 2: readiness and before-you-take-off tables (task left, status centre, prerequisite right) ---- */
-.st-key-fly_scroll, [data-testid="stLayoutWrapper"]:has(> .st-key-fly_scroll) { display:none!important; }
+.st-key-fly_scroll, [data-testid="stLayoutWrapper"]:has(> .st-key-fly_scroll),
+.st-key-fly_tour, [data-testid="stLayoutWrapper"]:has(> .st-key-fly_tour) { display:none!important; }
 [data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"] .st-key-flyover_skip) [data-testid="stVerticalBlock"] { align-items:flex-end; }
 .st-key-fly_readiness, .st-key-fly_takeoff { padding-top:24px; }
 .st-key-fly_readiness h3, .st-key-fly_takeoff h3 { font-size:clamp(2rem,4vw,3rem); line-height:1.05; color:var(--flyover-ink); }
