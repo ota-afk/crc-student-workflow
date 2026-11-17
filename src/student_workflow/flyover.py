@@ -754,7 +754,7 @@ def render_app() -> None:
     panel = _header()
     if 'flyover_data' not in st.session_state:
         try:
-            st.session_state['flyover_data'] = client.fetch_workflow(api_url)
+            st.session_state['flyover_data'] = client.fetch_fresh_workflow(api_url)
         except (requests.RequestException, ValueError):
             with panel:
                 st.caption('Airshow can answer once your workflow has loaded.')

@@ -83,7 +83,7 @@ def test_airshow_answer_follows_resolve_and_mark_done(live):
     asked = [(body, headers) for method, path, body, headers in live.calls
              if path == '/assistant']
     (first, _), (second, headers) = asked
-    assert first['student_profile']['completed_tasks'] == ['task_i94_retrieval', 'task_sevis_fee']
+    assert first['student_profile']['completed_tasks'] == []  # a new visitor starts fresh
     assert RESIDENCY in second['student_profile']['completed_tasks']
     assert second['as_of'] == '2026-08-14'
     assert 'student_id' not in second['student_profile']
@@ -247,3 +247,14 @@ def test_answer_is_fetched_under_the_thinking_spinner(live, monkeypatch):
     app = AppTest.from_file(str(APP), default_timeout=30).run()
     ask(app, 'What next?')
     assert seen == [['Airshow is thinking…']]
+
+
+def test_a_new_visitor_starts_with_no_completed_tasks(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    data = app.session_state['flyover_data']
+    assert data['student_profile']['completed_tasks'] == []
+    assert not [t for t in data['workflow'] if t['status'] == 'Completed']
+    assert data['as_of'] == '2026-08-14'  # the demo's date, not today
+    assert any(v.startswith('0 of 8 steps completed') for v in values(app.caption))
+    # Statuses still come from the API: the REAL ID task is blocked by residency.
+    assert status_of(app, DMV) == 'Blocked'

@@ -199,3 +199,8 @@
   request out of the Send callback into the redraw, under an "Airshow is thinking…" spinner,
   and made the question box multi-line (`src/student_workflow/flyover.py`). Tests in
   `tests/test_flyover_live_api.py`.
+
+- STU-D06-FE-fresh-start (Nov 17 2026): AI assistance (Claude Code) made Flyover start a new
+  visitor with no completed steps (`fetch_fresh_workflow` in `flyover_client.py`, used by
+  `flyover.py`), instead of the shared demo's two completed tasks. Tests in
+  `tests/test_flyover.py` and `tests/test_flyover_live_api.py`.

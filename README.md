@@ -73,7 +73,7 @@ Statuses and prerequisites remain backend-authoritative. Applying a new profile 
 explicit confirmation when progress exists. Settings can pause the banner or reduce motion;
 OS reduced-motion preferences are also respected, and browsers without CSS scroll timelines
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
-a new session starts from the demo profile.
+a new session starts from the demo profile with no steps completed yet.
 
 The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either
 page, without leaving the page. It calls `POST /assistant` with the workflow's `as_of` and
