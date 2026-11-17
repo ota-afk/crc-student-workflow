@@ -293,3 +293,55 @@ def test_residency_is_queued_before_the_real_id_task_that_needs_it(live):
     app = AppTest.from_file(str(APP), default_timeout=30).run()
     order = [t['id'] for t in task_queue(app.session_state['flyover_data']['workflow'])]
     assert order.index(RESIDENCY) < order.index(DMV)
+
+
+def page_html(app: AppTest) -> str:
+    return ' '.join(str(e.value) for e in app.get('html'))
+
+
+def test_completion_shows_the_boarding_board_once(live):
+    from student_workflow.flyover_state import active_task
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    app.button(key='flyover_detail_complete').click().run()
+    upcoming = active_task(app.session_state['flyover_data']['workflow'])
+    html = page_html(app)
+    assert 'class="fly-board" role="status"' in html
+    assert ('aria-label="Gather residency evidence for California REAL ID completed. '
+            f'Now boarding: {upcoming["title"]}.') in html.replace('&#x27;', "'")
+    assert 'gate-title is-changing' in html  # the title flips with it
+    app.run()
+    assert 'class="fly-board"' not in page_html(app)  # consumed once
+    assert 'gate-title is-changing' not in page_html(app)
+
+
+def test_no_board_or_flip_without_a_confirmed_completion(live, monkeypatch):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    assert 'class="fly-board"' not in page_html(app)
+    assert 'gate-title is-changing' not in page_html(app)  # first load is not a completion
+    app = open_checklist(app, RESIDENCY)
+    real_post = requests.post
+
+    def refuse(url, **kwargs):
+        if url.endswith('/complete'):
+            raise requests.Timeout('private detail')
+        return real_post(url, **kwargs)
+
+    monkeypatch.setattr(requests, 'post', refuse)
+    app.button(key='flyover_detail_complete').click().run()
+    assert 'class="fly-board"' not in page_html(app)
+
+
+def test_step_number_counts_progress_not_file_position(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    assert 'Step 01 of 08 · Now boarding' in page_html(app)
+    app = open_checklist(app, RESIDENCY)
+    app.button(key='flyover_detail_complete').click().run()
+    assert 'Step 02 of 08 · Now boarding' in page_html(app)
+
+
+def test_last_task_board_says_arrived():
+    from student_workflow.flyover import _boarding_board
+    html = _boarding_board({'done': 'Open a bank account', 'next': None, 'next_id': None})
+    assert 'aria-label="Open a bank account completed. All steps completed."' in html
+    assert '>Arrived<' in html and 'Now boarding' not in html
+    assert '<div aria-hidden="true">' in html  # the flipping letters aren't read out

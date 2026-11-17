@@ -1,6 +1,6 @@
 /* Applied when "Reduce motion" is on in Flyover's settings: everything rests in place. */
 .flyover-slide { animation:none!important; opacity:0!important; }
 .flyover-slide.slide-0 { opacity:1!important; }
-.gate-title .flap, .fly-quote blockquote, .flight-map g { animation:none!important; transition:none!important; }
+.gate-title .flap, .fly-board .flap, .fly-quote blockquote, .flight-map g { animation:none!important; transition:none!important; }
 .st-key-flyover_workflow, .st-key-fly_readiness, .st-key-fly_takeoff, .st-key-fly_airshow, .fly-runway { animation:none!important; opacity:1!important; transform:none!important; }
 .flyover-confetti { display:none!important; }

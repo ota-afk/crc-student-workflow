@@ -314,3 +314,18 @@
 .st-key-fly_next_card .fly-card-title { font-size:1.15rem; }
 .fly-card-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .fly-card-meta .gate-priority { margin-top:0; }
+
+/* ---- Boarding board after a confirmed completion (STU-D06-FE-boarding-transition) ----
+   Ivory on charcoal is 11.9:1; the peach labels are 8.5:1. */
+.fly-board { background:var(--flyover-ink); color:var(--flyover-paper); border-radius:18px; padding:12px 20px;
+  margin:4px 0 14px; box-shadow:0 14px 34px rgba(40,50,60,.22); }
+.fly-board-row { display:flex; gap:14px; align-items:baseline; padding:6px 0; }
+.fly-board-row + .fly-board-row { border-top:1px solid rgba(247,244,239,.16); }
+.fly-board-label { flex:none; width:9.5em; font-size:.72rem; font-weight:800; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--flyover-peach); }
+.fly-board-value { font-family:var(--fly-display); font-weight:600; font-size:1.1rem; line-height:1.3; }
+.fly-board .word { display:inline-block; white-space:nowrap; }
+.fly-board .flap { display:inline-block; transform-origin:50% 62%; backface-visibility:hidden;
+  animation:fly-flap .52s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i) * 18ms); }
+@media(prefers-reduced-motion:reduce) { .fly-board .flap { animation:none!important; } }
+@media(max-width:760px) { .fly-board-row { flex-direction:column; gap:2px; } .fly-board-label { width:auto; } }
