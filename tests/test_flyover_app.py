@@ -254,3 +254,66 @@ def test_reduce_motion_renders_the_flight_without_scrubbing(monkeypatch):
     html_text = str([e.value for e in app.get('html')])
     assert 'fly-runway is-static' in html_text
     assert 'animation:none' in html_text
+
+
+def _airshow_with_goal(monkeypatch):
+    app = app_with(monkeypatch)
+    app.button(key='flyover_ai').click().run()
+    app.text_area(key='flyover_goal').input('Ask about my enrollment letter').run()
+    return app
+
+
+def test_only_another_office_shows_the_office_name_field(monkeypatch):
+    app = _airshow_with_goal(monkeypatch)
+    assert not [w for w in app.text_input if w.key == 'flyover_office']
+    app.selectbox(key='flyover_pro').select('Another office').run()
+    assert [w for w in app.text_input if w.key == 'flyover_office']
+
+
+def test_another_office_needs_a_name_before_generating(monkeypatch):
+    app = _airshow_with_goal(monkeypatch)
+    app.selectbox(key='flyover_pro').select('Another office').run()
+    assert app.button(key='flyover_prepare_handoff').disabled
+    app.text_input(key='flyover_office').input('   ').run()
+    assert app.button(key='flyover_prepare_handoff').disabled
+
+
+def test_office_name_titles_the_handoff_and_keeps_the_generic_questions(monkeypatch):
+    app = _airshow_with_goal(monkeypatch)
+    app.selectbox(key='flyover_pro').select('Another office').run()
+    app.text_input(key='flyover_office').input('  Student   services desk ').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    assert not app.exception
+    handoff = app.session_state['flyover_handoff']
+    assert handoff['title'] == 'Handoff for Student services desk'
+    questions = dict(handoff['sections'])['Questions to ask']
+    assert 'Which documents should I bring?' in questions
+
+
+def test_switching_to_a_preset_clears_the_office_name_and_handoff(monkeypatch):
+    app = _airshow_with_goal(monkeypatch)
+    app.selectbox(key='flyover_pro').select('Another office').run()
+    app.text_input(key='flyover_office').input('Housing office').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    app.selectbox(key='flyover_pro').select('Bank officer').run()
+    assert 'flyover_handoff' not in app.session_state
+    assert 'flyover_office' not in app.session_state
+
+
+def test_typed_office_name_stays_literal_in_both_exports():
+    from student_workflow.flyover import _handoff_text
+    doc = {'title': 'Handoff for <b>*Desk*</b> #1', 'sections': [('What I’m here to do', ['F-1 (DSO)'])]}
+    markdown = _handoff_text(doc, markdown=True)
+    assert '# Handoff for \\<b\\>\\*Desk\\*\\</b\\> \\#1' in markdown
+    assert 'F-1 (DSO)' in markdown  # ordinary punctuation is not escaped
+    assert 'Handoff for <b>*Desk*</b> #1' in _handoff_text(doc, markdown=False)
+
+
+def test_office_name_is_html_escaped_on_the_page(monkeypatch):
+    app = _airshow_with_goal(monkeypatch)
+    app.selectbox(key='flyover_pro').select('Another office').run()
+    app.text_input(key='flyover_office').input('<script>x</script> office').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    html_text = str([e.value for e in app.get('html')])
+    assert '<script>x</script>' not in html_text
+    assert '&lt;script&gt;' in html_text

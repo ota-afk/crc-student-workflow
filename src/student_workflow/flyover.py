@@ -3,6 +3,7 @@
 import html
 import json
 import os
+import re
 from datetime import date
 
 import requests
@@ -34,6 +35,8 @@ PROFESSIONALS = {
                        'Which documents should I bring?',
                        'What are my next steps and deadlines?'],
 }
+OTHER_OFFICE = 'Another office'  # the preset that asks for its own office name
+OFFICE_NAME_MAX = 80
 
 
 def esc(value) -> str:
@@ -512,7 +515,8 @@ def _readiness(data: dict, api_url: str) -> None:
         _prereq_dialog(by_id[opened], by_id)
 
 
-def _handoff(data: dict, goal: str, professional: str) -> dict:
+def _handoff(data: dict, goal: str, professional: str, office: str = '') -> dict:
+    # office = the student's own label for "Another office"; '' for the preset professionals.
     profile = data['student_profile']
     tasks = data['workflow']
 
@@ -522,7 +526,8 @@ def _handoff(data: dict, goal: str, professional: str) -> dict:
     task = next((t for t in tasks if t['id'] == st.session_state.get('flyover_detail')), None) or active_task(tasks)
     documents = list(dict.fromkeys(((task or {}).get('before_you_go') or {}).get('required_documents') or []))
     arrival = date.fromisoformat(profile['arrival_date'])
-    return {'title': 'Handoff for your ' + professional.split(' (')[0], 'sections': [
+    title = ('Handoff for ' + office) if office else 'Handoff for your ' + professional.split(' (')[0]
+    return {'title': title, 'sections': [
         ('Who I am', [(f'{profile["visa_type"]} student at {profile["institution"]}. Arrived '
                        f'{arrival:%B} {arrival.day}, {arrival.year}. '
                        f'{"Has an" if profile["has_ssn"] else "No"} SSN. Name: [YOUR NAME]')]),
@@ -534,10 +539,19 @@ def _handoff(data: dict, goal: str, professional: str) -> dict:
     ]}
 
 
+def _md(text: str) -> str:
+    """Typed text stays literal in a Markdown export: '*' or '#' is shown, not formatted."""
+    # Only characters that format inline (emphasis, code, links, HTML, headings, tables);
+    # ordinary '-', '(' or '.' stay readable, as in "F-1" or "(DSO)".
+    return re.sub(r'([\\`*_\[\]<>#|])', r'\\\1', text)
+
+
 def _handoff_text(doc: dict, markdown: bool) -> str:
-    lines = [('# ' if markdown else '') + doc['title'], '']
+    clean = _md if markdown else str
+    lines = [('# ' if markdown else '') + clean(doc['title']), '']
     for heading, items in doc['sections']:
         lines.append(('## ' if markdown else '') + heading)
+        items = [clean(item) for item in items]
         lines += [('- ' if markdown else '• ') + item for item in items] if len(items) > 1 else items
         lines.append('')
     lines.append('Drafted from a template. Not verified. Confirm every requirement with the office.')
@@ -607,10 +621,25 @@ def _assistant(data: dict, api_url: str) -> None:
             with pro_col:
                 professional = st.selectbox('Professional you’ll visit', list(PROFESSIONALS),
                                             key='flyover_pro', on_change=_clear_handoff)
+                office = ''
+                if professional == OTHER_OFFICE:
+                    # Its own field; the preset key above still picks the generic questions.
+                    office = ' '.join(st.text_input(
+                        'Office name', max_chars=OFFICE_NAME_MAX, key='flyover_office',
+                        on_change=_clear_handoff, placeholder='For example: Student services desk',
+                        help='The office, not a person. It stays on this page and in your export.',
+                    ).split())
+                    if not office:
+                        st.caption('Enter the office name to generate this handoff.')
+                else:
+                    # A label typed for another office must not follow you to a preset.
+                    st.session_state.pop('flyover_office', None)
             with button_col:
                 if st.button('Generate handoff', key='flyover_prepare_handoff', type='primary',
-                             disabled=not goal.strip(), width='stretch'):
-                    st.session_state['flyover_handoff'] = _handoff(data, goal.strip(), professional)
+                             disabled=not goal.strip() or (professional == OTHER_OFFICE and not office),
+                             width='stretch'):
+                    st.session_state['flyover_handoff'] = _handoff(data, goal.strip(), professional,
+                                                                   office)
         if doc := st.session_state.get('flyover_handoff'):
             body = ''.join(f'<h4>{esc(h)}</h4>' + (f'<p>{esc(items[0])}</p>' if len(items) == 1 else
                            '<ul>' + ''.join(f'<li>{esc(i)}</li>' for i in items) + '</ul>')
