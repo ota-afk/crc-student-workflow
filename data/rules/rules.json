@@ -26,7 +26,34 @@
       "rule_ids": [
         "rule_generic_f1_arrival_reporting",
         "rule_crc_arrival_reporting"
-      ]
+      ],
+      "before_you_go": {
+        "required_documents": [],
+        "fees": null,
+        "hours": null,
+        "appointment_rules": {
+          "text": "Call CRC if you’d like to schedule an in-person or phone appointment.",
+          "rule_id": "rule_crc_international_appointment"
+        },
+        "phone": {
+          "text": "(916) 691-7411",
+          "rule_id": "rule_crc_international_appointment"
+        },
+        "official_url": {
+          "text": "https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps",
+          "rule_id": "rule_crc_international_appointment"
+        },
+        "warnings": [
+          {
+            "text": "Report to CRC’s International Student Advisor as soon as you arrive.",
+            "rule_id": "rule_crc_arrival_reporting"
+          },
+          {
+            "text": "Check the Welcome Packet sent with your admission letter for arrival instructions. For questions, email crc-internationalstudents@crc.losrios.edu.",
+            "rule_id": "rule_crc_international_appointment"
+          }
+        ]
+      }
     },
     {
       "id": "task_proof_of_residency",
@@ -46,7 +73,73 @@
       ],
       "rule_ids": [
         "rule_california_id_application"
-      ]
+      ],
+      "before_you_go": {
+        "required_documents": [
+          {
+            "text": "Bring two different printed California address documents, such as a lease signed by both you and your landlord, utility or mobile phone bill, or a bank record. Check DMV’s address and name instructions, including exceptions.",
+            "rule_id": "rule_california_real_id_residency"
+          }
+        ],
+        "fees": {
+          "text": "$40 for a regular original ID card. Reduced-fee and no-fee categories have separate eligibility rules.",
+          "rule_id": "rule_dmv_id_fee"
+        },
+        "hours": {
+          "text": "Use the [DMV office finder](https://www.dmv.ca.gov/portal/locations/) to choose a field office and check its calendar for your visit date.",
+          "rule_id": "rule_dmv_office_finder"
+        },
+        "appointment_rules": {
+          "text": "Visit a DMV office for your first REAL ID. You can start online, make an appointment or check local office wait times.",
+          "rule_id": "rule_dmv_real_id_visit"
+        },
+        "phone": {
+          "text": "DMV customer service 1-800-777-0133, Monday through Friday, 8 a.m. to 5 p.m. TTY 1-800-368-4327. Choose [Chat with a Live Agent](https://www.dmv.ca.gov/portal/contacting-dmv/) for online help.",
+          "rule_id": "rule_dmv_customer_service"
+        },
+        "official_url": {
+          "text": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/real-id-checklist/",
+          "rule_id": "rule_california_real_id_residency"
+        },
+        "warnings": [
+          {
+            "text": "Depending on your situation: if you are using the passport option as proof of identity, bring your unexpired foreign passport, valid U.S. visa and approved I-94, and follow DMV’s original or certified-copy instructions. If your current name differs from your identity document, also bring supporting name-change documents. These depend on your situation and are not part of the document checklist. DMV’s list includes other accepted identity options.",
+            "rule_id": "rule_dmv_real_id_identity"
+          },
+          {
+            "text": "Retrieve your latest electronic I-94 through the official CBP I-94 service and print it if needed.",
+            "rule_id": "rule_i94_retrieval_guidance"
+          },
+          {
+            "text": "Official recommendation: use DMV’s full REAL ID checklist before visiting.",
+            "rule_id": "rule_dmv_real_id_visit"
+          },
+          {
+            "text": "DMV also describes a paper application form available at field offices.",
+            "rule_id": "rule_dmv_id_paper_application"
+          },
+          {
+            "text": "If you already have a Social Security number (SSN), provide it to DMV. DMV describes an exemption for legally present applicants who are ineligible for an SSN. Ask DMV how its SSN requirement applies to your REAL ID application. You can ask: “I’m applying for my first California REAL ID card and I don’t have an SSN. Can you tell me whether I can apply in my situation, which documents to bring, and how to book the right appointment?” If your SSN is pending, tell DMV and ask whether you should wait to apply.",
+            "rule_id": "rule_dmv_id_ssn_guidance"
+          },
+          {
+            "text": "For SSA appointment help, call 1-800-772-1213, Monday through Friday, 8 a.m. to 7 p.m. local time in California. TTY 1-800-325-0778. To schedule online, open the [SSA appointment page](https://www.ssa.gov/manage-benefits/make-an-appointment) and select Get started. If you already applied, call and ask: “I applied for an SSN on [date] and I’m still waiting. Can you check whether you need any more documents from me and tell me what I should do next?”",
+            "rule_id": "rule_ssa_appointment_contact"
+          },
+          {
+            "text": "Search by ZIP code in the [SSA office locator](https://www.ssa.gov/locator) for the address, phone number and services of your local office or Card Center.",
+            "rule_id": "rule_ssa_office_locator"
+          },
+          {
+            "text": "For your first SSN, start at the [SSA first-time application page](https://www.ssa.gov/number-card/request-number-first-time). Ask SSA: “Hi, I’m an F-1 student applying for a Social Security number for the first time. Can you tell me what documents I need and help me schedule a visit if I need one?”",
+            "rule_id": "rule_ssa_first_ssn_application"
+          },
+          {
+            "text": "Want to schedule a first REAL ID visit? Open [DMV appointments](https://www.dmv.ca.gov/portal/appointments/) and choose First-time REAL ID Application.",
+            "rule_id": "rule_dmv_real_id_booking"
+          }
+        ]
+      }
     },
     {
       "id": "task_bank_account",
@@ -59,7 +152,7 @@
     },
     {
       "id": "task_confirm_sevis_active",
-      "title": "Ask your DSO to confirm SEVIS registration",
+      "title": "Before applying for a driver's license, ask your DSO to confirm your SEVIS record is Active",
       "priority": "Recommended",
       "prerequisites": [],
       "rule_ids": [
@@ -86,7 +179,7 @@
       "verification_status": "needs_verification",
       "source_url": "https://www.usa.gov/arrival-departure-record",
       "evidence": "See your most recent I-94 form and print it, in case you need your record of legal admission to the U.S.",
-      "last_checked": "2026-11-13",
+      "last_checked": "2026-11-16",
       "last_verified": null,
       "verified_by": null,
       "second_checker": null,
@@ -96,13 +189,13 @@
     },
     {
       "rule_id": "rule_i901_payment_record",
-      "statement": "Check the official I-901 payment record for the fee that applied to your entry. Continuing-student and transfer exceptions may apply; this task does not create a new payment obligation.",
+      "statement": "Check or print your existing I-901 SEVIS fee payment confirmation through the official payment site. Continuing-student and transfer exceptions may apply; this task does not create a new payment obligation.",
       "layer": "federal",
       "school_id": null,
       "high_risk": false,
       "verification_status": "needs_verification",
       "source_url": "https://www.ice.gov/sevis/i901/faq",
-      "evidence": "If the fee is paid on your behalf, a copy of your I-901 fee payment confirmation can be printed",
+      "evidence": "print your payment confirmation receipt by going to www.fmjfee.com and selecting Check I-901 Status/Print Payment Confirmation",
       "last_checked": "2026-11-13",
       "last_verified": null,
       "verified_by": null,
@@ -154,7 +247,7 @@
       "verification_status": "needs_verification",
       "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/real-id-checklist/",
       "evidence": "To prove that you live in California, you must present TWO DIFFERENT printed documents that show your California mailing address.",
-      "last_checked": "2026-11-13",
+      "last_checked": "2026-11-16",
       "last_verified": null,
       "verified_by": null,
       "second_checker": null,
@@ -170,7 +263,7 @@
       "high_risk": false,
       "verification_status": "needs_verification",
       "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/identification-id-cards/",
-      "evidence": "Complete a Driver\u2019s License (DL) or ID Card Application",
+      "evidence": "Complete a Driver’s License (DL) or ID Card Application",
       "last_checked": "2026-11-13",
       "last_verified": null,
       "verified_by": null,
@@ -198,7 +291,7 @@
     },
     {
       "rule_id": "rule_dso_sevis_confirmation_referral",
-      "statement": "Official recommendation \u2014 DHS driver's-license guidance: ask your DSO to confirm your SEVIS record is Active before applying for a driver's license. This source does not establish a California REAL ID-card prerequisite. Refer individual immigration-status questions to your DSO.",
+      "statement": "Official recommendation — DHS driver's-license guidance: ask your DSO to confirm your SEVIS record is Active before applying for a driver's license. This source does not establish a California REAL ID-card prerequisite. Refer individual immigration-status questions to your DSO.",
       "layer": "federal",
       "school_id": null,
       "high_risk": true,
@@ -222,11 +315,191 @@
       "source_url": "https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines",
       "evidence": "The next day after enrollment date",
       "last_checked": "2026-11-11",
-      "last_verified": null,
+      "last_verified": "2026-11-12",
       "verified_by": "Hayley Nguyen",
       "second_checker": "Ryan Mejia",
       "second_check_date": "2026-11-12",
       "changed": null,
+      "verification_status": "verified"
+    },
+    {
+      "rule_id": "rule_dmv_real_id_identity",
+      "statement": "California DMV lists a foreign passport with a valid U.S. visa and approved I-94 as one identity option. Follow the original or certified-copy instructions and bring supporting name-change documentation if applicable.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/real-id-info-non-u-s-citizens/",
+      "evidence": "Unexpired foreign passport with valid U.S. Visa and approved I-94 form",
+      "last_checked": "2026-11-14",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_id_fee",
+      "statement": "The original regular ID card fee is $40. Separate rates apply to qualifying reduced-fee and no-fee categories.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/licensing-fees/",
+      "evidence": "ID Card Fees table: Regular ID card / Original / $40",
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_office_finder",
+      "statement": "The DMV office finder can locate field offices by ZIP code or city. Use your selected office’s calendar for your visit date.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/locations/",
+      "evidence": "Find a location by zip code or city name",
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_real_id_visit",
+      "statement": "First-time REAL ID applicants visit a DMV office. DMV offers online preparation and recommends using the full document checklist before the visit.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/",
+      "evidence": "you must visit a DMV office in person when applying for a REAL ID for the first time | We strongly recommend visiting our REAL ID Checklist",
+      "last_checked": "2026-11-14",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_id_paper_application",
+      "statement": "DMV provides an online DL/ID application and a paper form at field offices.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/dl-id-online-app-edl-44/",
+      "evidence": "A new paper version of the driver’s license application is available in field offices",
+      "last_checked": "2026-11-14",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_customer_service",
+      "statement": "California DMV lists customer service and TTY numbers and provides a live chat entry on its contact page.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/contacting-dmv/",
+      "evidence": "Chat with a Live Agent | 1-800-777-0133 | TTY 1-800-368-4327 | Monday – Friday, 8 a.m. – 5 p.m.",
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_id_ssn_guidance",
+      "statement": "DMV describes an SSN exemption for legally present applicants who are ineligible for an SSN. A pending application alone does not establish ineligibility.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/driver-education-and-safety/educational-materials/fast-facts/social-security-number-ffdl-8/",
+      "evidence": "If you are legally present in the U.S., but ineligible for an SSN, you are exempt from the DMV SSN requirement.",
+      "last_checked": "2026-11-14",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_crc_international_appointment",
+      "statement": "CRC publishes an international student email and a number for in-person or phone appointments. The welcome packet accompanies the admission letter and contains arrival information.",
+      "layer": "school",
+      "school_id": "crc",
+      "high_risk": false,
+      "source_url": "https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps",
+      "evidence": "Call (916) 691-7411 if you would like to schedule an in-person or phone appointment.",
+      "last_checked": "2026-11-14",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_ssa_appointment_contact",
+      "statement": "SSA provides online and phone appointment support. SSA lists 1-800-772-1213 and TTY 1-800-325-0778. Appointment support is available Monday through Friday, 8 a.m. to 7 p.m. in most U.S. time zones.",
+      "source_url": "https://www.ssa.gov/manage-benefits/make-an-appointment",
+      "evidence": "Monday through Friday, 8 a.m. to 7 p.m. | Call +1 800-772-1213 | Schedule an appointment | Call TTY +1 800-325-0778",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_ssa_office_locator",
+      "statement": "The SSA office locator accepts a ZIP code and shows the address, local contact numbers and services of offices or Card Centers.",
+      "source_url": "https://www.ssa.gov/locator",
+      "evidence": "Search by address, city, state, or ZIP code | Contact numbers | Card Center",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_ssa_first_ssn_application",
+      "statement": "SSA provides an online starting point for a first SSN application in the United States, followed by presentation of documentation at a local office.",
+      "layer": "federal",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.ssa.gov/number-card/request-number-first-time",
+      "evidence": "you can apply online, then go to a local Social Security office to provide your documentation",
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
+      "verification_status": "needs_verification"
+    },
+    {
+      "rule_id": "rule_dmv_real_id_booking",
+      "statement": "DMV’s appointment service menu lists First-time REAL ID Application.",
+      "layer": "california",
+      "school_id": null,
+      "high_risk": false,
+      "source_url": "https://www.dmv.ca.gov/portal/appointments/",
+      "evidence": "First-time REAL ID Application",
+      "last_checked": "2026-11-16",
+      "last_verified": null,
+      "verified_by": null,
+      "second_checker": null,
+      "second_check_date": null,
       "verification_status": "needs_verification"
     }
   ]

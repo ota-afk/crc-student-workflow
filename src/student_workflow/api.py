@@ -21,6 +21,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
+from .ai_day3 import generate_email
 from .config import api_key, cors_origins, mock_path, rate_limit, use_mock
 from .contract import ResolveResult, StudentProfile, Task, Workflow, WorkflowRequest
 from .engine import RulesError, resolve
@@ -183,11 +184,11 @@ def resolve_blocker(task_id: str, request: WorkflowRequest) -> ResolveResult:
     target = task.next_action.task_id  # the first missing prerequisite
     # In a chain (a -> b -> c), c's next action b can be Blocked too. Marking b as awaiting a
     # reply would show nothing (Blocked wins) and quietly turn b In Progress later.
-    target_status = _find(current, target).status
-    if target_status not in ('Ready', 'In Progress'):
+    prerequisite = _find(current, target)
+    if prerequisite.status not in ('Ready', 'In Progress'):
         raise HTTPException(
             status_code=409,
-            detail=f'Task {task_id} needs {target} first, and {target} is {target_status}',
+            detail=f'Task {task_id} needs {target} first, and {target} is {prerequisite.status}',
         )
     profile = request.student_profile
     # Resolving twice changes nothing, instead of listing the same task twice.
@@ -196,7 +197,14 @@ def resolve_blocker(task_id: str, request: WorkflowRequest) -> ResolveResult:
             update={'awaiting_reply': [*profile.awaiting_reply, target]}
         )
     # The blocked task stays Blocked: only marking the prerequisite done makes it Ready.
-    return ResolveResult(workflow=_workflow(profile, as_of))
+    workflow = _workflow(profile, as_of)
+    try:
+        draft = generate_email(task, prerequisite=prerequisite)
+    except Exception as error:  # noqa: BLE001 - the optional draft must not discard the workflow.
+        # Don't log inputs, draft content or exception text.
+        logger.warning('Email draft generation failed (%s)', type(error).__name__)
+        draft = None
+    return ResolveResult(workflow=workflow, email_draft=draft)
 
 
 def _as_of(request: WorkflowRequest) -> date:

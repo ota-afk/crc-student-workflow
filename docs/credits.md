@@ -124,6 +124,11 @@
   progress list. Added API regression tests for early rejection and the limit boundary,
   and documented the limits in `docs/contract.md`. Pending the BE owner's review.
 
+- STU-D03-ENG content (Nov 14 2026): ChatGPT/Codex assisted with official-source research,
+  before-you-go content and separate student-facing wording for California REAL ID and CRC arrival reporting, source notes
+  and compatibility checks against the existing BeforeYouGo model. Current source
+  retrieval is recorded separately from the August demo dates. Codex also prepared the cited rule entries and ran integration checks. Human review
+  of the visit details and frontend citation rendering remain pending.
 - STU-D05-BE-docs-status (Nov 16 2026): AI assistance (Claude Code) updated the status wording
   in `docs/contract.md`, `README.md`, `docs/deploy.md` and `docs/release-checklist.md` after
   #20, #21 and #22 merged. Documentation only. Pending the BE owner's review.
@@ -131,3 +136,7 @@
   `data/ai_test_questions.json`, `docs/cost-and-scale.md` and `docs/ai-readme-section.md`.
   The English word-list bug was found by running the real model. Token numbers are measured
   by the runner; the price is from OpenAI's pricing page.
+
+- STU-D03-AI (Nov 16 2026): AI assistance (Codex) drafted the citation validator,
+  engine-grounded task explanations, placeholder email drafts, and regression tests
+  in `src/student_workflow/ai_day3.py` and `tests/test_ai_day3.py`.
