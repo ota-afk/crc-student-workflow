@@ -4,12 +4,21 @@ import html
 import json
 import os
 import re
-from datetime import date
+from datetime import date, time
 
 import requests
 import streamlit as st
 
 from . import flyover_client as client
+from .flyover_appointments import (
+    DAYS,
+    NO_HOURS_NOTE,
+    TIMEZONE_LABEL,
+    describe_windows,
+    first_with_guidance,
+    normalize_windows,
+    notice_key,
+)
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
 from .flyover_state import (
     ENCOURAGEMENTS,
@@ -265,7 +274,8 @@ def _profile(data: dict, api_url: str) -> None:
                             for key in ('flyover_active_id', 'flyover_status', 'flyover_detail', 'flyover_handoff',
                                         'flyover_map_done', 'flyover_celebrate', 'flyover_status_error',
                                         'flyover_email', 'flyover_resolve_error', 'flyover_popup_history',
-                                        'flyover_chat_error'):
+                                        'flyover_chat_error', 'flyover_preferences',
+                                        'flyover_appt_dismissed'):
                                 st.session_state.pop(key, None)
                             for key in list(st.session_state):
                                 if key.startswith('flyover_doc:'):
@@ -375,6 +385,81 @@ def _board(title: str, changing: bool) -> str:
             + words + '</div>')
 
 
+def _windows() -> list[dict]:
+    """The student's weekly free times: this browser session only, never sent anywhere."""
+    return st.session_state.setdefault('flyover_preferences', {}).setdefault('availability', [])
+
+
+def _add_window() -> None:
+    """Form callback: validate and merge the new free time, or say what is wrong."""
+    st.session_state.pop('flyover_avail_error', None)
+    new = {'day': st.session_state['fly_avail_day'], 'start': st.session_state['fly_avail_start'],
+           'end': st.session_state['fly_avail_end']}
+    try:
+        merged = normalize_windows([*_windows(), new])
+    except ValueError as error:
+        st.session_state['flyover_avail_error'] = str(error).capitalize() + '.'
+        return
+    st.session_state['flyover_preferences']['availability'] = merged
+
+
+def _remove_window(index: int) -> None:
+    windows = _windows()
+    if 0 <= index < len(windows):
+        del windows[index]
+
+
+def _dismiss_notice(key: str) -> None:
+    st.session_state.setdefault('flyover_appt_dismissed', []).append(key)
+
+
+def _availability_editor() -> None:
+    st.caption(f'{TIMEZONE_LABEL}. Kept in this browser session only and never sent anywhere. '
+               'This plans your visit; it does not book an appointment.')
+    with st.form('fly_avail_form', border=False):
+        day, start, end = st.columns([1.4, 1, 1])
+        with day:
+            st.selectbox('Day', DAYS, key='fly_avail_day')
+        with start:
+            st.time_input('From', value=time(9, 0), step=900, key='fly_avail_start')
+        with end:
+            st.time_input('To', value=time(12, 0), step=900, key='fly_avail_end')
+        st.form_submit_button('Add free time', on_click=_add_window)
+    if error := st.session_state.pop('flyover_avail_error', None):
+        st.error(error)
+    for index, window in enumerate(_windows()):
+        label, remove = st.columns([4, 1], vertical_alignment='center')
+        with label:
+            st.write(describe_windows([window]))
+        with remove:
+            st.button('Remove', key=f'fly_avail_rm:{index}', on_click=_remove_window,
+                      args=(index,), type='tertiary')
+
+
+def _appointment_notice(tasks: list[dict]) -> None:
+    """In-app notice when the current or next step has sourced appointment guidance."""
+    guidance = first_with_guidance(task_queue(tasks))
+    if guidance is None:
+        return
+    windows = _windows()
+    key = notice_key(guidance, windows)
+    if key in st.session_state.get('flyover_appt_dismissed', []):
+        return  # dismissed; the same text stays in the task's checklist under Visit details
+    with st.container(key='fly_appt_notice'):
+        st.markdown(f'**Appointment information for your next step:** {guidance["title"]}')
+        st.markdown(guidance['text'])  # ENG's sourced wording, unchanged
+        if not guidance['verified']:
+            st.caption('⚠ Not verified. Confirm with the office.')
+        if link := safe_url(guidance['url']):
+            st.link_button('Official visit information', link)
+        if windows:
+            st.caption(f'Your free times: {describe_windows(windows)}. {NO_HOURS_NOTE}')
+        with st.expander('Your free times (optional)'):
+            _availability_editor()
+        st.button('Dismiss', key='fly_appt_dismiss', on_click=_dismiss_notice, args=(key,),
+                  type='tertiary')
+
+
 def _workflow(data: dict, api_url: str) -> None:
     tasks = data['workflow']
     done = sum(task['status'] == 'Completed' for task in tasks)
@@ -445,6 +530,7 @@ def _workflow(data: dict, api_url: str) -> None:
                         for task in other_ready:
                             st.button(task['title'], key='flyover_other:' + task['id'],
                                       on_click=go, args=('readiness', task['id']))
+        _appointment_notice(tasks)
         _, next_col = st.columns([4, 1])
         with next_col:
             st.button('Next', key='flyover_next', type='primary', icon=':material/arrow_forward:',

@@ -75,6 +75,13 @@ OS reduced-motion preferences are also respected, and browsers without CSS scrol
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile with no steps completed yet.
 
+When the current or next step has appointment guidance (school check-in, REAL ID), page 1
+shows it word for word from `rules.json` with its "Not verified" label and official link. The
+student can add weekly free times (Pacific time) under it; they stay in the browser session,
+are never sent to the API or the model, and are cleared by Start fresh. With no structured
+office hours on file, Flyover never claims a match: it says to check the office's calendar.
+The notice can be dismissed; the same text stays in the task's checklist.
+
 The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either
 page, without leaving the page. It calls `POST /assistant` with the workflow's `as_of` and
 progress, the task in view, and `page_context` (`journey` on page 1, `readiness` on page 2),
