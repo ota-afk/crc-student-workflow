@@ -84,15 +84,20 @@ def render_signin(api_url: str) -> None:
                 ssn = st.radio('Do you have an SSN?', ['No', 'Yes'], horizontal=True,
                                key='flyover_signin_ssn',
                                help='Yes or no only. Never enter the number.')
+                enrolled = st.date_input(
+                    'Enrollment date (optional)', value=None, key='flyover_signin_enrollment',
+                    help='The day you enrolled in classes. Only used to work out your tuition '
+                         'deadline.')
                 submitted = st.form_submit_button('Sign in and start', type='primary',
                                                   width='stretch')
             st.caption('No names, document numbers or uploads.')
             if submitted:
-                _sign_in(api_url, email.strip(), school_id, schools, arrival, visa, ssn)
+                _sign_in(api_url, email.strip(), school_id, schools, arrival, visa, ssn,
+                         enrolled)
 
 
 def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: str,
-             ssn: str) -> None:
+             ssn: str, enrolled=None) -> None:
     # The password is never kept: drop the widget's value whatever happens next.
     st.session_state.pop('flyover_signin_password', None)
     if not valid_email(email):
@@ -104,7 +109,8 @@ def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: 
     changes = {'student_id': SESSION_STUDENT_ID, 'school_id': school_id,
                'institution': schools[school_id]['institution'] if school_id
                else 'School not listed',
-               'visa_type': visa, 'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes'}
+               'visa_type': visa, 'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
+               'enrollment_date': enrolled.isoformat() if enrolled else None}
     try:
         with st.spinner('Building your workflow…'):
             workflow = client.generate_workflow(api_url, {}, changes)

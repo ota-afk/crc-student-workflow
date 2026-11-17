@@ -95,6 +95,18 @@ class TaskOffice(BaseModel):
     notes: str | None = None
 
 
+class TaskDue(BaseModel):
+    """When a task is due, worked out from a rule's deadline and the profile."""
+
+    # None = can't be worked out yet; `needs` says which profile date is missing.
+    due_on: date | None = None
+    needs: Literal['enrollment_date'] | None = None
+    rule_id: str
+    verification_status: Literal['verified', 'needs_verification']
+    # True = as_of is after due_on. None when due_on is unknown.
+    past_due: bool | None = None
+
+
 class Task(BaseModel):
     id: str
     title: str
@@ -108,6 +120,8 @@ class Task(BaseModel):
     sources: list[Source] = []
     # [] = no office researched for this task (not "no office needed").
     offices: list[TaskOffice] = []
+    # None = no deadline applies (or the task is completed).
+    due: TaskDue | None = None
 
 
 class StudentProfile(BaseModel):
@@ -124,6 +138,8 @@ class StudentProfile(BaseModel):
     awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
     school_id: str | None = None
     school_verified: bool = False
+    # None = not given. Only used to work out enrollment-based deadlines (CRC fees).
+    enrollment_date: date | None = None
 
 
 class Workflow(BaseModel):
@@ -156,6 +172,8 @@ class AssistantProfile(BaseModel):
     school_id: str | None = None
     completed_tasks: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
     awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
+    # Accepted so a profile from a workflow response can be sent back as-is (deadlines only).
+    enrollment_date: date | None = None
 
 
 # Where in Flyover the question was asked. A display hint only; see docs/contract.md.

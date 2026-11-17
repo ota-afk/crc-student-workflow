@@ -90,3 +90,21 @@ def test_email_shape_check(email, ok):
 
 def test_masked_email_hides_the_name_part():
     assert masked('ryan@example.com') == 'r***@example.com'
+
+
+def test_an_enrollment_date_at_sign_in_shows_the_tuition_deadline(live):
+    app = first_screen()
+    app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 7, 1))
+    app = sign_in(app)
+    assert app.session_state['flyover_data']['student_profile']['enrollment_date'] == '2026-07-01'
+    app.button(key='flyover_next').click().run()
+    app = app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
+    # Enrolled before the July 24 cutoff: due August 7, 2026 (the verified CRC rule).
+    assert any(v.startswith('Past due since Fri, Aug 7, 2026.') for v in values(app.warning))
+
+
+def test_without_an_enrollment_date_flyover_asks_for_it(live):
+    app = sign_in(first_screen())
+    app.button(key='flyover_next').click().run()
+    app = app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
+    assert 'Add your enrollment date in Profile setup to see when this is due.' in values(app.info)

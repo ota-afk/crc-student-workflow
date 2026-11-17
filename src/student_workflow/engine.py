@@ -16,6 +16,7 @@ from .contract import (
     Source,
     StudentProfile,
     Task,
+    TaskDue,
     TaskOffice,
     Workflow,
 )
@@ -192,6 +193,7 @@ def _resolve_task(
     offices = [_office(rules.office(office_id), as_of) for office_id in task.offices]
     if task.id in completed:
         return _task(task, "Completed", sources=sources, visit=visit, offices=offices)
+    due = _due(task_rules, profile, as_of)
 
     # Kept in file order, so next_action always points at the same first prerequisite.
     missing = [p for p in task.prerequisites if p not in completed]
@@ -219,7 +221,24 @@ def _resolve_task(
         next_action=next_action,
         visit=visit,
         offices=offices,
+        due=due,
     )
+
+
+def _due(task_rules: list[Rule], profile: StudentProfile, as_of: date) -> TaskDue | None:
+    """The task's deadline from the first rule that sets one, or None if none does."""
+    rule = next((r for r in task_rules if r.deadline), None)
+    if rule is None:
+        return None
+    deadline, enrolled = rule.deadline, profile.enrollment_date
+    if enrolled is None:
+        # Never guess a due date: say which date the student still has to give.
+        return TaskDue(needs="enrollment_date", rule_id=rule.rule_id,
+                       verification_status=rule.verification_status)
+    due_on = (deadline.due_if_by_cutoff if enrolled <= deadline.cutoff
+              else enrolled + timedelta(days=deadline.days_after))
+    return TaskDue(due_on=due_on, rule_id=rule.rule_id,
+                   verification_status=rule.verification_status, past_due=as_of > due_on)
 
 
 def _office(office: Office, as_of: date) -> TaskOffice:
@@ -294,6 +313,7 @@ def _task(
     next_action: NextAction | None = None,
     visit: BeforeYouGo | None = None,
     offices: list[TaskOffice] | None = None,
+    due: TaskDue | None = None,
 ) -> Task:
     return Task(
         id=task.id,
@@ -307,4 +327,5 @@ def _task(
         before_you_go=visit,
         sources=sources,
         offices=offices or [],
+        due=due,
     )

@@ -31,6 +31,13 @@ Students who enroll on or after July 25 will not be dropped for non-payment. How
 - Calculated payment deadline: 2026-08-14
 - Expected reminder, if unpaid: "Payment due today"
 
+### Structured deadline (STU-D07-due-dates, 2026-11-17)
+
+`rule_crc_fall_2026_payment_deadline` in `rules.json` now also carries both conditions above
+as data: `"deadline": {"from": "enrollment_date", "cutoff": "2026-07-24", "due_if_by_cutoff":
+"2026-08-07", "days_after": 1}`. No new facts: the same verified rule, written so the app can
+work out a student's due date from their enrollment date.
+
 ### Implementation notes
 
 Calculate the deadline from the enrollment date.
