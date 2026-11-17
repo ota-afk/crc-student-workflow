@@ -102,3 +102,45 @@ def test_airshow_timeout_shows_a_helpful_message(live, monkeypatch):
     assert any('took too long' in v for v in values(app.error))
     assert not any('internal timeout details' in v for v in values(app.error))
     assert 'flyover_answer' not in app.session_state
+
+
+def confetti_shown(app: AppTest) -> bool:
+    return '<div class="flyover-confetti"' in str([e.value for e in app.get('html')])
+
+
+def test_checklist_completion_celebrates_once_like_the_status_selector(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    app.button(key='flyover_detail_complete').click().run()
+    assert not app.exception
+    assert status_of(app, RESIDENCY) == 'Completed'  # the API's answer, not the click
+    assert app.session_state['flyover_page'] == 'home'
+    assert confetti_shown(app)
+    assert any('completed. Next:' in v for v in values(app.success))
+    app.run()
+    assert not confetti_shown(app)  # consumed once
+
+
+def test_failed_checklist_completion_does_not_celebrate(live, monkeypatch):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    real_post = requests.post
+
+    def refuse(url, **kwargs):
+        if url.endswith('/complete'):
+            raise requests.Timeout('private detail')
+        return real_post(url, **kwargs)
+
+    monkeypatch.setattr(requests, 'post', refuse)
+    app.button(key='flyover_detail_complete').click().run()
+    assert not app.exception
+    assert status_of(app, RESIDENCY) != 'Completed'
+    assert not confetti_shown(app)
+    assert any('progress has been kept' in v for v in values(app.error))
+
+
+def test_reduce_motion_completion_shows_the_message_without_confetti(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app.session_state['flyover_reduce_motion'] = True
+    app = open_checklist(app, RESIDENCY)
+    app.button(key='flyover_detail_complete').click().run()
+    assert not confetti_shown(app)
+    assert any('completed. Next:' in v for v in values(app.success))
