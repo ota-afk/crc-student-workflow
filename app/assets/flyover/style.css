@@ -341,3 +341,9 @@
 /* ---- Appointment notice (STU-D06-FE-appointment-notices). Twilight edge is 3.6:1 on ivory. ---- */
 .st-key-fly_appt_notice { background:var(--flyover-card); border:1px solid var(--flyover-line);
   border-left:5px solid var(--flyover-sky); border-radius:18px; padding:16px 20px; margin-top:14px; max-width:760px; }
+
+/* A quiet note in place of Streamlit's blue info box (STU-D07-FE-checklist-text).
+   Charcoal on the light peach is well above 4.5:1. */
+.fly-note { margin:4px 0 8px; padding:10px 14px; border-radius:12px; background:#F6EEE8;
+  color:var(--flyover-ink); font-size:.92rem; line-height:1.5; }
+.st-key-fly_checklist .fly-card-meta { margin:-4px 0 10px; }

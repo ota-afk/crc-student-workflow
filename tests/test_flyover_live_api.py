@@ -412,3 +412,18 @@ def test_generating_a_new_profile_clears_free_times(live):
     assert not app.exception
     assert 'flyover_preferences' not in app.session_state or not app.session_state[
         'flyover_preferences'].get('availability')
+
+
+def test_a_task_with_no_visit_details_says_so_once(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(),
+                         'task_crc_fee_payment')
+    notes = [v for v in values(app.get('html')) if 'Not on file yet' in str(v)]
+    assert len(notes) == 1 and 'Hours, Fees, Appointments, Phone' in str(notes[0])
+    assert not any(v.startswith('Hours: Not verified') for v in values(app.markdown))
+
+
+def test_sourced_visit_details_show_with_a_not_verified_badge(live):
+    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    hours = [v for v in values(app.markdown) if v.startswith('**Hours:**')]
+    assert len(hours) == 1 and hours[0].endswith(':orange-badge[Not verified]')
+    assert 'DMV office finder' in hours[0]  # ENG's sourced wording, link included

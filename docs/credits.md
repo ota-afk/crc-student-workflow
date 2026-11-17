@@ -236,3 +236,8 @@
 - STU-D07-FE-no-flicker (Nov 17 2026): AI assistance (Claude Code) stopped Streamlit's
   redraw dimming in Flyover (`style.css`) and added a "Building your workflow…" spinner on
   Generate (`flyover.py`), with tests in `tests/test_flyover_app.py`.
+
+- STU-D07-FE-checklist-text (Nov 17 2026): AI assistance (Claude Code) reworked Flyover's
+  checklist text: status and priority pills, sourced visit facts with per-fact "Not verified"
+  badges, one "Not on file yet" line, and a palette note instead of the blue info box
+  (`flyover.py`, `flyover_appointments.fact_verified`, `style.css`), with tests.

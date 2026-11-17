@@ -65,6 +65,7 @@ CHECKS = [
      '.st-key-flyover_next button', 4.5),
     ('quote footer', '.fly-quote footer', 'color', QUOTE, 4.5),
     ('step label', '.gate-step', 'color', None, 4.5),
+    ('checklist note', '.fly-note', 'color', '.fly-note', 4.5),
 ]
 
 
