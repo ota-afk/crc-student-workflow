@@ -57,6 +57,18 @@ VISIT_FACTS = [('Hours', 'hours'), ('Fees', 'fees'), ('Appointments', 'appointme
                ('Phone', 'phone')]
 OTHER_OFFICE = 'Another office'  # the preset that asks for its own office name
 OFFICE_NAME_MAX = 80
+# Airshow's voice: fixed lines chosen by code from what the API answered. The model never
+# writes them, and they never replace or soften the cited answer that follows.
+AIRSHOW_GREETING = ("Hi, I'm Airshow, your co-pilot for your first weeks. Ask me about the "
+                    "step you're on, and I'll show you where the guidance comes from.")
+AIRSHOW_INTROS = {
+    'Blocked': "Holding short on this one: something has to happen first.",
+    'Ready': "You're cleared for this one. Here's the flight plan.",
+    'In Progress': "Holding pattern: you're waiting to hear back from an office.",
+    'Completed': "Already landed. Nice work!",
+    'referral': "That one's for your DSO. I stay out of immigration and work questions.",
+    'other': "Let's try that another way.",
+}
 CHAT_LIMIT = 10  # questions kept in the dropdown's history for this session
 PAGE_NAMES = {'journey': 'Your journey', 'readiness': 'Readiness and checklist'}
 
@@ -146,7 +158,7 @@ def _context_key(data: dict, page_context: str, task_id: str | None) -> str:
 
 def _send_chat(page_context: str, task_id: str | None) -> None:
     """Send callback: only record the question. The request runs during the redraw, so the
-    question shows at once and a spinner can say Airshow is thinking (a callback can't draw)."""
+    question shows at once and a spinner can say Airshow is working (a callback can't draw)."""
     st.session_state.pop('flyover_chat_error', None)
     question = (st.session_state.get('flyover_question') or '').strip()
     if not question:
@@ -163,7 +175,7 @@ def _ask_pending(data: dict, api_url: str) -> None:
         return
     st.markdown('**You:** ' + esc(pending['question']))
     try:
-        with st.spinner('Airshow is thinking…'):
+        with st.spinner('Airshow is checking your flight plan…'):
             answer = client.ask_airshow(api_url, data, pending['question'], pending['task_id'],
                                         pending['page_context'])
     except (requests.RequestException, ValueError) as error:
@@ -179,14 +191,23 @@ def _ask_pending(data: dict, api_url: str) -> None:
     st.session_state['flyover_chat_answered'] = True  # the next lines draw it; no repeat
 
 
+def airshow_intro(entry: dict) -> str:
+    """Airshow's opening line for an answer, picked from what the API said (no model)."""
+    if entry.get('contact'):
+        return AIRSHOW_INTROS['referral']
+    status = re.search(r'Task status: (Blocked|Ready|In Progress|Completed)\.', entry['answer'])
+    return AIRSHOW_INTROS[status.group(1)] if status else AIRSHOW_INTROS['other']
+
+
 def _chat_entry(entry: dict, current: str, *, show_question: bool = True) -> None:
     if show_question:
         st.markdown('**You:** ' + esc(entry['question']))
     if entry['context'] != current:
         st.caption('Earlier answer, before your latest progress or a different step.')
+    st.markdown(f'**Airshow:** {airshow_intro(entry)}')
     if not entry['verified'] or not all(source_verified(s) for s in entry['sources']):
         st.warning('Not verified. Confirm with the office.')
-    st.markdown(entry['answer'])
+    st.markdown(entry['answer'])  # the API's cited answer, unchanged
     for number, step in enumerate(entry['steps'], 1):
         st.write(f'{number}. {step}')
     if entry['contact']:
@@ -213,6 +234,8 @@ def _chat(data: dict, api_url: str, page: str) -> None:
                'SSN or document numbers.')
     with st.container(key='fly_chat_log'):
         history = st.session_state.get('flyover_popup_history', [])
+        if not history and 'flyover_chat_pending' not in st.session_state:
+            st.markdown(f'**Airshow:** {AIRSHOW_GREETING}')
         for entry in history:
             _chat_entry(entry, current)
         # A just-sent question: shown at once, answered under the spinner, then drawn here.

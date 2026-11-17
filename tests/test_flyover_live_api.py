@@ -247,7 +247,7 @@ def test_answer_is_fetched_under_the_thinking_spinner(live, monkeypatch):
                         lambda *a, **k: seen.append(list(spinning)) or real(*a, **k))
     app = signed_in_app(APP)
     ask(app, 'What next?')
-    assert seen == [['Airshow is thinking…']]
+    assert seen == [['Airshow is checking your flight plan…']]
 
 
 def test_a_new_visitor_starts_with_no_completed_tasks(live):
@@ -428,3 +428,32 @@ def test_sourced_visit_details_show_with_a_not_verified_badge(live):
     hours = [v for v in values(app.markdown) if v.startswith('**Hours:**')]
     assert len(hours) == 1 and hours[0].endswith(':orange-badge[Not verified]')
     assert 'DMV office finder' in hours[0]  # ENG's sourced wording, link included
+
+
+def test_airshow_greets_an_empty_chat(live):
+    from student_workflow.flyover import AIRSHOW_GREETING
+    app = signed_in_app(APP)
+    assert f'**Airshow:** {AIRSHOW_GREETING}' in values(app.markdown)
+    ask(app, 'What next?')
+    assert f'**Airshow:** {AIRSHOW_GREETING}' not in values(app.markdown)
+
+
+def test_airshow_opens_with_its_line_and_keeps_the_cited_answer(live):
+    from student_workflow.flyover import AIRSHOW_INTROS
+    app = open_checklist(signed_in_app(APP), DMV)
+    answer = ask(app, 'Why is my ID blocked?')
+    shown = values(app.markdown)
+    assert f'**Airshow:** {AIRSHOW_INTROS["Blocked"]}' in shown
+    assert answer in shown  # the API's answer, word for word, after the persona line
+
+
+@pytest.mark.parametrize(('entry', 'kind'), [
+    ({'answer': 'Task status: Ready.', 'contact': None}, 'Ready'),
+    ({'answer': 'What this step needs before you go. Task status: In Progress.',
+      'contact': None}, 'In Progress'),
+    ({'answer': 'Please ask your DSO.', 'contact': 'DSO'}, 'referral'),
+    ({'answer': "I couldn't match that to a task.", 'contact': None}, 'other'),
+])
+def test_airshow_picks_its_line_from_the_api_answer(entry, kind):
+    from student_workflow.flyover import AIRSHOW_INTROS, airshow_intro
+    assert airshow_intro(entry) == AIRSHOW_INTROS[kind]

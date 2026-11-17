@@ -245,3 +245,7 @@
 - STU-D07-FE-signin (Nov 17 2026): AI assistance (Claude Code) built Flyover's demo sign-in
   first screen (`flyover_signin.py`), its gate and Sign out (`flyover.py`, `style.css`), and
   `tests/test_flyover_signin.py`; Flyover tests now start signed in.
+
+- STU-D07-FE-airshow-voice (Nov 17 2026): AI assistance (Claude Code) gave Airshow a greeting,
+  fixed status-based opening lines and a warmer spinner (`flyover.py`), chosen by code from the
+  API's answer and never replacing it, with tests in `tests/test_flyover_live_api.py`.
