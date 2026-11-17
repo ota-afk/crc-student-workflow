@@ -144,21 +144,23 @@ def explain_task(
     )
 
 
-def generate_email(task: Task) -> EmailDraft | None:
+def generate_email(task: Task, *, prerequisite: Task | None = None) -> EmailDraft | None:
     """Draft a request for guidance on a blocked task with a missing prerequisite."""
     if (
         task.status != 'Blocked'
         or task.next_action is None
         or task.next_action.task_id not in task.missing_prerequisites
+        or (prerequisite is not None and prerequisite.id != task.next_action.task_id)
     ):
         return None
 
+    pending_step = prerequisite.title if prerequisite is not None else task.next_action.text
     return EmailDraft(
         subject=f'Request for guidance: {task.title}',
         body=(
             'Dear [Office or DSO],\n\n'
             f'I am working on this task: {task.title}. My checklist shows a pending step:\n'
-            f'{task.next_action.text}\n\n'
+            f'{pending_step}\n\n'
             'Could you confirm the applicable requirements, the next step, '
             'and the right office to contact?\n\n'
             'Thank you,\n[Your Name]\n[Student ID]'

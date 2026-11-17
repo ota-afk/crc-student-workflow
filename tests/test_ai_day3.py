@@ -6,7 +6,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from openai import OpenAIError
+from httpx import Request
+from openai import APITimeoutError, OpenAIError
 
 from student_workflow.ai_day3 import CitationChoice, explain_task, generate_email
 from student_workflow.contract import Blocker, NextAction, Source, StudentProfile, Task
@@ -90,9 +91,13 @@ def test_invalid_or_missing_citations_preserve_the_engine_order(blocked_task, ru
     assert [item.source.rule_id for item in result.citations] == ['timing', 'residency']
 
 
-def test_api_failure_preserves_the_engine_explanation(blocked_task):
+@pytest.mark.parametrize('error', [
+    OpenAIError('Service unavailable'),
+    APITimeoutError(request=Request('POST', 'https://example.org/responses')),
+])
+def test_api_failure_preserves_the_engine_explanation(blocked_task, error):
     client = Mock()
-    client.responses.parse.side_effect = OpenAIError('Service unavailable')
+    client.responses.parse.side_effect = error
 
     result = explain_task(blocked_task, high_risk=False, client=client, model='fake')
 
@@ -156,4 +161,7 @@ def test_resolved_dmv_task_cites_its_actual_next_action():
     client.responses.parse.assert_called_once()
     assert 'synthetic_demo' not in client.responses.parse.call_args.kwargs['input']
     assert explain_task(task, prerequisite=task, high_risk=False).citations == []
-    assert generate_email(task) is not None
+    draft = generate_email(task, prerequisite=prerequisite)
+    assert draft is not None
+    assert prerequisite.title in draft.body
+    assert generate_email(task, prerequisite=task) is None
