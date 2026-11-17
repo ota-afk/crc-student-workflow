@@ -26,12 +26,9 @@ def appointment_guidance(task: dict) -> dict | None:
     text = (guide.get('appointment_rules') or '').strip()
     if not text:
         return None  # no appointment guidance on file: no notice, never a guess
-    citations = guide.get('citations') or []
 
     def verified(field: str) -> bool:
-        cited = [c for c in citations if c.get('field') == field]
-        # No citation for the fact = unverified; every citation for it must be verified.
-        return bool(cited) and all(c.get('verification_status') == 'verified' for c in cited)
+        return fact_verified(guide, field)
 
     hours = (guide.get('hours') or '').strip() or None
     revision = hashlib.sha256(f'{text}\n{hours}'.encode()).hexdigest()[:12]
@@ -39,6 +36,13 @@ def appointment_guidance(task: dict) -> dict | None:
             'verified': verified('appointment_rules'), 'hours': hours,
             'hours_verified': verified('hours') if hours else False,
             'url': guide.get('official_url'), 'revision': revision}
+
+
+def fact_verified(guide: dict, field: str) -> bool:
+    """True only if a visit-detail fact has citations and every one of them is verified."""
+    cited = [c for c in guide.get('citations') or [] if c.get('field') == field]
+    # No citation for the fact = unverified; every citation for it must be verified.
+    return bool(cited) and all(c.get('verification_status') == 'verified' for c in cited)
 
 
 def first_with_guidance(queue: list[dict], look_ahead: int = 2) -> dict | None:

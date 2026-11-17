@@ -15,6 +15,7 @@ from .flyover_appointments import (
     NO_HOURS_NOTE,
     TIMEZONE_LABEL,
     describe_windows,
+    fact_verified,
     first_with_guidance,
     normalize_windows,
     notice_key,
@@ -51,6 +52,8 @@ PROFESSIONALS = {
                        'Which documents should I bring?',
                        'What are my next steps and deadlines?'],
 }
+VISIT_FACTS = [('Hours', 'hours'), ('Fees', 'fees'), ('Appointments', 'appointment_rules'),
+               ('Phone', 'phone')]
 OTHER_OFFICE = 'Another office'  # the preset that asks for its own office name
 OFFICE_NAME_MAX = 80
 CHAT_LIMIT = 10  # questions kept in the dropdown's history for this session
@@ -553,7 +556,8 @@ def _workflow(data: dict, api_url: str) -> None:
 
 def _checklist(data: dict, task: dict, api_url: str) -> None:
     st.markdown('### ' + task['title'])
-    st.caption(task['status'] + ' · ' + task['priority'])
+    st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
+            f'<span class="gate-priority">{esc(task["priority"])}</span></div>')
     for blocker in task.get('blockers') or []:
         st.warning(blocker['explanation'])
         if blocker.get('unlocks_on'):
@@ -566,14 +570,25 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         if key not in st.session_state:
             st.session_state[key] = selected.get(document, False)
         selected[document] = st.checkbox(document, key=key)
-    if not documents:
-        st.info('Document requirements are not available. Confirm with the office.')
-    st.caption('Checked documents are your inventory, not a readiness or eligibility decision.')
+    if documents:
+        st.caption('Checked documents are your inventory, not a readiness or eligibility decision.')
+    else:
+        st.html('<p class="fly-note">No document list on file yet. Ask the office what to bring.</p>')
     details, sources = st.columns([1, 1], gap='large')
     with details:
         st.markdown('#### Visit details')
-        for label, field in [('Hours', 'hours'), ('Fees', 'fees'), ('Appointments', 'appointment_rules'), ('Phone', 'phone')]:
-            st.write(f'{label}: {guide.get(field) or "Not verified. Confirm with the office."}')
+        missing = []
+        for label, field in VISIT_FACTS:
+            if not (value := guide.get(field)):
+                missing.append(label)
+                continue
+            # The fact as sourced (it may contain a link), with a badge when it's unverified.
+            badge = '' if fact_verified(guide, field) else ' :orange-badge[Not verified]'
+            st.markdown(f'**{label}:** {value}{badge}')
+        if missing:
+            # One line for everything not on file, instead of the same warning four times.
+            st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
+                    'Confirm with the office.</p>')
         if link := safe_url(guide.get('official_url')):
             st.link_button('Official visit information', link)
     with sources:
