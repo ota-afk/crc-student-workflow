@@ -83,6 +83,9 @@ It is a set of patterns, not proof that no secret or personal data is in the his
 | Dashboard walkthrough, live API | 2026-11-17 | Passes. The dashboard code on main (#30), run on a laptop against the deployed API: load, school search, generate (DMV Blocked), resolve (draft shown, residency In Progress), mark done (DMV Ready), reload (still Ready). Clicking through the deployed dashboard in a browser is still to do. |
 | Warm-up, both live URLs | 2026-11-17 | Both awake. A sleeping API makes the dashboard's first load fail after its 10-second timeout; Retry works about a minute later. Warm up before recording and before judging. |
 
+| Live re-check after Flyover (#37) | 2026-11-17 | CI green on main at #37. Warm-up: API woke in 42 s. Smoke test `All checks passed` (now including the `POST /assistant` DSO referral). Pre-recording check `clean`. |
+| Live AI, real model call | 2026-11-17 | "Why is my California ID blocked?" on `POST /assistant` matched `task_dmv_id` and returned the cited explanation, so `OPENAI_API_KEY` and `OPENAI_MODEL` are set on the API. (A DSO referral alone skips the model and proves nothing here.) |
+
 ## Team decisions (not BE's alone)
 
 - **The repo is public** (made public for Render). The audit above was run after that, on
