@@ -27,6 +27,7 @@ from .flyover_state import (
     map_progress,
     task_queue,
 )
+from .flyover_tour import tour_script
 from .frontend import safe_url, source_verified
 from .frontend_state import sync_profile_context
 from .frontend_views import render_sources
@@ -69,6 +70,12 @@ def go(page: str, task_id: str | None = None) -> None:
         st.session_state['flyover_quote'] = st.session_state.get('flyover_quote', -1) + 1
 
 
+def _replay_tour() -> None:
+    # The tour points at page 1's controls, so go there and send it again.
+    st.session_state['flyover_tour_replay'] = True
+    st.session_state['flyover_page'] = 'home'
+
+
 @st.dialog('Flight settings')
 def settings() -> None:
     st.caption('Make this space comfortable for you.')
@@ -82,6 +89,11 @@ def settings() -> None:
               value=st.session_state.get('flyover_pause_banner', False),
               on_change=keep_preference, args=('flyover_pause_widget', 'flyover_pause_banner'))
     st.caption('Your profile and checklist stay in this browser session. Nothing is uploaded.')
+    # The callback sets the flags (it runs however the dialog is redrawn); the rerun then
+    # redraws the whole page, closing the dialog, so the tour can find page 1's controls.
+    if st.button('Replay tutorial', key='flyover_tour_replay_btn', icon=':material/school:',
+                 on_click=_replay_tour):
+        st.rerun()
     if st.button('Done', key='flyover_settings_done', type='primary'):
         st.rerun()
 
@@ -664,6 +676,21 @@ def _prereq_dialog(task: dict, by_id: dict) -> None:
         st.rerun()
 
 
+def _tour() -> None:
+    """Send the spotlight tour once per session (and again on Settings → Replay tutorial).
+
+    The browser remembers a finished or skipped tour for the tab (sessionStorage), so a sent
+    tour that was already seen doesn't show again. Nothing here calls the API.
+    """
+    replay = st.session_state.pop('flyover_tour_replay', False)
+    if st.session_state.get('flyover_tour_sent') and not replay:
+        return
+    st.session_state['flyover_tour_sent'] = True
+    with st.container(key='fly_tour'):
+        st.iframe(tour_script(replay, bool(st.session_state.get('flyover_reduce_motion'))),
+                  height=1)
+
+
 def _scroll(target: str) -> None:
     """Streamlit keeps the scroll position between pages; move it where the click meant to go."""
     smooth = 'auto' if st.session_state.get('flyover_reduce_motion') else 'smooth'
@@ -940,4 +967,6 @@ def render_app() -> None:
         _assistant(data, api_url)
     if target := st.session_state.pop('flyover_scroll', None):
         _scroll(target)
+    if page == 'home':
+        _tour()
     st.html('<footer class="flyover-footer">Flyover · A little preparation. A world of possibility.</footer>')
