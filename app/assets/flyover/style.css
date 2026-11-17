@@ -45,15 +45,18 @@
 .st-key-flyover_header > [data-testid="stVerticalBlock"] { gap:0; }
 .st-key-flyover_header [data-testid="stImage"] img { width:190px; height:auto; }
 .st-key-flyover_header [data-testid="stColumn"]:not(:first-child) { display:flex; justify-content:flex-end; }
-.st-key-flyover_ai button { min-height:36px!important; height:36px; padding:0 12px; border:2.5px solid var(--flyover-sage)!important;
-  background:transparent!important; color:var(--flyover-sage)!important; box-shadow:none; border-radius:10px;
+/* Header controls use charcoal: sage on the peach header is 2.3:1, below the 4.5:1 text minimum. */
+.st-key-flyover_ai button { min-height:36px!important; height:36px; padding:0 12px; border:2.5px solid var(--flyover-ink)!important;
+  background:transparent!important; color:var(--flyover-ink)!important; box-shadow:none; border-radius:10px;
   font-family:var(--fly-display)!important; font-weight:700; letter-spacing:.1em; }
 .st-key-flyover_ai button p { font-family:var(--fly-display); font-weight:700; font-size:1rem; }
-.st-key-flyover_ai button:hover { background:var(--flyover-sage)!important; color:#fff!important; }
+.st-key-flyover_ai button:hover { background:var(--flyover-deep)!important; color:var(--flyover-paper)!important; }
+/* The default twilight focus ring is 2.6:1 on the peach header; charcoal keeps it visible. */
+.st-key-flyover_header button:focus-visible { outline-color:var(--flyover-ink); }
 .st-key-flyover_settings button { border:0!important; background:transparent!important; box-shadow:none; font-size:0!important; gap:0!important; min-height:44px; }
 .st-key-flyover_settings button:hover { background:rgba(98,150,119,.14)!important; }
 .st-key-flyover_settings button [data-testid="stMarkdownContainer"] { width:0; overflow:hidden; }
-.st-key-flyover_settings button [data-testid="stIconMaterial"] { font-size:30px; color:var(--flyover-sage); }
+.st-key-flyover_settings button [data-testid="stIconMaterial"] { font-size:30px; color:var(--flyover-ink); }
 
 /* ---- Page 1: profile over the travel banner ---- */
 .st-key-flyover_hero { position:relative; margin-top:18px; border-radius:28px; overflow:hidden; isolation:isolate; background:#E6CCBE; min-height:590px; }
@@ -100,7 +103,8 @@
 .st-key-flyover_checklist button { font-size:1.05rem; text-decoration:underline; text-decoration-color:rgba(61,99,80,.35);
   text-decoration-thickness:2px; text-underline-offset:5px; }
 .st-key-flyover_checklist button p { font-weight:800; }
-.gate-step { color:var(--flyover-sage); font-size:.74rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-bottom:8px; }
+/* Deep sage: small text needs 4.5:1, and sage on the step card is only 3.3:1. */
+.gate-step { color:var(--flyover-deep); font-size:.74rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-bottom:8px; }
 .gate-title { font-family:var(--fly-display); font-size:clamp(24px,2.5vw,34px); font-weight:600; line-height:1.18; letter-spacing:-.01em; color:var(--flyover-ink); }
 .gate-title .word { display:inline-block; white-space:nowrap; }
 .gate-title .flap { display:inline-block; transform-origin:50% 62%; backface-visibility:hidden; }
@@ -111,7 +115,8 @@
 .st-key-flyover_gate [data-testid="stWidgetLabel"] p { font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--flyover-soft); }
 .st-key-fly_gate_notes { max-width:760px; }
 .st-key-flyover_next { margin-top:18px; }
-.st-key-flyover_next button { background:var(--flyover-peach)!important; color:var(--flyover-deep)!important; box-shadow:0 4px 0 #C9A996!important; }
+/* Charcoal label: deep sage on peach is 4.44:1, just under the 4.5:1 minimum. */
+.st-key-flyover_next button { background:var(--flyover-peach)!important; color:var(--flyover-ink)!important; box-shadow:0 4px 0 #C9A996!important; }
 .st-key-flyover_next button:hover { background:#EDD9CE!important; }
 .st-key-flyover_next button p { font-family:var(--fly-display); font-weight:700; font-size:1.05rem; }
 
@@ -163,7 +168,7 @@
 .fly-quote blockquote { margin:0; padding:0; border:0; font-family:var(--fly-display); font-weight:600; font-size:clamp(24px,2.3vw,32px);
   line-height:1.14; letter-spacing:-.02em; color:var(--flyover-paper); animation:fly-quote-in .6s var(--fly-ease) both; }
 @keyframes fly-quote-in { from {opacity:0; transform:translateY(10px)} to {opacity:1; transform:none} }
-.fly-quote footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:24px; font-size:.78rem; color:rgba(247,244,239,.78); }
+.fly-quote footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:24px; font-size:.78rem; color:rgba(247,244,239,.88); }
 .fly-quote .dots { display:flex; gap:6px; flex:none; }
 .fly-quote .dots i { width:7px; height:7px; border-radius:50%; background:rgba(247,244,239,.35); }
 .fly-quote .dots i.on { width:20px; border-radius:99px; background:var(--flyover-paper); }

@@ -172,3 +172,9 @@
   "Mark this step completed" through the status selector's success path (`_record_update` in
   `src/student_workflow/flyover.py`, FE's file, at the owner's request), so both give the same
   message and one-time confetti. Tests in `tests/test_flyover_live_api.py`. Pending FE review.
+
+- STU-D06-FE-contrast-fix (Nov 17 2026): AI assistance (Claude Code) measured every colour pair
+  in `app/assets/flyover/style.css` (FE's file, at the owner's request) and fixed the seven
+  below the WCAG minimum: header AI text, hover, settings icon and focus ring, the step
+  label, the Next button and the quote footer. `tests/test_flyover_contrast.py` checks them
+  from the stylesheet itself. Pending FE review.
