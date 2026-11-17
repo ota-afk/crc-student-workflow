@@ -178,3 +178,8 @@
   below the WCAG minimum: header AI text, hover, settings icon and focus ring, the step
   label, the Next button and the quote footer. `tests/test_flyover_contrast.py` checks them
   from the stylesheet itself. Pending FE review.
+
+- STU-D06-FE-other-office (Nov 17 2026): AI assistance (Claude Code) added the "Office name"
+  field for "Another office" in Flyover's handoff (`src/student_workflow/flyover.py`, FE's
+  file, under the team's advance approval of the v2 plan), with Markdown-safe export and
+  tests in `tests/test_flyover_app.py`.
