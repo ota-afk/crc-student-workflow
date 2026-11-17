@@ -42,3 +42,22 @@ def rate_limit() -> str:
 def cors_origins() -> list[str]:
     raw = os.getenv('CORS_ORIGINS', 'http://localhost:8501')
     return [origin.strip() for origin in raw.split(',') if origin.strip()]
+
+
+def resend_api_key() -> str:
+    # '' = reminders are switched off; the route answers 503 rather than pretending to send.
+    return os.getenv('RESEND_API_KEY', '').strip()
+
+
+def reminder_from() -> str:
+    # Resend's shared test sender until the team verifies its own domain.
+    return os.getenv('REMINDER_FROM', 'Flyover <onboarding@resend.dev>').strip()
+
+
+def reminder_recipients() -> set[str]:
+    """Who the public demo may email: a comma-separated allow-list set on Render.
+
+    Empty = nobody, so a stranger on the public link can never make the app email anyone.
+    """
+    raw = os.getenv('REMINDER_RECIPIENTS', '')
+    return {address.strip().lower() for address in raw.split(',') if address.strip()}

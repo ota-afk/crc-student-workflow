@@ -1,9 +1,9 @@
 """Shared API shapes; missing verification is always explicit rather than inferred."""
 
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
 # extra='forbid': an unknown key in a request (a typo like 'completed_task') is a 422, not ignored.
 STRICT = ConfigDict(extra='forbid')
@@ -197,6 +197,31 @@ class AssistantAnswer(BaseModel):
     contact: str | None
     task_id: str | None
     is_mock: bool = Field(strict=True)
+
+
+class ReminderRequest(BaseModel):
+    """POST /notifications/reminders: schedule one reminder email (docs/contract.md)."""
+
+    model_config = STRICT
+
+    recipient: str = Field(min_length=3, max_length=254)
+    # Literal[True]: the student must have ticked "Email me this reminder"; false is a 422.
+    consent: Literal[True]
+    # The dashboard's own ID for this request, sent to the provider as an idempotency key so
+    # a retried request never schedules a second email (kept 24 hours by the provider).
+    operation_id: str = Field(min_length=1, max_length=256, pattern=r'^[A-Za-z0-9._:-]+$')
+    task_id: str
+    # AwareDatetime: a time without a timezone is ambiguous, so it's rejected (422).
+    send_at: AwareDatetime
+    as_of: date
+    student_profile: AssistantProfile
+
+
+class ReminderResult(BaseModel):
+    reminder_id: str
+    status: Literal['scheduled', 'cancelled']
+    task_id: str | None = None
+    send_at: datetime | None = None
 
 
 class EmailDraft(BaseModel):
