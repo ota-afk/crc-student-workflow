@@ -335,7 +335,13 @@
       "second_checker": "Ryan Mejia",
       "second_check_date": "2026-11-12",
       "changed": null,
-      "verification_status": "verified"
+      "verification_status": "verified",
+      "deadline": {
+        "from": "enrollment_date",
+        "cutoff": "2026-07-24",
+        "due_if_by_cutoff": "2026-08-07",
+        "days_after": 1
+      }
     },
     {
       "rule_id": "rule_dmv_real_id_identity",

@@ -30,6 +30,21 @@ class Timing(BaseModel):
     days: int = Field(ge=0)
 
 
+class Deadline(BaseModel):
+    """A due date worked out from a date in the student's profile (STU-D07-due-dates).
+
+    For CRC Fall 2026 fees (docs/sources.md): enrolled on or before `cutoff` → due on
+    `due_if_by_cutoff`; enrolled later → due `days_after` days after enrolling.
+    """
+
+    model_config = STRICT
+
+    from_: Literal["enrollment_date"] = Field(alias="from")
+    cutoff: date
+    due_if_by_cutoff: date
+    days_after: int = Field(ge=0)
+
+
 class Rule(BaseModel):
     model_config = STRICT
 
@@ -52,6 +67,8 @@ class Rule(BaseModel):
     changed: bool | None = None
     # None = this rule never blocks a task on its own.
     timing: Timing | None = None
+    # None = this rule sets no deadline. A deadline never blocks a task; it's shown with it.
+    deadline: Deadline | None = None
 
     @model_validator(mode="after")
     def _school_id_matches_layer(self) -> "Rule":

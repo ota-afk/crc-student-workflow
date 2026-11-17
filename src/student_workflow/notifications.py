@@ -50,6 +50,8 @@ def email_for(task: Task, as_of: str) -> tuple[str, str]:
              f'Status on {as_of}: {task.status}.']
     if task.next_action:
         lines.append(f'Next: {task.next_action.text}')
+    if task.due and task.due.due_on:
+        lines.append(f'Due: {task.due.due_on:%A, %B} {task.due.due_on.day}, {task.due.due_on.year}')
     link = task.before_you_go.official_url if task.before_you_go else None
     link = link or next((s.url for s in task.sources if s.url), None)
     if link:

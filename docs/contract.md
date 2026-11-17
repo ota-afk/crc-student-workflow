@@ -622,6 +622,26 @@ name to the model, use the preset questions (`PRESET_QUESTIONS` in
 The dashboard demo should use the five preset questions and verify that each one opens the
 intended task with the Render model configuration.
 
+## Deadlines (STU-D07-due-dates)
+
+**Status: on main once this merges.** A rule may carry a `deadline`; today only the verified
+CRC Fall 2026 fee rule does:
+
+```json
+"deadline": {"from": "enrollment_date", "cutoff": "2026-07-24",
+             "due_if_by_cutoff": "2026-08-07", "days_after": 1}
+```
+
+Enrolled on or before `cutoff` → due `due_if_by_cutoff`; later → due `days_after` days after
+enrolling (docs/sources.md, verified by two people). `StudentProfile` and `AssistantProfile`
+gain an optional `enrollment_date` (null = not given).
+
+Each task gets `due` (null when no rule sets a deadline, or the task is Completed):
+`{"due_on": "2026-08-14", "needs": null, "rule_id": "…", "verification_status": "verified",
+"past_due": false}`. Without an enrollment date: `due_on` null, `needs: "enrollment_date"`,
+`past_due` null; the due date is never guessed. `past_due` is `as_of > due_on`. A deadline
+never changes a task's status or blocks it. Reminder emails include a known due date.
+
 ## Reminder emails (STU-D07-BE-reminders)
 
 **Status: on main once this merges.** Demo design chosen by the owner: Resend holds each
@@ -945,6 +965,9 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D07-due-dates: optional `enrollment_date` on the profiles, rule `deadline`,
+  and `due` on each task (date, verification, past due, or which date is needed). Additive.
 
 - 2026-11-17, STU-D07-reminder-status: `GET /notifications/reminders/{id}` returns Resend's
   latest event, so the dashboard can explain an undelivered reminder.

@@ -176,3 +176,10 @@ def test_status_failure_is_a_safe_502(resend, monkeypatch):
 
 def test_status_refuses_an_id_that_is_not_an_email_id(resend):
     assert client.get('/notifications/reminders/not!an!id').status_code == 422
+
+
+def test_the_reminder_email_includes_a_known_due_date(resend):
+    profile = body()['student_profile']
+    schedule(task_id='task_crc_fee_payment',
+             student_profile={**profile, 'enrollment_date': '2026-08-13'})
+    assert 'Due: Friday, August 14, 2026' in resend[0][1]['json']['text']

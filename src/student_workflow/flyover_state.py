@@ -1,5 +1,6 @@
 """Small presentation rules; readiness and task status belong to the backend."""
 
+from datetime import date
 from math import ceil
 
 # Lower comes first. An unknown or missing priority/status sorts after the known ones.
@@ -80,3 +81,25 @@ def map_progress(completed: int, total: int) -> float:
     if completed <= halfway:
         return 1 + (completed - 1) / (halfway - 1)
     return 2 + (completed - halfway) / (total - halfway)
+
+
+def due_note(task: dict, as_of: str) -> tuple[str, str] | None:
+    """(kind, text) for a task's deadline, or None. kind is a Streamlit message type.
+
+    The date comes from the API (a rule's deadline and the profile); nothing is guessed here.
+    """
+    due = task.get('due')
+    if not due or task.get('status') == 'Completed':
+        return None
+    if due.get('needs') == 'enrollment_date':
+        return 'info', 'Add your enrollment date in Profile setup to see when this is due.'
+    due_on, today = date.fromisoformat(due['due_on']), date.fromisoformat(as_of)
+    when = f'{due_on:%a, %b} {due_on.day}, {due_on.year}'
+    if due.get('past_due'):
+        return 'warning', f'Past due since {when}. Check the official page for what to do now.'
+    days = (due_on - today).days
+    label = ('Due today' if days == 0 else f'Due tomorrow, {when}' if days == 1
+             else f'Due {when} (in {days} days)')
+    if due['verification_status'] == 'verified':
+        return 'success', label + ' · Double-checked by our team'
+    return 'info', label + ' · Not verified'

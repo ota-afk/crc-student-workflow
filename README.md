@@ -81,6 +81,11 @@ yes/no). "Sign in and start" builds the workflow from those answers through the 
 Profile setup opens pre-filled. There are no accounts: the email stays in the browser session,
 never reaches the model, and goes to the API only when you schedule a reminder.
 
+An optional **enrollment date** (sign-in or Profile setup) lets Flyover show the CRC tuition
+deadline from the verified fee rule: "Due today · Double-checked by our team", "Due Thu, Aug 20
+(in 6 days)" or "Past due since…", on page 1's current step, the Now card and the checklist.
+Without it, Flyover asks for the date instead of guessing.
+
 Each unfinished task's checklist has **Email me a reminder**: a day and time (Pacific, up to 30
 days ahead) and a consent box. The API schedules it with Resend, so it arrives even if you
 close the page; scheduled reminders are listed with Cancel, and completing the task cancels

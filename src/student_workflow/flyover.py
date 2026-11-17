@@ -30,6 +30,7 @@ from .flyover_signin import masked, render_signin, sign_out, signed_in
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
+    due_note,
     map_piece_count,
     map_progress,
     task_queue,
@@ -303,6 +304,11 @@ def _profile(data: dict, api_url: str) -> None:
                     visa = st.selectbox('Visa type', ['F-1'], key='flyover_visa')
                 ssn = st.radio('Do you have an SSN?', ['No', 'Yes'], horizontal=True,
                     index=int(profile['has_ssn']), key='flyover_ssn', help='Yes or no only. Never enter the number.')
+                enrolled = st.date_input(
+                    'Enrollment date (optional)', key='flyover_enrollment',
+                    value=date.fromisoformat(profile['enrollment_date'])
+                    if profile.get('enrollment_date') else None,
+                    help='The day you enrolled in classes. Only used to work out your tuition deadline.')
                 has_progress = bool(profile.get('completed_tasks') or profile.get('awaiting_reply'))
                 reset = st.checkbox('Start fresh and clear current progress', key='flyover_new_profile')
                 submitted = st.form_submit_button('Generate workflow', type='primary', width='stretch')
@@ -314,7 +320,8 @@ def _profile(data: dict, api_url: str) -> None:
                     else:
                         changes = {'school_id': school_id, 'institution': schools[school_id]['institution']
                             if school_id else 'School not listed', 'visa_type': visa,
-                            'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes'}
+                            'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
+                            'enrollment_date': enrolled.isoformat() if enrolled else None}
                         try:
                             # The spinner is the feedback; the page itself no longer dims.
                             with st.spinner('Building your workflow…'):
@@ -579,6 +586,8 @@ def _workflow(data: dict, api_url: str) -> None:
                     st.button('View checklist', key='flyover_checklist', on_click=go, type='tertiary',
                               args=('readiness', task_id), icon=':material/checklist:')
             with st.container(key='fly_gate_notes'):
+                if note := due_note(current, data['as_of']):
+                    getattr(st, note[0])(note[1])
                 if current.get('next_action'):
                     st.info(current['next_action']['text'])
                 for blocker in current.get('blockers') or []:
@@ -623,6 +632,8 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
     st.markdown('### ' + task['title'])
     st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
             f'<span class="gate-priority">{esc(task["priority"])}</span></div>')
+    if note := due_note(task, data['as_of']):
+        getattr(st, note[0])(note[1])
     st.html('<p class="fly-note"><b>Not verified</b> means our team hasn\'t double-checked that '
             'detail with the official source yet. Use it to plan, and confirm with the office.</p>')
     for blocker in task.get('blockers') or []:
@@ -993,6 +1004,8 @@ def _focus_card(task: dict, kind: str) -> None:
         if task['status'] == 'In Progress':
             # In Progress means waiting on an office, never that the task is done.
             st.caption('Waiting on an office.')
+        if note := due_note(task, st.session_state['flyover_data']['as_of']):
+            st.caption(note[1])
         if kind == 'now':
             if task.get('next_action'):
                 st.caption(task['next_action']['text'])
@@ -1093,7 +1106,9 @@ def _profile_page(data: dict) -> None:
         since = f'{days} days ago' if days >= 0 else f'in {-days} days'
         facts = [('School', profile['institution']), ('Visa type', profile['visa_type']),
                  ('Arrival date', f'{arrival:%B} {arrival.day}, {arrival.year} · {since}'),
-                 ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No')]
+                 ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No'),
+                 ('Enrollment date', date.fromisoformat(profile['enrollment_date']).strftime('%B %d, %Y')
+                  if profile.get('enrollment_date') else 'Not given')]
         st.html('<dl class="fly-facts">' + ''.join(
             f'<dt>{esc(label)}</dt><dd>{esc(value)}</dd>' for label, value in facts) + '</dl>')
         st.button('Edit in Profile setup', key='flyover_profile_edit', on_click=go,

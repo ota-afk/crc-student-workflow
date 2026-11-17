@@ -281,3 +281,8 @@
   readable for new users: named sources instead of rule IDs, plain verification wording, a
   "Not verified" explanation, 12-hour times, darker captions, no heading link icons
   (`flyover.py`, `flyover_appointments.py`, `style.css`), with tests.
+
+- STU-D07-due-dates (Nov 17 2026): AI assistance (Claude Code) added enrollment-based
+  deadlines: the `deadline` on the verified CRC fee rule (`rules.json`, ENG's file, no new
+  facts), the models and engine (`rules.py`, `contract.py`, `engine.py`), the reminder email's
+  Due line, and Flyover's enrollment-date inputs and due notes, with tests.
