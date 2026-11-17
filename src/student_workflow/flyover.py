@@ -162,10 +162,20 @@ def _save_status(api_url: str, task_id: str) -> None:
         st.session_state['flyover_status'] = task['status']
         st.session_state['flyover_status_error'] = 'Could not update this step. Your progress has been kept. Try again.'
         return
-    st.session_state['flyover_data'] = result
-    returned = next((item for item in result['workflow'] if item['id'] == task_id), task)
+    returned = _record_update(task, result)
     st.session_state['flyover_status'] = returned['status']
-    if returned['status'] == 'Completed':
+
+
+def _record_update(task: dict, result: dict) -> dict:
+    """The one success path for every status control: keep the API's answer, then celebrate.
+
+    Both the status selector and "Mark this step completed" land here, so they give the same
+    feedback. Confetti only for a new move to Completed, as the API returned it, never for the
+    click alone. The flag is consumed once by _workflow, and reduce motion keeps the message.
+    """
+    st.session_state['flyover_data'] = result
+    returned = next((item for item in result['workflow'] if item['id'] == task['id']), task)
+    if returned['status'] == 'Completed' and task['status'] != 'Completed':
         st.session_state['flyover_celebrate'] = True
         upcoming = active_task(result['workflow'])
         st.session_state['flyover_flash'] = (
@@ -173,6 +183,7 @@ def _save_status(api_url: str, task_id: str) -> None:
             else 'All steps completed. Your route is assembled!')
     else:
         st.session_state['flyover_flash'] = 'Status saved.'
+    return returned
 
 
 def _confetti() -> None:
@@ -305,10 +316,12 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
     if task['status'] in ('Ready', 'In Progress') and st.button(
             'Mark this step completed', key='flyover_detail_complete', type='primary'):
         try:
-            st.session_state['flyover_data'] = client.change_status(api_url, data, task['id'], 'Completed')
+            result = client.change_status(api_url, data, task['id'], 'Completed')
         except (requests.RequestException, ValueError):
             st.error('Could not update this step. Your progress has been kept. Try again.')
         else:
+            # Same feedback as the status selector: message, and confetti back on page 1.
+            _record_update(task, result)
             go('home')
             st.rerun()
 

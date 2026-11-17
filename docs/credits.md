@@ -167,3 +167,8 @@
   `POST /assistant`, in `src/student_workflow/flyover.py` and `flyover_client.py` (FE's
   files, at the owner's request). Added `tests/test_flyover_live_api.py` and client tests;
   updated two Airshow wording tests. Pending FE's review.
+
+- STU-D06-FE-completion-feedback (Nov 17 2026): AI assistance (Claude Code) routed Flyover's
+  "Mark this step completed" through the status selector's success path (`_record_update` in
+  `src/student_workflow/flyover.py`, FE's file, at the owner's request), so both give the same
+  message and one-time confetti. Tests in `tests/test_flyover_live_api.py`. Pending FE review.
