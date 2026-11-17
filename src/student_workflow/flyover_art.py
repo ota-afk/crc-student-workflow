@@ -19,7 +19,13 @@ def svg_asset(name: str) -> str:
 
 
 def logo() -> str:
-    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1888 832" role="img" aria-label="Flyover"><rect width="1888" height="832" fill="#E6CCBE"/><image href="{asset_data("logo-peach.png")}" width="1888" height="832"/></svg>'
+    # logo-header.png is logo-peach.png at 420px wide: sharp at the header's 190px on a 2x
+    # screen, and about 1/30 of the size. The logo is resent on every rerun (each AI Help
+    # question, each status change), and the full-size one (2.4 MB here) made the browser
+    # blank it while it decoded.
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1888 832" role="img" '
+            'aria-label="Flyover"><rect width="1888" height="832" fill="#E6CCBE"/>'
+            f'<image href="{asset_data("logo-header.png")}" width="1888" height="832"/></svg>')
 
 
 def banner() -> str:
