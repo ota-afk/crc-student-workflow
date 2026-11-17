@@ -75,6 +75,13 @@ OS reduced-motion preferences are also respected, and browsers without CSS scrol
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile with no steps completed yet.
 
+The first screen is a **demo sign-in**: email (real, shape-checked), a password (any text
+works; never stored or sent) and the profile questions (school, arrival date, visa type, SSN
+yes/no). "Sign in and start" builds the workflow from those answers through the API, so
+Profile setup opens pre-filled. There are no accounts: the email stays in the browser session
+and never reaches the API or the model. Settings shows the masked address and Sign out, which
+clears the session.
+
 On a first visit a spotlight tour dims the page and walks through page 1 one control at a
 time (profile, Generate, the current step, View checklist, AI Help, Next, Settings), with Back,
 Next, Skip and Escape. It only explains; it never changes anything. The tab remembers it was

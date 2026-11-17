@@ -347,3 +347,17 @@
 .fly-note { margin:4px 0 8px; padding:10px 14px; border-radius:12px; background:#F6EEE8;
   color:var(--flyover-ink); font-size:.92rem; line-height:1.5; }
 .st-key-fly_checklist .fly-card-meta { margin:-4px 0 10px; }
+
+/* ---- Demo sign-in, the first screen (STU-D07-FE-signin): the hero banner with one card ---- */
+.st-key-flyover_signin_hero { position:relative; margin-top:24px; border-radius:28px; overflow:hidden; isolation:isolate;
+  background:#E6CCBE; min-height:640px; }
+.st-key-flyover_signin_hero > [data-testid="stElementContainer"]:has(.flyover-slides) { position:static; height:0; min-height:0; }
+.st-key-flyover_signin { background:rgba(255,253,249,.97); border-radius:24px; margin:30px 0 30px 30px;
+  width:calc(100% - 30px)!important; padding:24px 26px 18px; box-shadow:0 1px 0 #fff inset, 0 18px 44px rgba(40,50,60,.12); }
+.st-key-flyover_signin h3 { padding:0; font-size:2rem; }
+.st-key-flyover_signin [data-testid="stForm"] { padding:0; border:0; }
+.st-key-flyover_signin [data-testid="stWidgetLabel"] p { font-size:.85rem; font-weight:800; }
+@media(max-width:760px) {
+  .st-key-flyover_signin { margin:20px 16px 105px; width:calc(100% - 32px)!important; padding:22px; }
+  .st-key-flyover_signin_hero > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display:none; }
+}

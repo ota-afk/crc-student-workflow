@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import requests
 from streamlit.testing.v1 import AppTest
+from test_flyover_app import signed_in_app
 from test_live_api import KEY, Bridge
 from test_streamlit import values
 
@@ -57,7 +58,7 @@ def ask(app: AppTest, question: str) -> str:
 
 
 def test_resolve_shows_the_api_draft_and_moves_the_prerequisite(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     assert status_of(app, DMV) == 'Blocked'
     app.button(key='flyover_resolve:' + DMV).click().run()
     assert not app.exception
@@ -71,7 +72,7 @@ def test_resolve_shows_the_api_draft_and_moves_the_prerequisite(live):
 
 
 def test_airshow_answer_follows_resolve_and_mark_done(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     assert 'Task status: Blocked.' in ask(app, 'Why is my ID blocked?')
     app.button(key='flyover_resolve:' + DMV).click().run()
     app.selectbox(key='flyover_detail').select(RESIDENCY).run()
@@ -91,7 +92,7 @@ def test_airshow_answer_follows_resolve_and_mark_done(live):
 
 
 def test_airshow_timeout_shows_a_helpful_message(live, monkeypatch):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     real_post = requests.post
 
     def slow(url, **kwargs):
@@ -113,7 +114,7 @@ def confetti_shown(app: AppTest) -> bool:
 
 
 def test_checklist_completion_celebrates_once_like_the_status_selector(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    app = open_checklist(signed_in_app(APP), RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
     assert not app.exception
     assert status_of(app, RESIDENCY) == 'Completed'  # the API's answer, not the click
@@ -125,7 +126,7 @@ def test_checklist_completion_celebrates_once_like_the_status_selector(live):
 
 
 def test_failed_checklist_completion_does_not_celebrate(live, monkeypatch):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    app = open_checklist(signed_in_app(APP), RESIDENCY)
     real_post = requests.post
 
     def refuse(url, **kwargs):
@@ -142,7 +143,7 @@ def test_failed_checklist_completion_does_not_celebrate(live, monkeypatch):
 
 
 def test_reduce_motion_completion_shows_the_message_without_confetti(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     app.session_state['flyover_reduce_motion'] = True
     app = open_checklist(app, RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
@@ -155,7 +156,7 @@ def chat_bodies(bridge: Bridge) -> list[dict]:
 
 
 def test_dropdown_is_named_ai_help_and_asking_does_not_navigate(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     # AppTest has no Popover class; the label (the accessible name) is on the block's proto.
     assert [p.proto.popover.label for p in app.get('popover')] == ['AI Help']
     ask(app, 'What next?')
@@ -165,7 +166,7 @@ def test_dropdown_is_named_ai_help_and_asking_does_not_navigate(live):
 
 
 def test_dropdown_sends_journey_and_the_current_step_on_page_one(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     ask(app, 'What next?')
     body, = chat_bodies(live)
     assert body['page_context'] == 'journey'
@@ -173,7 +174,7 @@ def test_dropdown_sends_journey_and_the_current_step_on_page_one(live):
 
 
 def test_dropdown_sends_readiness_and_the_chosen_task_on_page_two(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     answer = ask(app, 'Why is my ID blocked?')
     body, = chat_bodies(live)
     assert (body['page_context'], body['task_id']) == ('readiness', DMV)
@@ -181,7 +182,7 @@ def test_dropdown_sends_readiness_and_the_chosen_task_on_page_two(live):
 
 
 def test_clearing_the_chat_keeps_the_handoff(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
     ask(app, 'What next?')
@@ -191,14 +192,14 @@ def test_clearing_the_chat_keeps_the_handoff(live):
 
 
 def test_generating_a_handoff_sends_nothing_to_the_assistant(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
     assert chat_bodies(live) == []
 
 
 def test_answer_is_marked_earlier_after_progress_changes(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     ask(app, 'Why is my ID blocked?')
     assert not any('Earlier answer' in v for v in values(app.caption))
     app.button(key='flyover_resolve:' + DMV).click().run()
@@ -208,7 +209,7 @@ def test_answer_is_marked_earlier_after_progress_changes(live):
 def test_chat_history_is_bounded(live, monkeypatch):
     from student_workflow import flyover
     monkeypatch.setattr(flyover, 'CHAT_LIMIT', 2)
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     for number in range(3):
         ask(app, f'Question {number}?')
     assert [e['question'] for e in app.session_state['flyover_popup_history']] == [
@@ -216,7 +217,7 @@ def test_chat_history_is_bounded(live, monkeypatch):
 
 
 def test_question_shows_once_and_is_not_repeated_on_rerun(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     ask(app, 'What next?')
     asked = [v for v in values(app.markdown) if v == '**You:** What next?']
     assert len(asked) == 1
@@ -244,13 +245,13 @@ def test_answer_is_fetched_under_the_thinking_spinner(live, monkeypatch):
     monkeypatch.setattr(streamlit, 'spinner', spinner)
     monkeypatch.setattr(flyover_client, 'ask_airshow',
                         lambda *a, **k: seen.append(list(spinning)) or real(*a, **k))
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     ask(app, 'What next?')
     assert seen == [['Airshow is thinking…']]
 
 
 def test_a_new_visitor_starts_with_no_completed_tasks(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     data = app.session_state['flyover_data']
     assert data['student_profile']['completed_tasks'] == []
     assert not [t for t in data['workflow'] if t['status'] == 'Completed']
@@ -271,7 +272,7 @@ def card_titles(app: AppTest) -> list[str]:
 
 def test_take_off_shows_one_now_card_then_up_next_required_first(live):
     from student_workflow.flyover_state import task_queue
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     app.button(key='flyover_next').click().run()
     queue = task_queue(app.session_state['flyover_data']['workflow'])
     assert queue[0]['priority'] == 'Required'  # ENG's rules have Required tasks
@@ -280,7 +281,7 @@ def test_take_off_shows_one_now_card_then_up_next_required_first(live):
 
 def test_page_one_and_the_now_card_focus_the_same_step(live):
     from student_workflow.flyover_state import task_queue
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     first = task_queue(app.session_state['flyover_data']['workflow'])[0]
     assert app.session_state['flyover_active_id'] == first['id']
     app.button(key='flyover_next').click().run()
@@ -290,7 +291,7 @@ def test_page_one_and_the_now_card_focus_the_same_step(live):
 
 def test_residency_is_queued_before_the_real_id_task_that_needs_it(live):
     from student_workflow.flyover_state import task_queue
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     order = [t['id'] for t in task_queue(app.session_state['flyover_data']['workflow'])]
     assert order.index(RESIDENCY) < order.index(DMV)
 
@@ -301,7 +302,7 @@ def page_html(app: AppTest) -> str:
 
 def test_completion_shows_the_boarding_board_once(live):
     from student_workflow.flyover_state import active_task
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), RESIDENCY)
+    app = open_checklist(signed_in_app(APP), RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
     upcoming = active_task(app.session_state['flyover_data']['workflow'])
     html = page_html(app)
@@ -315,7 +316,7 @@ def test_completion_shows_the_boarding_board_once(live):
 
 
 def test_no_board_or_flip_without_a_confirmed_completion(live, monkeypatch):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     assert 'class="fly-board"' not in page_html(app)
     assert 'gate-title is-changing' not in page_html(app)  # first load is not a completion
     app = open_checklist(app, RESIDENCY)
@@ -332,7 +333,7 @@ def test_no_board_or_flip_without_a_confirmed_completion(live, monkeypatch):
 
 
 def test_step_number_counts_progress_not_file_position(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     assert 'Step 01 of 08 · Now boarding' in page_html(app)
     app = open_checklist(app, RESIDENCY)
     app.button(key='flyover_detail_complete').click().run()
@@ -362,7 +363,7 @@ def notice_shown(app: AppTest) -> bool:
 
 
 def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     # School check-in is first (Required) and has CRC's appointment guidance.
     assert notice_shown(app)
     assert any('schedule an in-person or phone appointment' in v for v in values(app.markdown))
@@ -373,21 +374,21 @@ def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
 
 def test_free_times_show_without_claiming_a_match(live):
     from student_workflow.flyover_appointments import NO_HOURS_NOTE
-    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+    app = add_free_time(signed_in_app(APP),
                         'Monday', (9, 0), (12, 0))
     assert any(v == f'Your free times: Monday 09:00–12:00. {NO_HOURS_NOTE}'
                for v in values(app.caption))
 
 
 def test_a_backwards_free_time_is_refused(live):
-    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+    app = add_free_time(signed_in_app(APP),
                         'Monday', (14, 0), (9, 0))
     assert any('start before it ends' in v for v in values(app.error))
     assert app.session_state['flyover_preferences']['availability'] == []
 
 
 def test_dismissed_notice_stays_dismissed_on_rerun(live):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = signed_in_app(APP)
     app.button(key='fly_appt_dismiss').click().run()
     assert not notice_shown(app)
     app.run()
@@ -395,7 +396,7 @@ def test_dismissed_notice_stays_dismissed_on_rerun(live):
 
 
 def test_free_times_are_never_sent_to_the_api(live):
-    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+    app = add_free_time(signed_in_app(APP),
                         'Wednesday', (13, 0), (15, 0))
     ask(app, 'What next?')
     app = open_checklist(app, DMV)
@@ -405,7 +406,7 @@ def test_free_times_are_never_sent_to_the_api(live):
 
 
 def test_generating_a_new_profile_clears_free_times(live):
-    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+    app = add_free_time(signed_in_app(APP),
                         'Monday', (9, 0), (12, 0))
     assert app.session_state['flyover_preferences']['availability']
     next(b for b in app.button if b.label == 'Generate workflow').click().run()
@@ -415,7 +416,7 @@ def test_generating_a_new_profile_clears_free_times(live):
 
 
 def test_a_task_with_no_visit_details_says_so_once(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(),
+    app = open_checklist(signed_in_app(APP),
                          'task_crc_fee_payment')
     notes = [v for v in values(app.get('html')) if 'Not on file yet' in str(v)]
     assert len(notes) == 1 and 'Hours, Fees, Appointments, Phone' in str(notes[0])
@@ -423,7 +424,7 @@ def test_a_task_with_no_visit_details_says_so_once(live):
 
 
 def test_sourced_visit_details_show_with_a_not_verified_badge(live):
-    app = open_checklist(AppTest.from_file(str(APP), default_timeout=30).run(), DMV)
+    app = open_checklist(signed_in_app(APP), DMV)
     hours = [v for v in values(app.markdown) if v.startswith('**Hours:**')]
     assert len(hours) == 1 and hours[0].endswith(':orange-badge[Not verified]')
     assert 'DMV office finder' in hours[0]  # ENG's sourced wording, link included

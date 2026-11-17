@@ -21,6 +21,7 @@ from .flyover_appointments import (
     notice_key,
 )
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
+from .flyover_signin import masked, render_signin, sign_out, signed_in
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
@@ -97,6 +98,10 @@ def settings() -> None:
     if st.button('Replay tutorial', key='flyover_tour_replay_btn', icon=':material/school:',
                  on_click=_replay_tour):
         st.rerun()
+    if account := st.session_state.get('flyover_account'):
+        st.caption('Signed in as ' + masked(account['email']))
+        if st.button('Sign out', key='flyover_sign_out', on_click=sign_out):
+            st.rerun()
     if st.button('Done', key='flyover_settings_done', type='primary'):
         st.rerun()
 
@@ -957,6 +962,10 @@ def render_app() -> None:
     # The launcher's logo comes from our own committed SVG; the rest of its look is in style.css.
     st.html('<style>.st-key-flyover_ai [data-testid="stPopoverButton"]{background-image:url('
             + svg_asset('ai-help-icon.svg') + ')!important}</style>')
+    if not signed_in():
+        # The demo sign-in is the first screen; it also asks the profile questions.
+        render_signin(api_url)
+        return
     panel = _header()
     if 'flyover_data' not in st.session_state:
         try:
