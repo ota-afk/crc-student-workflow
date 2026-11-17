@@ -103,13 +103,24 @@ sublevel. The page describes each level's criteria; the application asks for the
 level and does not determine it from visa type or personal circumstances.
 [CRC priority registration dates](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
 
-For Fall 2026, CRC's general enrollment page lists March 30 for schedules, April 2 for
-appointment assignments, and April 13 as the enrollment opening. The currently available
-priority page starts at Spring 2027, so the Fall group's periods remain empty in
-`rule_crc_fall_2026_registration_timeline`. A selected Fall priority shows the eServices
-lookup instruction with unknown group dates. Both registration records are
-`needs_verification`, checked against the official pages on November 17, with human
-checker fields left empty. [CRC enrollment timeline](https://crc.losrios.edu/admissions/enroll-in-classes)
+### Fall 2026 priority periods from the May 17 archive
+
+| Fall 2026 level | First date | Last date in the published priority period |
+| --- | --- | --- |
+| Priority 0 | 2026-04-13 | 2026-04-16 |
+| Priority .5 | 2026-04-17 | 2026-04-17 |
+| Priority .75 | 2026-04-17 | 2026-04-17 |
+| Priority 1, including 1.1–1.4 | 2026-04-20 | 2026-05-01 |
+| Priority 2 | 2026-05-04 | 2026-05-06 |
+| Priority 3 | 2026-05-07 | 2026-05-08 |
+| Open enrollment by appointment | 2026-05-11 | 2026-05-11 |
+| Open enrollment begins | 2026-05-12 | No end date supplied by this table |
+
+Rule `rule_crc_fall_2026_registration_timeline` uses the Los Rios district page archived
+on May 17, 2026 at 09:45:36 UTC. The archive was retrieved on November 17, 2026; these are
+separate dates. Both semester registration records remain `needs_verification`, with human
+checker fields empty. The archive also directs students to eServices for personal dates and
+times. [Archived Los Rios priority table](https://web.archive.org/web/20260517094536/https://losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
 
 ## Day 2 task sources — November 14, 2026
 

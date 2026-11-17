@@ -174,8 +174,37 @@ def test_fall_profile_does_not_receive_spring_registration_periods(priority):
     fee = next(task for task in resolve(load_rules(), profile, date(2026, 8, 14)).workflow
                if task.id == FEE)
     assert fee.registration_window.term == 'fall_2026'
-    assert fee.registration_window.needs == 'published_period'
-    assert fee.registration_window.starts_on is None
+    if priority is None:
+        assert fee.registration_window.needs == 'enrollment_priority'
+        assert fee.registration_window.starts_on is None
+    else:
+        assert fee.registration_window.needs is None
+        assert fee.registration_window.starts_on == date(2026, 5, 4)
+    assert '20260517094536' in fee.registration_window.source_url
     assert [source.rule_id for source in fee.sources] == [
         'rule_crc_fall_2026_payment_deadline', 'rule_crc_fall_2026_registration_timeline',
     ]
+
+
+@pytest.mark.parametrize(('priority', 'starts', 'ends'), [
+    ('0', '2026-04-13', '2026-04-16'),
+    ('0.5', '2026-04-17', '2026-04-17'),
+    ('0.75', '2026-04-17', '2026-04-17'),
+    ('1.4', '2026-04-20', '2026-05-01'),
+    ('2', '2026-05-04', '2026-05-06'),
+    ('3', '2026-05-07', '2026-05-08'),
+    ('open_by_appointment', '2026-05-11', '2026-05-11'),
+    ('open', '2026-05-12', None),
+])
+def test_fall_2026_periods_match_the_archived_table(priority, starts, ends):
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2026, 8, 11), has_ssn=False,
+                             enrollment_term='fall_2026', enrollment_priority=priority)
+    fee = next(task for task in resolve(load_rules(), profile, date(2026, 8, 14)).workflow
+               if task.id == FEE)
+    window = fee.registration_window
+    assert window.starts_on.isoformat() == starts
+    assert (window.ends_on.isoformat() if window.ends_on else None) == ends
+    assert window.needs is None
+    assert window.verification_status == 'needs_verification'
+    assert fee.due.needs == 'enrollment_date'

@@ -143,3 +143,15 @@ def test_spring_term_and_due_date_survive_sign_in_and_profile_edits(live):
     app = open_checklist(app, 'task_crc_fee_payment')
     assert any('Jan 8, 2027' in value and 'Not verified' in value
                for value in values(app.info))
+
+
+def test_fall_priority_uses_the_archive_and_preserves_actual_fee_date(live):
+    app = first_screen()
+    app.selectbox(key='flyover_signin_term').select('fall_2026')
+    app.selectbox(key='flyover_signin_priority').select('1.4')
+    app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 8, 13))
+    app = sign_in(app)
+    assert any('Apr 20, 2026 to May 01, 2026' in value for value in values(app.info))
+    assert any('archived May 17, 2026' in value for value in values(app.caption))
+    app = open_checklist(app, 'task_crc_fee_payment')
+    assert any(value.startswith('Due today') for value in values(app.success))

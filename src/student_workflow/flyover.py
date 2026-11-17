@@ -45,7 +45,6 @@ from .flyover_signin import (
     render_signin,
     sign_out,
 )
-
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
@@ -889,7 +888,9 @@ def _registration_info(task: dict) -> None:
             '[eServices](https://ps.losrios.edu/). Enter the date you actually register '
             'separately to calculate your payment deadline.')
     if url := safe_url(window.get('source_url')):
-        st.caption(f'[Official CRC priority registration dates]({url})')
+        label = ('Los Rios Fall 2026 priority dates · archived May 17, 2026'
+                 if 'web.archive.org' in url else 'Official CRC priority registration dates')
+        st.caption(f'[{label}]({url})')
 
 
 def _checklist(data: dict, task: dict, api_url: str) -> None:

@@ -19,7 +19,7 @@ Ask about your documents, any check-in fee, meeting time and location before mak
 
 ## Enrollment dates at CRC
 
-Choose **Fall 2026** or **Spring 2027** and enter the **Enrollment priority** shown in eServices. For Spring 2027, the app shows the official period for that priority. Priority 1, including 1.1–1.4, has a November 30 to December 11 period; your exact appointment date and time is in eServices. The guide's Fall priority dates still need an official historical record, so use eServices for that semester. These new registration records are awaiting human review. [CRC priority dates and eServices instructions](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
+Choose **Fall 2026** or **Spring 2027** and enter the **Enrollment priority** shown in eServices. For Spring 2027, the app shows the official period for that priority. Priority 1, including 1.1–1.4, has a November 30 to December 11 period; your exact appointment date and time is in eServices. Fall 2026 uses the Los Rios table archived on May 17, 2026. These new registration records are awaiting human review. [CRC priority dates and eServices instructions](https://crc.losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates) · [Fall 2026 archived table](https://web.archive.org/web/20260517094536/https://losrios.edu/admissions/enroll-in-classes/priority-registration-and-enrollment-dates)
 
 CRC lists April 13, 2026 as the start of Fall enrollment and November 23, 2026 for Spring enrollment. Those dates are semester-wide openings; your assigned priority controls your earliest appointment. [CRC enrollment timeline](https://crc.losrios.edu/admissions/enroll-in-classes)
 

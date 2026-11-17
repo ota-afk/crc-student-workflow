@@ -659,8 +659,8 @@ The student supplies their assigned priority. The engine does not classify them.
 A rule may contain `registration: {"term": "spring_2027", "periods": {...}}`.
 Each period contains `starts_on` and `ends_on` (null for an open-ended period). A range
 cannot end before it starts. Priority 1 sublevels use the published aggregate Priority 1
-period. Spring data is sourced; the Fall record currently has an empty period map and
-retains the source for the general enrollment timeline.
+period. Spring data uses the current CRC table; Fall data uses the May 17, 2026 archive
+of the Los Rios district table. The response retains the archive URL.
 
 The CRC fee task returns `registration_window` for the selected semester, containing
 `term`, `priority`, `starts_on`, `ends_on`, `needs`, `rule_id`, `source_url` and
