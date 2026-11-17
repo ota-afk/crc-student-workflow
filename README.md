@@ -1,4 +1,4 @@
-# CRC Hacks Student Workflow Platform
+# CRC Hacks Flyover
 
 A dashboard that shows an international student at Cosumnes River College which arrival tasks
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
