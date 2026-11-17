@@ -303,3 +303,9 @@
   every page, and date-scoped office hours that never suggest a visit time from unconfirmed
   hours (`flyover.py`, `flyover_signin.py`, `flyover_client.py`, `flyover_appointments.py`,
   `flyover_state.py`, `style.css`), with tests. No rules or source data changed.
+
+- STU-D07-FE-checklist-panel (Nov 17 2026): AI assistance (Claude Code) built the frontend
+  guide's pages 3–4: the grouped "Before you go" preview, the Checklist layout around the
+  shared status control, "more info included here" evidence, office source links, and action
+  links named for their destination (`flyover.py`, new `flyover_checklist.py`, `style.css`),
+  with tests. Official pages were checked by web fetch where reachable; no rules data changed.

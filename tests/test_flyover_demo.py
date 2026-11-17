@@ -116,8 +116,9 @@ def test_august_dmv_checklist_links_the_office_without_a_november_time(live):
     app = checklist(demo(), DMV)
     shown = values(app.markdown)
     assert "**Hours for this date aren't confirmed** (August 14, 2026)." in shown
-    assert ('[Official page: California DMV, Sacramento South]'
-            '(https://www.dmv.ca.gov/portal/field-office/sacramento-south/)') in shown
+    assert ('href="https://www.dmv.ca.gov/portal/field-office/sacramento-south/" '
+            'target="_blank" rel="noopener noreferrer">View California DMV, Sacramento South '
+            'hours source</a>') in ' '.join(values(app.get('html')))
     captions = values(app.caption)
     assert any(c.startswith('The published hours have no date range, so they may not apply '
                             'on August 14, 2026.') for c in captions)

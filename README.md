@@ -77,6 +77,20 @@ not switched to. Office handoff has a scroll-driven flight into Airshow and the 
 template with .txt/.md export. A blocked
 task's checklist has **Resolve blocker** (`POST /tasks/{task_id}/resolve`), which shows the
 API's email draft and marks the missing step as waiting on an office.
+
+**Before you go** (a prerequisite in the task table) is a quick look: the selected task first,
+then one section per prerequisite, each with its title, status and its own documents (a
+document two tasks need stays under both, with "Also needed for"), the task's action link, its
+office rows and **Open full checklist**. The **Checklist** tab puts the shared status control
+beside the title, then documents (inventory only), the next action, reminders, visit details
+and office hours; completing a step keeps you on that task. Evidence sits behind **more info
+included here**, which opens in place: the source's name and link, the real verified date, or
+"Confirm this detail with the office." / "Source unavailable. Confirm with the office." Each
+office row has an underlined **View [office] hours source** link (plain text if the URL is
+missing or unsafe). Action links are named for their real destination and come only from URLs
+the API cites for that task (`flyover_checklist.py`), so CRC links stay CRC-only: Schedule a
+DMV visit, Open the REAL ID document checklist, Call to schedule (CRC check-in, by phone), Open
+CRC fee payment instructions.
 Statuses and prerequisites remain backend-authoritative. Applying a new profile requires
 explicit confirmation when progress exists. Settings can pause the banner or reduce motion;
 OS reduced-motion preferences are also respected, and browsers without CSS scroll timelines
