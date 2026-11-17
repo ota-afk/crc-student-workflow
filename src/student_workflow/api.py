@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from limits import parse as parse_limit
@@ -22,12 +22,24 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from starlette.concurrency import run_in_threadpool
 
+from . import notifications
 from .ai_day3 import generate_email
 from .assistant import answer_question
-from .config import api_key, cors_origins, mock_path, rate_limit, use_mock
+from .config import (
+    api_key,
+    cors_origins,
+    mock_path,
+    rate_limit,
+    reminder_from,
+    reminder_recipients,
+    resend_api_key,
+    use_mock,
+)
 from .contract import (
     AssistantAnswer,
     AssistantRequest,
+    ReminderRequest,
+    ReminderResult,
     ResolveResult,
     StudentProfile,
     Task,
@@ -167,6 +179,49 @@ def _assistant_workflow(request: AssistantRequest) -> tuple[RulesFile, Workflow]
     profile = StudentProfile(student_id='assistant', **request.student_profile.model_dump())
     rules = _rules()
     return rules, _workflow(profile, request.as_of, rules=rules)
+
+
+# Resend's email IDs are UUIDs; anything else is refused before it reaches the provider's URL.
+REMINDER_ID = r'^[0-9a-fA-F-]{8,64}$'
+
+
+@app.post('/notifications/reminders', response_model=ReminderResult, dependencies=NEEDS_KEY)
+def schedule_reminder(request: ReminderRequest) -> ReminderResult:
+    key = resend_api_key()
+    if not key:
+        raise HTTPException(status_code=503, detail='Reminders are not configured')
+    if request.recipient.strip().lower() not in reminder_recipients():
+        # The public demo only emails addresses the team allowed on Render.
+        raise HTTPException(status_code=403, detail='This address cannot receive demo reminders')
+    try:
+        send_at = notifications.check_send_time(request.send_at)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    profile = StudentProfile(student_id='reminder', **request.student_profile.model_dump())
+    task = _find(_workflow(profile, request.as_of), request.task_id)
+    if task.status == 'Completed':
+        raise HTTPException(status_code=409, detail=f'Task {task.id} is already completed')
+    subject, text = notifications.email_for(task, request.as_of.isoformat())
+    try:
+        email_id = notifications.schedule(key, reminder_from(), request.recipient.strip(),
+                                          subject, text, send_at, request.operation_id)
+    except notifications.ProviderError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    return ReminderResult(reminder_id=email_id, status='scheduled', task_id=task.id,
+                          send_at=send_at)
+
+
+@app.post('/notifications/reminders/{reminder_id}/cancel', response_model=ReminderResult,
+          dependencies=NEEDS_KEY)
+def cancel_reminder(reminder_id: str = Path(pattern=REMINDER_ID)) -> ReminderResult:
+    key = resend_api_key()
+    if not key:
+        raise HTTPException(status_code=503, detail='Reminders are not configured')
+    try:
+        notifications.cancel(key, reminder_id)
+    except notifications.ProviderError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    return ReminderResult(reminder_id=reminder_id, status='cancelled')
 
 
 @app.post('/tasks/{task_id}/complete', response_model=Workflow, dependencies=NEEDS_KEY)

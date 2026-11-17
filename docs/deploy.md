@@ -85,6 +85,20 @@ assistant URL to set. Check it in the browser:
 If the API was asleep, the first question may show "The assistant took too long to answer";
 ask again after a minute.
 
+## Reminder emails (Resend)
+
+On `crc-workflow-api` → Environment:
+
+| Setting | Value |
+| --- | --- |
+| `RESEND_API_KEY` | The team's Resend API key (only here, never in code or chat). |
+| `REMINDER_RECIPIENTS` | Comma-separated addresses the demo may email, e.g. the Resend account owner's address. Empty = nobody. |
+| `REMINDER_FROM` | Optional. Default `Flyover <onboarding@resend.dev>`, Resend's test sender. |
+
+Until the team verifies its own domain in Resend, use the test sender and an address the
+account owner controls. Check: sign in to Flyover with an allowed address, schedule a reminder
+a few minutes ahead, close the browser, and confirm it arrives.
+
 ## After every deploy: smoke test
 
 From the repo on your computer, make a file named `.env.smoke` (git-ignored, like `.env`) with

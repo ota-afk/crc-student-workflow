@@ -263,3 +263,8 @@
 - STU-D07-FE-hours-matching (Nov 17 2026): AI assistance (Claude Code) matched students' free
   times with offices' published hours and added the checklist's Office hours block
   (`flyover_appointments.py`, `flyover.py`), with tests.
+
+- STU-D07-BE-reminders (Nov 17 2026): AI assistance (Claude Code) wrote the reminder routes and
+  Resend adapter (`api.py`, `notifications.py`, `contract.py`, `config.py`), the contract and
+  deploy docs, and `tests/test_reminders.py` (Resend faked). Resend's API was checked against
+  its documentation pages.

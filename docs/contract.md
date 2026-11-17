@@ -622,6 +622,52 @@ name to the model, use the preset questions (`PRESET_QUESTIONS` in
 The dashboard demo should use the five preset questions and verify that each one opens the
 intended task with the Render model configuration.
 
+## Reminder emails (STU-D07-BE-reminders)
+
+**Status: on main once this merges.** Demo design chosen by the owner: Resend holds each
+scheduled email, so it arrives even after the tab closes or the app restarts; the API stores
+nothing, so the dashboard keeps the reminder ID for its session and can cancel only within it.
+There is no list of reminders and no cancelling after the session ends.
+
+### `POST /notifications/reminders`
+
+Same `X-API-Key` and rate limit as every route. Request (strict; unknown keys are 422):
+
+```json
+{
+  "recipient": "demo.inbox@example.com",
+  "consent": true,
+  "operation_id": "5f0c…-uuid",
+  "task_id": "task_dmv_id",
+  "send_at": "2026-11-18T09:00:00-08:00",
+  "as_of": "2026-08-14",
+  "student_profile": {"institution": "…", "visa_type": "F-1", "arrival_date": "2026-08-11",
+                      "has_ssn": false, "school_id": "crc", "completed_tasks": [],
+                      "awaiting_reply": []}
+}
+```
+
+- `consent` must be `true`. `operation_id` (1–256 of `A-Z a-z 0-9 . _ : -`) is sent to Resend
+  as `Idempotency-Key`, so a retried request doesn't schedule twice (Resend keeps keys 24 h).
+- `send_at` must carry a timezone, be at least a minute from now (real clock, not `as_of`) and
+  at most 30 days ahead (Resend's limit). Otherwise 422.
+- `recipient` must be on the server's allow-list (`REMINDER_RECIPIENTS`), else 403. No key
+  configured (`RESEND_API_KEY` empty) is 503.
+- The task must be in the workflow rebuilt from the profile at `as_of` (404) and not Completed
+  (409).
+- The email is a fixed template: task title, its status on `as_of`, next step, official link,
+  and "doesn't book an appointment / some details are not verified". No profile details.
+- `200` → `{"reminder_id": "<Resend email ID>", "status": "scheduled", "task_id": "…",
+  "send_at": "<UTC>"}`. Resend refusing or not answering → 502 with a safe message.
+
+### `POST /notifications/reminders/{reminder_id}/cancel`
+
+`reminder_id` must look like Resend's email ID (hex and dashes, 8–64), else 422. `200` →
+`{"reminder_id": "…", "status": "cancelled"}`; Resend not confirming → 502 "Cancellation not
+confirmed: the reminder may still arrive."
+
+The recipient address and the email text are never logged, and never sent to the model.
+
 ## Office hours (STU-D07-BE-office-hours)
 
 **Status: on main once this merges.** The rules file has a top-level `offices` list, and each
@@ -892,6 +938,10 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D07-BE-reminders: `POST /notifications/reminders` and
+  `POST /notifications/reminders/{id}/cancel` (Resend scheduled email, allow-listed recipients,
+  consent, idempotency, 30-day limit). New, additive routes.
 
 - 2026-11-17, STU-D07-BE-office-hours: rules-file `offices` (sourced weekly hours, closures,
   validity dates, school scope) and `offices` on each task in the response, with `in_effect`
