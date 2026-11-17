@@ -18,11 +18,12 @@ State on 2026-11-16 (check `git log origin/main` and the PRs for anything newer)
 
 | Ticket | Where | Merge commit | State |
 | --- | --- | --- | --- |
-| Resolver, school search (STU-D02-BE) | `main` | `a405852` | On main |
-| Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `0666b1c` | In review |
-| Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21, builds on #20 | `781e231` | In review |
-| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22, builds on #21 | `fcb6dc5` | In review |
-| Cited visit details (STU-D05-BE-before-you-go) | PR #23, builds on #22 | `22f2cda` | In review |
+| Resolver, school search (STU-D02-BE) | PR #13 | `e094490` | On main |
+| Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `e0798da` | On main |
+| Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21 | `bb914ac` | On main |
+| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22 | `f84654f` | On main |
+| Cited visit details (STU-D05-BE-before-you-go) | PR #23 | not merged | In review |
+| Deploy to Render | `docs/deploy.md` | | Not deployed yet |
 
 ## Ground rules that shape the API
 
@@ -495,10 +496,10 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
   details. ENG has a draft with visit details for the check-in and DMV tasks. The backend can
   read that shape once this branch merges; before that, the current models reject it, so it
   must not merge first.
-- **No request field says which documents the student has.** FE's PR #16 (open) keeps a local
-  checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness uses
-  checkboxes like "I have my passport". The `document` blocker type exists in the model, but the
-  resolver never produces it.
+- **No request field says which documents the student has.** The dashboard (FE's #16, on `main`)
+  keeps a local checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness
+  uses checkboxes like "I have my passport". The `document` blocker type exists in the model, but
+  the resolver never produces it.
 - So **`Ready` means only this**: every prerequisite in `rules.json` is completed and no timing
   rule is waiting. It says nothing about documents or an office's requirements. Missing
   guidance, `null`, or an empty list is **not** proof of readiness, and FE shows "Not verified"
