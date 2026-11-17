@@ -536,8 +536,8 @@ def test_an_office_without_hours_says_so_without_a_time_zone(live):
     ('https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/',
      'California DMV · What is REAL ID'),
     ('https://www.ssa.gov/locator', 'Social Security · Locator'),
-    ('https://www.dmv.ca.gov/portal/driver-education-and-safety/educational-materials/fast-facts/'
-     'social-security-number-ffdl-8/', 'California DMV · Social security number'),
+    (('https://www.dmv.ca.gov/portal/driver-education-and-safety/educational-materials/fast-facts/'
+     'social-security-number-ffdl-8/'), 'California DMV · Social security number'),
     (None, 'Official source'),
 ])
 def test_source_labels(url, label):
