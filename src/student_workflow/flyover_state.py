@@ -100,7 +100,8 @@ def due_note(task: dict, as_of: str) -> tuple[str, str] | None:
     if due.get('past_due'):
         return 'warning', f'Past due since {when}. Check the official page for what to do now.'
     days = (due_on - today).days
-    label = ('Due today' if days == 0 else f'Due tomorrow, {when}' if days == 1
+    # Today is the workflow's as_of (the demo's date on the public site), so it is spelled out.
+    label = (f'Due today, {when}' if days == 0 else f'Due tomorrow, {when}' if days == 1
              else f'Due {when} (in {days} days)')
     if due['verification_status'] == 'verified':
         return 'success', label + ' · Double-checked by our team'

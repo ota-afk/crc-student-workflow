@@ -428,3 +428,11 @@
   [class*="st-key-fly_row_"] [data-testid="stColumn"]:nth-child(3) button div { text-align:left!important; }
   [class*="st-key-fly_row_"] .fly-center { text-align:left; }
 }
+
+/* Demo notice (STU-D07-demo-scenario): on every page, in Settings, and above load errors.
+   Ink on warm sand, 10.5:1; not dismissible, because it dates everything below it. */
+.fly-demo-notice { margin:0 0 10px; padding:10px 16px; border-radius:12px; background:#F3E6C8;
+  color:var(--flyover-ink); border:1px solid #DCC79A; font-size:.9rem; line-height:1.45; }
+.fly-demo-notice b { font-weight:800; }
+.fly-doc .fly-doc-scenario { font-size:.85rem; color:var(--flyover-ink); background:#F3E6C8;
+  border-radius:10px; padding:8px 12px; margin:0 0 14px; }

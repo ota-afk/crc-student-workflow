@@ -15,18 +15,29 @@ import streamlit as st
 from . import flyover_client as client
 from .flyover_appointments import (
     DAYS,
+    HOURS_NOT_CONFIRMED,
     NO_HOURS_NOTE,
     TIMEZONE_LABEL,
     describe_windows,
     fact_verified,
     first_with_guidance,
     hours_summary,
+    in_person_hours,
     match_line,
     normalize_windows,
     notice_key,
+    upcoming_closures,
+    visit_hours,
 )
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
-from .flyover_signin import ENROLLMENT_TERMS, masked, render_signin, sign_out, signed_in
+from .flyover_scenario import (
+    DEMO_PROFILE,
+    SCENARIO_AS_OF,
+    export_line,
+    long_date,
+    notice_html,
+)
+from .flyover_signin import ENROLLMENT_TERMS, entered, masked, render_signin, sign_out
 from .flyover_state import (
     ENCOURAGEMENTS,
     active_task,
@@ -173,6 +184,7 @@ def _replay_tour() -> None:
 
 @st.dialog('Flight settings')
 def settings() -> None:
+    st.html(notice_html())  # the dialog covers the page, so it carries the notice too
     st.caption('Make this space comfortable for you.')
     def keep_preference(widget: str, preference: str) -> None:
         st.session_state[preference] = st.session_state[widget]
@@ -189,13 +201,15 @@ def settings() -> None:
     if st.button('Replay tutorial', key='flyover_tour_replay_btn', icon=':material/school:',
                  on_click=_replay_tour):
         st.rerun()
-    if account := st.session_state.get('flyover_account'):
-        st.caption('Signed in as ' + masked(account['email']))
-        if st.button('Your profile', key='flyover_settings_profile', icon=':material/badge:',
-                     on_click=go, args=('profile',)):
-            st.rerun()
-        if st.button('Sign out', key='flyover_sign_out', on_click=sign_out):
-            st.rerun()
+    account = st.session_state.get('flyover_account')
+    st.caption('Signed in as ' + masked(account['email']) if account
+               else 'Demo visitor · no account, nothing saved after you leave')
+    if st.button('Your profile', key='flyover_settings_profile', icon=':material/badge:',
+                 on_click=go, args=('profile',)):
+        st.rerun()
+    if st.button('Sign out' if account else 'Leave the demo', key='flyover_sign_out',
+                 on_click=sign_out):
+        st.rerun()
     if st.button('Done', key='flyover_settings_done', type='primary'):
         st.rerun()
 
@@ -319,7 +333,7 @@ def _chat(data: dict, api_url: str, page: str) -> None:
     current = _context_key(data, page_context, task_id)
     st.html(f'<img class="fly-chat-badge" src="{svg_asset("ai-help.svg")}" alt="">')
     st.caption(f'Asking about: {titles.get(task_id, "your workflow")} · '
-               f'{DESTINATIONS[page]}')
+               f'{DESTINATIONS[page]} · as of {long_date(data["as_of"])}')
     st.caption('Answers come from your workflow and our sources. Do not include your name, '
                'SSN or document numbers.')
     with st.container(key='fly_chat_log'):
@@ -412,7 +426,9 @@ def _profile(data: dict, api_url: str) -> None:
                         try:
                             # The spinner is the feedback; the page itself no longer dims.
                             with st.spinner('Building your workflow…'):
-                                result = client.generate_workflow(api_url, profile, changes)
+                                # The workflow's date (the scenario), never the API's today.
+                                result = client.generate_workflow(
+                                    api_url, profile, changes, as_of=data['as_of'])
                         except (requests.RequestException, ValueError):
                             st.error('Could not generate your workflow. Your progress has been kept. Try again.')
                         else:
@@ -691,7 +707,13 @@ def _availability_editor() -> None:
                       args=(index,), type='tertiary')
 
 
-def _appointment_notice(tasks: list[dict]) -> None:
+def _office_link(office: dict) -> None:
+    """The office's own page (from the rules file), the place to check hours for a date."""
+    if link := safe_url(office.get('source_url')):
+        st.markdown(f'[Official page: {office["name"]}]({link})')
+
+
+def _appointment_notice(tasks: list[dict], as_of: str) -> None:
     """In-app notice when the current or next step has sourced appointment guidance."""
     guidance = first_with_guidance(task_queue(tasks))
     if guidance is None:
@@ -711,9 +733,14 @@ def _appointment_notice(tasks: list[dict]) -> None:
             st.caption(f'Your free times: {describe_windows(windows)}.')
             task = next((t for t in tasks if t['id'] == guidance['task_id']), {})
             # One line per office on file (rules.json offices), else the honest no-hours note.
-            for line in [match_line(o, windows) for o in task.get('offices') or []] or [
-                    NO_HOURS_NOTE]:
-                st.caption(line)
+            # A time is only suggested from hours confirmed for the workflow's date; otherwise
+            # the line says so and the office's own page follows it.
+            for office in task.get('offices') or []:
+                st.caption(match_line(office, windows, as_of))
+                if not visit_hours(office, as_of)['confirmed']:
+                    _office_link(office)
+            if not task.get('offices'):
+                st.caption(NO_HOURS_NOTE)
         with st.expander('Your free times (optional)'):
             _availability_editor()
         st.button('Dismiss', key='fly_appt_dismiss', on_click=_dismiss_notice, args=(key,),
@@ -785,11 +812,12 @@ def _workflow(data: dict, api_url: str, boarding: dict | None = None) -> None:
                     for other in other_ready:
                         st.button(other['title'], key='flyover_other:' + other['id'],
                                   on_click=_select_task, args=(other['id'],))
-        _appointment_notice(tasks)
+        _appointment_notice(tasks, data['as_of'])
 
 
-def _office_hours(task: dict) -> None:
-    """The task's offices with their published hours, and how they meet the free times."""
+def _office_hours(task: dict, as_of: str) -> None:
+    """The task's offices: hours only when confirmed for the workflow's date, else the office's
+    page, with any other published hours kept below as dated reference, never as a suggestion."""
     offices = task.get('offices') or []
     if not offices:
         return
@@ -800,11 +828,27 @@ def _office_hours(task: dict) -> None:
         st.markdown(f'**{office["name"]}**{badge}')
         if office.get('address'):
             st.caption(office['address'])
-        summary = hours_summary(office)
-        st.write(summary if summary == 'No hours published' else summary + ' (Pacific time)')
-        st.caption(office['period_note'])
-        if windows:
-            st.caption(match_line(office, windows))
+        check = visit_hours(office, as_of)
+        if check['confirmed']:
+            st.write(hours_summary(office) + ' (Pacific time)')
+            st.caption(office['period_note'])
+            for closure in upcoming_closures(office, as_of):
+                st.caption('Listed closure · ' + closure)
+            if windows:
+                st.caption(match_line(office, windows, as_of))
+            continue
+        st.markdown(f'**{HOURS_NOT_CONFIRMED}** ({long_date(as_of)}).')
+        st.caption(check['detail'] + ' Check the official office page before visiting.')
+        _office_link(office)
+        if in_person_hours(office):
+            # Kept as dated reference only: the source's own period words, its retrieval date
+            # and verification state. No free-time match is ever worked out from these.
+            with st.expander('Reference only: the hours this office published'):
+                st.caption(f'{office["period_note"]} Retrieved {long_date(office["retrieved_on"])}'
+                           f' · {"Verified" if office["verification_status"] == "verified" else "Not verified"}.')
+                st.write(hours_summary(office) + ' (Pacific time)')
+                for closure in office.get('closures') or []:
+                    st.caption(f'Listed closure · {long_date(closure["date"])}: {closure["note"]}')
 
 
 def _checklist(data: dict, task: dict, api_url: str) -> None:
@@ -842,7 +886,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
             # The fact as sourced (it may contain a link), with a badge when it's unverified.
             badge = '' if fact_verified(guide, field) else ' :orange-badge[Not verified]'
             st.markdown(f'**{label}:** {value}{badge}')
-        _office_hours(task)
+        _office_hours(task, data['as_of'])
         if missing:
             # One line for everything not on file, instead of the same warning four times.
             st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
@@ -959,7 +1003,8 @@ def _reminder_section(data: dict, task: dict, api_url: str) -> None:
                               key=f'fly_rem_ok:{task["id"]}')
         submitted = st.form_submit_button('Schedule reminder')
     st.caption("A nudge to act on this step. It doesn't book anything, and the demo only emails "
-               'addresses the team allowed.')
+               'addresses the team allowed. Reminders use today’s real date and time, not the '
+               'demo’s date.')
     if submitted:
         if not consent:
             st.error('Tick the box to agree to the email first.')
@@ -1314,12 +1359,15 @@ def _profile_page(data: dict) -> None:
               icon=':material/west:', type='tertiary')
     with st.container(key='fly_profile_page'):
         st.subheader('Your profile')
-        if account := st.session_state.get('flyover_account'):
-            st.caption('Signed in as ' + masked(account['email']))
+        account = st.session_state.get('flyover_account')
+        st.caption('Signed in as ' + masked(account['email']) if account
+                   else 'Demo visitor · a sample student, no account')
         arrival = date.fromisoformat(profile['arrival_date'])
         days = (date.fromisoformat(data['as_of']) - arrival).days
         since = f'{days} days ago' if days >= 0 else f'in {-days} days'
-        facts = [('School', profile['institution']), ('Visa type', profile['visa_type']),
+        # "3 days ago" is counted from the workflow's date, so that date is shown too.
+        facts = [('Walkthrough date', long_date(data['as_of'])),
+                 ('School', profile['institution']), ('Visa type', profile['visa_type']),
                  ('Arrival date', f'{arrival:%B} {arrival.day}, {arrival.year} · {since}'),
                  ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No'),
                  ('Enrollment term', ENROLLMENT_TERMS.get(profile.get('enrollment_term'))),
@@ -1368,7 +1416,7 @@ def _handoff(data: dict, goal: str, professional: str, office: str = '') -> dict
     documents = list(dict.fromkeys(((task or {}).get('before_you_go') or {}).get('required_documents') or []))
     arrival = date.fromisoformat(profile['arrival_date'])
     title = ('Handoff for ' + office) if office else 'Handoff for your ' + professional.split(' (')[0]
-    return {'title': title, 'sections': [
+    return {'title': title, 'scenario': export_line(data['as_of']), 'sections': [
         ('Who I am', [(f'{profile["visa_type"]} student at {profile["institution"]}. Arrived '
                        f'{arrival:%B} {arrival.day}, {arrival.year}. '
                        f'{"Has an" if profile["has_ssn"] else "No"} SSN. Name: [YOUR NAME]'
@@ -1391,6 +1439,8 @@ def _md(text: str) -> str:
 def _handoff_text(doc: dict, markdown: bool) -> str:
     clean = _md if markdown else str
     lines = [('# ' if markdown else '') + clean(doc['title']), '']
+    if doc.get('scenario'):
+        lines += [clean(doc['scenario']), '']
     for heading, items in doc['sections']:
         lines.append(('## ' if markdown else '') + heading)
         items = [clean(item) for item in items]
@@ -1449,7 +1499,8 @@ def _assistant(data: dict, api_url: str) -> None:
                            '<ul>' + ''.join(f'<li>{esc(i)}</li>' for i in items) + '</ul>')
                            for h, items in doc['sections'])
             st.html(f'<article class="fly-doc"><div class="fly-doc-top"><h3>{esc(doc["title"])}</h3>'
-                    f'<span class="fly-tag">⚠ Preview · Not verified</span></div>{body}'
+                    f'<span class="fly-tag">⚠ Preview · Not verified</span></div>'
+                    f'<p class="fly-doc-scenario">{esc(doc.get("scenario", ""))}</p>{body}'
                     '<p class="fine">Drafted from a template on this page, not by AI. '
                     'Never add document numbers. Confirm every requirement with the office.</p></article>')
             fmt_col, button_col, _ = st.columns([1, 1, 2], vertical_alignment='bottom')
@@ -1476,8 +1527,13 @@ def render_app() -> None:
     # The launcher's logo comes from our own committed SVG; the rest of its look is in style.css.
     st.html('<style>.st-key-flyover_ai [data-testid="stPopoverButton"]{background-image:url('
             + svg_asset('ai-help-icon.svg') + ')!important}</style>')
-    if not signed_in():
-        # The demo sign-in is the first screen; it also asks the profile questions.
+    # The demo notice comes before any API call, so it shows on the first screen, every page,
+    # and also when loading fails. It never depends on is_mock: the live engine computes this
+    # historical demo with is_mock false.
+    with st.container(key='fly_demo_notice'):
+        st.html(notice_html())
+    if not entered():
+        # The first screen: "Try the CRC demo", or the visitor's own details.
         render_signin(api_url)
         _tour('signin')
         return
@@ -1486,7 +1542,10 @@ def render_app() -> None:
     panel = _header(page)
     if 'flyover_data' not in st.session_state:
         try:
-            st.session_state['flyover_data'] = client.fetch_fresh_workflow(api_url)
+            # No workflow kept for this session (a reload, say): rebuild the demo student's
+            # on the scenario date.
+            st.session_state['flyover_data'] = client.start_demo(
+                api_url, DEMO_PROFILE, SCENARIO_AS_OF.isoformat())
         except (requests.RequestException, ValueError):
             with panel:
                 st.caption('Airshow can answer once your workflow has loaded.')

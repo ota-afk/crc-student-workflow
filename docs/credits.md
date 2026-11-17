@@ -291,3 +291,10 @@
   semester-specific payment rule, profile semester choice and source notes. Regression
   checks cover both payment cutoffs, missing semester inputs and the sign-in workflow.
   The Spring source records await human review.
+
+- STU-D07-demo-safe (Nov 17 2026): AI assistance (Claude Code) made the public Flyover demo
+  safe to share: one scenario definition (`flyover_scenario.py`), a "Try the CRC demo" entry
+  with no email or password, the scenario date on every workflow request, the demo notice on
+  every page, and date-scoped office hours that never suggest a visit time from unconfirmed
+  hours (`flyover.py`, `flyover_signin.py`, `flyover_client.py`, `flyover_appointments.py`,
+  `flyover_state.py`, `style.css`), with tests. No rules or source data changed.

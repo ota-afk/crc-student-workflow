@@ -83,11 +83,19 @@ OS reduced-motion preferences are also respected, and browsers without CSS scrol
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile with no steps completed yet.
 
-The first screen is a **demo sign-in**: email (real, shape-checked), a password (any text
-works; never stored or sent) and the profile questions (school, arrival date, visa type, SSN
-yes/no). "Sign in and start" builds the workflow from those answers through the API, so
-Profile setup opens pre-filled. There are no accounts: the email stays in the browser session,
-never reaches the model, and goes to the API only when you schedule a reminder.
+The public Flyover link is a **historical walkthrough set on August 14, 2026**
+(`flyover_scenario.py`, the one place its date and profile are defined). A notice saying so
+("Flyover demo · Updates coming soon…") is drawn before any API call, so it shows on the first
+screen, every page, in Settings and when the API is down; it never depends on `is_mock`.
+The first screen's primary action, **Try the CRC demo**, needs no email or password: it builds
+a synthetic CRC student (arrived August 11, enrolled August 13 for Fall 2026, nothing done
+yet) through `POST /workflow` with `as_of` 2026-08-14. **Or use your own details** asks for an
+email (shape-checked, for reminders only) and the profile questions; there is no password
+field. Every Flyover request (profile changes, task actions, Airshow) sends the workflow's
+`as_of`, and exported handoffs repeat the scenario line; the API's own default (today in
+California) is unchanged for other callers. There are no accounts: the email stays in the
+browser session, never reaches the model, and goes to the API only when you schedule a
+reminder.
 
 Choose an **enrollment term** (Fall 2026 or Spring 2027) and optionally enter the actual
 **enrollment date** at sign-in or in Profile setup. Flyover uses that semester's CRC payment
@@ -98,8 +106,8 @@ until their human checks are complete. A missing term or date prompts for that i
 [payment dates](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
 are recorded in `docs/sources.md`.
 
-Each unfinished task's checklist has **Email me a reminder**: a day and time (Pacific, up to 30
-days ahead) and a consent box. The API schedules it with Resend, so it arrives even if you
+Each unfinished task's checklist has **Email me a reminder** (own-details path only): a day and
+time (Pacific, up to 30 days ahead on the real calendar, not the demo's date) and a consent box. The API schedules it with Resend, so it arrives even if you
 close the page; scheduled reminders are listed with Cancel, and completing the task cancels
 them. The public demo only emails addresses on the server's allow-list (`docs/deploy.md`).
 Signing out doesn't cancel reminders already scheduled. Settings shows the masked address and Sign out, which
@@ -118,10 +126,14 @@ seen; Settings → Replay tutorial shows it again.
 When the current or next step has appointment guidance (school check-in, REAL ID), page 1
 shows it word for word from `rules.json` with its "Not verified" label and official link. The
 student can add weekly free times (Pacific time) under it; they stay in the browser session,
-are never sent to the API or the model, and are cleared by Start fresh. Free times are
-compared with each office's published in-person hours from `rules.json` (all "Not verified";
-undated hours carry a "may differ" note), and the checklist lists each office's hours. An
-office with no published hours gets "check with the office"; Flyover never books anything.
+are never sent to the API or the model, and are cleared by Start fresh. Free times are only
+compared with an office's in-person hours when they are confirmed for the workflow's date
+(`visit_hours`: published, for that service, not a listed closure, dated to cover `as_of`,
+and verified). Otherwise the notice and the checklist say "Hours for this date aren't
+confirmed", give the reason and link the office's own page; other published hours stay in a
+dated "Reference only" expander and never produce a suggested time. With today's data every
+office falls back (none is verified, the DMV schedules are undated, and Admissions & Records
+front-desk hours are not advisor availability). Flyover never books anything.
 The notice can be dismissed; the same text stays in the task's checklist.
 
 The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either

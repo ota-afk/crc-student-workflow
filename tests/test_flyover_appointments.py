@@ -84,9 +84,12 @@ def test_the_dismissal_key_changes_with_free_times_and_text():
     assert notice_key(guidance, []) == key  # same inputs, same key: no repeat after dismissal
 
 
-def _office(hours, in_effect=True, mode='in_person', name='Office'):
-    return {'name': name, 'in_effect': in_effect, 'period_note': 'Fall 2026 hours.',
-            'weekly_hours': None if hours is None else [
+def _office(hours, in_effect=True, mode='in_person', name='Office', status='verified',
+            office_id='office', closures=()):
+    # Synthetic office data; the defaults are the one fully confirmed case.
+    return {'office_id': office_id, 'name': name, 'in_effect': in_effect,
+            'period_note': 'Fall 2026 hours.', 'verification_status': status,
+            'closures': list(closures), 'weekly_hours': None if hours is None else [
                 {'day': d, 'open': o, 'close': c, 'mode': mode} for d, o, c in hours]}
 
 
@@ -113,15 +116,59 @@ def test_phone_hours_never_count_as_in_person():
     assert overlaps([_w('Monday', (9, 0), (10, 0))], _office(WEEK, mode='phone')) == []
 
 
-def test_match_lines_are_honest_about_each_case():
+AUGUST_14 = '2026-08-14'  # the demo scenario's date
+MONDAY = [_w('Monday', (9, 0), (10, 0))]
+
+
+def test_confirmed_hours_give_an_overlap_that_is_not_a_booking():
     from student_workflow.flyover_appointments import match_line
-    monday = [_w('Monday', (9, 0), (10, 0))]
-    assert match_line(_office(WEEK), monday).startswith("Your free times overlap Office's")
-    assert 'not a booking' in match_line(_office(WEEK), monday)
-    assert match_line(_office(WEEK), [_w('Sunday', (9, 0), (10, 0))]).startswith('No overlap')
-    assert 'publishes no hours' in match_line(_office(None), monday)
-    assert "not your workflow's date" in match_line(_office(WEEK, in_effect=False), monday)
-    assert 'may differ' in match_line(_office(WEEK, in_effect=None), monday)
+    line = match_line(_office(WEEK), MONDAY, AUGUST_14)
+    assert line.startswith("Your free times overlap Office's published hours: Monday")
+    assert 'not a booking' in line
+
+
+def test_confirmed_hours_without_overlap_say_so():
+    from student_workflow.flyover_appointments import match_line
+    line = match_line(_office(WEEK), [_w('Sunday', (9, 0), (10, 0))], AUGUST_14)
+    assert line.startswith('No overlap')
+
+
+@pytest.mark.parametrize(('office', 'reason'), [
+    (_office(None), 'no_hours'),
+    (_office(WEEK, in_effect=None), 'undated'),  # the DMV case: no dates on the schedule
+    (_office(WEEK, in_effect=False), 'other_period'),
+    (_office(WEEK, status='needs_verification'), 'unverified'),
+    (_office(WEEK, office_id='crc_admissions_records'), 'other_service'),
+    (_office(WEEK, closures=[{'date': AUGUST_14, 'note': 'Holiday'}]), 'closed'),
+    (_office(WEEK, mode='phone'), 'no_hours'),  # phone hours are never visit hours
+])
+def test_hours_not_confirmed_for_the_date_never_suggest_a_time(office, reason):
+    from student_workflow.flyover_appointments import match_line, visit_hours
+    check = visit_hours(office, AUGUST_14)
+    assert check == {'confirmed': False, 'reason': reason, 'detail': check['detail']}
+    line = match_line(office, MONDAY, AUGUST_14)
+    assert line.startswith("Office: Hours for this date aren't confirmed.")
+    assert 'overlap' not in line and 'AM' not in line
+
+
+def test_admissions_and_records_hours_are_not_advisor_availability():
+    from student_workflow.flyover_appointments import visit_hours
+    detail = visit_hours(_office(WEEK, office_id='crc_admissions_records'), AUGUST_14)['detail']
+    assert 'not when an International Student Advisor is available' in detail
+
+
+def test_a_listed_closure_on_the_date_is_named():
+    from student_workflow.flyover_appointments import visit_hours
+    office = _office(WEEK, closures=[{'date': '2026-11-26', 'note': 'Thanksgiving'}])
+    assert visit_hours(office, '2026-11-26')['detail'] == (
+        'The office is listed as closed on November 26, 2026: Thanksgiving')
+
+
+def test_upcoming_closures_lists_only_the_next_two_weeks():
+    from student_workflow.flyover_appointments import upcoming_closures
+    office = _office(WEEK, closures=[{'date': '2026-08-20', 'note': 'Training day'},
+                                     {'date': '2026-09-07', 'note': 'Labor Day'}])
+    assert upcoming_closures(office, AUGUST_14) == ['Thu, Aug 20: Training day']
 
 
 @pytest.mark.parametrize(('moment', 'shown'), [((0, 0), '12:00 AM'), ((8, 0), '8:00 AM'),
