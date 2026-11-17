@@ -83,6 +83,30 @@ def test_demo_tasks_resolve_with_the_correct_school_guidance(
     )
 
 
+def test_crc_appointment_stays_optional():
+    guide = next(
+        task for task in workflow("crc").workflow if task.id == "task_school_checkin"
+    ).before_you_go
+    assert guide is not None and guide.appointment_rules is not None
+    # The source says to call "if you would like to schedule" an appointment.
+    assert "if you" in guide.appointment_rules.casefold()
+    assert "to arrange" not in guide.appointment_rules.casefold()
+
+
+def test_conditional_dmv_documents_are_not_in_the_counted_checklist():
+    dmv = next(task for task in workflow().workflow if task.id == "task_dmv_id")
+    guide = dmv.before_you_go
+    assert guide is not None
+    # Only evidence every applicant needs is counted as a missing document.
+    assert len(guide.required_documents) == 1
+    checklist = " ".join(guide.required_documents).casefold()
+    assert "address" in checklist
+    assert "passport" not in checklist and "name-change" not in checklist
+    # The situation-dependent guidance stays available, as cited guidance.
+    guidance = " ".join(guide.warnings).casefold()
+    assert "passport option" in guidance and "name-change" in guidance
+
+
 def test_dso_recommendation_title_keeps_drivers_license_context():
     task = next(
         task for task in workflow().workflow if task.id == "task_confirm_sevis_active"

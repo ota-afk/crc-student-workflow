@@ -10,9 +10,9 @@ CRC asks you to report to its International Student Advisor as soon as you arriv
 
 **Start with your Welcome Packet.** CRC sends arrival information with your admission letter. We haven’t confirmed a standard arrival document checklist, check-in fee, advisor hours or meeting location from the public pages reviewed.
 
-For the details of your appointment, contact CRC:
+For questions about check-in, contact CRC:
 
-- **Phone:** (916) 691-7411 — arrange an in-person or phone appointment.
+- **Phone:** (916) 691-7411 — call if you’d like to schedule an in-person or phone appointment.
 - **Email:** crc-internationalstudents@crc.losrios.edu — send your questions.
 
 Ask about your documents, any check-in fee, meeting time and location before making the trip. [CRC international student instructions and contact details](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps).
@@ -21,11 +21,14 @@ Ask about your documents, any check-in fee, meeting time and location before mak
 
 ### Prepare your documents
 
-If you are using your foreign passport as proof of identity, prepare:
+Everyone applying should prepare:
 
-- Your unexpired passport and valid U.S. visa, with an approved I-94. Follow DMV’s original/certified-copy instructions for identity documents.
 - Two different printed California address documents, such as a lease signed by you and the landlord, a utility/mobile bill, or a bank record. They must show your first and last names and the address on your application; the checklist explains exceptions.
-- Name-change documents, if your current name differs from your identity document.
+
+Depending on your situation, you may also need:
+
+- **If you are using your foreign passport as proof of identity:** your unexpired passport and valid U.S. visa, with an approved I-94. Follow DMV’s original/certified-copy instructions for identity documents.
+- **If your current name differs from your identity document:** name-change documents.
 
 Sources: California DMV’s [non-U.S. citizen document list](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/real-id-info-non-u-s-citizens/) and [REAL ID checklist](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/real-id-checklist/). The document list also includes other accepted identity options.
 

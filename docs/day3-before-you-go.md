@@ -10,7 +10,7 @@ Scope: an F-1 student's first REAL ID card in California. The passport route bel
 
 | Existing field | Content | Official source |
 | --- | --- | --- |
-| required_documents | Identity: for the passport route, an unexpired foreign passport, valid U.S. visa and approved I-94. Identity evidence must meet the original/certified-copy instructions; see official alternatives if this route does not fit. Legal name-change evidence if your current name differs from your identity document. | [DMV: Non-U.S. Citizens](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/real-id-info-non-u-s-citizens/) |
+| warnings | Conditional documents, kept outside the counted checklist: for the passport route, an unexpired foreign passport, valid U.S. visa and approved I-94, following the original/certified-copy instructions; legal name-change evidence if your current name differs from your identity document. DMV’s list includes other accepted identity options. | [DMV: Non-U.S. Citizens](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/real-id-info-non-u-s-citizens/) |
 | warnings | Retrieve your latest electronic I-94 through the official CBP I-94 service and print it if needed. | [USAGov I-94 instructions](https://www.usa.gov/arrival-departure-record) |
 | required_documents | Two different printed California residency documents showing your first/last name and the application address. Examples: a lease signed by both landlord and tenant, a utility/mobile bill or a bank record. Follow the checklist’s PO Box and relationship-document exceptions where applicable. | [DMV: REAL ID Checklist](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/real-id-checklist/) |
 | fees | Regular original ID card: $40. Reduced-fee and no-fee categories have separate eligibility rules. | [DMV: Licensing Fees](https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/licensing-fees/) |
@@ -36,7 +36,7 @@ Report to CRC's International Student Advisor as soon as you arrive. [CRC: Inter
 | required_documents | Unknown; keep the list empty and show Not verified. | Public admission documents are not an arrival check-in checklist. [Admission steps / welcome packet](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps) |
 | fees | Unknown; null. | No separate arrival check-in fee established; do not display Free. |
 | hours | Unknown; null. | Advisor check-in hours are not established. |
-| appointment_rules | Call (916) 691-7411 to arrange an in-person or phone appointment. The advisor’s exact check-in location and arrival deadline are not confirmed by the public pages. | [CRC: Admission Steps](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps) |
+| appointment_rules | Call (916) 691-7411 if you’d like to schedule an in-person or phone appointment. The advisor’s exact check-in location and arrival deadline are not confirmed by the public pages. | [CRC: Admission Steps](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps) |
 | phone | (916) 691-7411 | [CRC international appointment contact](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps) |
 | official_url | International student admission and contact page | [Open CRC page](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps) |
 
@@ -46,6 +46,7 @@ Email: **crc-internationalstudents@crc.losrios.edu**. CRC directs admitted stude
 
 - The [rules file](../data/rules/rules.json) uses the cited visit-details format from BE PR #23. Each populated `before_you_go` item has `text` and `rule_id`. Each referenced rule records a source, evidence, date and verification status.
 - BE resolves the guide items using their rule scopes and includes the selected rules in the task’s sources. CRC arrival details are CRC-specific. Keep the base task rule references and prerequisites as supplied in PR #18.
+- The REAL ID `required_documents` list holds only the residency evidence everyone needs. The passport-route and name-change documents depend on the student's situation, so they sit in `warnings` and are not counted as missing. FE can move them back into the checklist once students can mark an item not applicable. Showing "Not verified" next to each individual fact is tracked as a separate FE follow-up.
 - CRC document requirements, fees and advisor hours use an empty list or null. The student guide gives the Welcome Packet and contact details for follow-up. Retain source attribution and the pending review note when displaying content.
 - BE PR #23 supplies the loader. Before the Day 3 rules reach students, FE needs to read `citations` and show “Not verified” beside each unverified visit detail.
 

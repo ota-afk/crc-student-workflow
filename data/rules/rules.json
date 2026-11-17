@@ -32,7 +32,7 @@
         "fees": null,
         "hours": null,
         "appointment_rules": {
-          "text": "Call CRC to arrange an in-person or phone appointment.",
+          "text": "Call CRC if you’d like to schedule an in-person or phone appointment.",
           "rule_id": "rule_crc_international_appointment"
         },
         "phone": {
@@ -77,16 +77,8 @@
       "before_you_go": {
         "required_documents": [
           {
-            "text": "If using the passport option, bring your unexpired foreign passport, valid U.S. visa and approved I-94. Follow DMV’s original or certified-copy instructions for identity documents.",
-            "rule_id": "rule_dmv_real_id_identity"
-          },
-          {
             "text": "Bring two different printed California address documents, such as a lease signed by both you and your landlord, utility or mobile phone bill, or a bank record. Check DMV’s address and name instructions, including exceptions.",
             "rule_id": "rule_california_real_id_residency"
-          },
-          {
-            "text": "Bring supporting name-change documents if your current name differs from your identity document.",
-            "rule_id": "rule_dmv_real_id_identity"
           }
         ],
         "fees": {
@@ -110,6 +102,10 @@
           "rule_id": "rule_california_real_id_residency"
         },
         "warnings": [
+          {
+            "text": "Depending on your situation: if you are using the passport option as proof of identity, bring your unexpired foreign passport, valid U.S. visa and approved I-94, and follow DMV’s original or certified-copy instructions. If your current name differs from your identity document, also bring supporting name-change documents. These depend on your situation and are not part of the document checklist. DMV’s list includes other accepted identity options.",
+            "rule_id": "rule_dmv_real_id_identity"
+          },
           {
             "text": "Retrieve your latest electronic I-94 through the official CBP I-94 service and print it if needed.",
             "rule_id": "rule_i94_retrieval_guidance"
