@@ -569,12 +569,19 @@ carry `rule_id`, `url`, `last_verified` and `verification_status`. Referrals inc
 school's DSO as `contact`. A referral or fallback has empty `steps` and `sources`, a null task
 ID and `verified: false`. All endpoint replies set `is_mock: false`.
 
-The route gives intent matching up to five seconds. A missing model configuration, provider
-error or timeout yields a message directing the student to their task list. If there are
-multiple citations, optional ranking has two additional seconds. Ranking failure keeps the
-rules-based explanation and citation order. The request uses zero model retries so both
-stages fit within the dashboard's 10-second timeout. Risks and verification come from the
-school-scoped rules, including the prerequisite used for a next action.
+Intent matching gets two tries of four seconds each (STU-D06-BE-assistant-fallback): a timeout
+or provider error on the first try is retried once. If both fail, or no model is configured,
+the answer is the rules-based explanation of the selected `task_id` (no model call), ending
+with "The assistant was busy, so this answer is about the step you selected." and framed by
+`page_context` like any explained answer. Before that fallback the question's own checks run
+again (status or work questions get the DSO referral, personal details or another language
+get the rephrase messages), and a high-risk step is still a DSO referral. Only when no task is
+selected does the student get the message directing them to their task list. If there are
+multiple citations, optional ranking has two more seconds, and runs only if the answer is
+still under six seconds old; ranking failure keeps the rules-based order. The worst case is
+about eight seconds, inside the dashboards' timeouts (Flyover waits 15 seconds, the classic
+dashboard 10). Each model call itself has zero client retries. Risks and verification come
+from the school-scoped rules, including the prerequisite used for a next action.
 
 ### Intent mapping helper (PR #15)
 
@@ -860,6 +867,11 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D06-BE-assistant-fallback: `POST /assistant` retries intent matching once
+  (two 4-second tries) and, if the model still can't answer, explains the selected task from
+  the rules instead of returning the generic error. Question checks run again on that path.
+  Flyover's client waits 15 seconds.
 
 - 2026-11-17, STU-D06-BE-assistant-page-context: optional `page_context` on
   `POST /assistant` (`journey`, `readiness`, `airshow` or null), a server-side display hint

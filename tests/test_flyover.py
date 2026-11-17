@@ -194,7 +194,7 @@ def test_airshow_sends_the_workflow_date_and_only_assistant_fields(monkeypatch):
     answer = ask_airshow('http://api', data, '  Why is my ID blocked?  ', 'task_dmv_id')
     (url, kw), = calls
     assert url == 'http://api/assistant'
-    assert kw['timeout'] == 10
+    assert kw['timeout'] == 15  # the API answers within ~8 s, retry included
     assert kw['json']['question'] == 'Why is my ID blocked?'
     assert kw['json']['as_of'] == data['as_of']
     # POST /assistant rejects these, and they must never leave the dashboard.

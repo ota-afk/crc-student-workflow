@@ -210,3 +210,7 @@
   and inheriting its priority, then Ready/In Progress/Blocked) and the "Now" / "Up next"
   cards in Before you take off (`flyover.py`, `style.css`). Tests in `tests/test_flyover.py`
   and `tests/test_flyover_live_api.py`.
+
+- STU-D06-BE-assistant-fallback (Nov 17 2026): AI assistance (Claude Code) added one intent
+  retry and the selected-step fallback to `POST /assistant` (`assistant.py`), Flyover's 15-second
+  chat timeout (`flyover_client.py`), the contract text and tests in `tests/test_api_assistant.py`.
