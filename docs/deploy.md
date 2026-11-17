@@ -4,16 +4,16 @@ Both services run on Render's free plan, set up from [`render.yaml`](../render.y
 "Blueprint": one file that describes both services). Only the BE owner's Render account is
 used; teammates don't need one.
 
-**Status (2026-11-16): not deployed yet.** `render.yaml` and this guide are on `main` (#21), so
-pick the branch `main` in the Blueprint step below. The dashboard on `main` doesn't send the API
-key yet (FE's change), so deploy and smoke test the API first.
+**Status (2026-11-16): deployed from `main`.** The API passed the full smoke test. The dashboard
+is up, but its calls get `401` until FE's change that sends the API key is on `main`; Render
+redeploys it by itself once that merges and CI passes.
 
 ## Live URLs
 
 | Service | URL |
 | --- | --- |
-| API | Not deployed yet. Add `https://<name>.onrender.com` here after the first deploy. |
-| Dashboard | Not deployed yet. Add it here after the first deploy. |
+| API | https://crc-workflow-api.onrender.com |
+| Dashboard | https://crc-workflow-dashboard.onrender.com |
 
 ## Before the first deploy: the dashboard must send the API key
 
