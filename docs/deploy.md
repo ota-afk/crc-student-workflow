@@ -160,7 +160,7 @@ fresh one. `/health` is never limited.
   dashboard (https, no trailing path) and that the API's `/health` answers.
 - **Smoke test says `no key gave 200, not 401`.** `API_KEY` is empty on the API: set it.
 - **Smoke test says `GET /workflow returned mock data`.** Set `USE_MOCK=false` on the API.
-- **First deploy: check the log once.** Confirm the API's log shows `Uvicorn running on
-  http://0.0.0.0:<port>` with Render's port, not 8000. These start commands were tested in a
-  clean copy on a laptop, but not yet on Render itself.
+- **A service won't start after a `render.yaml` change.** Check its log: the API should show
+  `Uvicorn running on http://0.0.0.0:<port>` with Render's port, not 8000. Both start commands
+  have run on Render since the first deploy (Nov 2026).
 - **Smoke test gets `401` on `/schools`.** The `API_KEY` you passed doesn't match the API's.

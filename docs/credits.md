@@ -309,3 +309,7 @@
   shared status control, "more info included here" evidence, office source links, and action
   links named for their destination (`flyover.py`, new `flyover_checklist.py`, `style.css`),
   with tests. Official pages were checked by web fetch where reachable; no rules data changed.
+
+- STU-D07-BE-deploy-docs (Nov 17 2026): AI assistance (Claude Code) checked both live
+  services' health endpoints and updated the README status and a deploy troubleshooting line
+  that still said nothing was deployed. Docs only.

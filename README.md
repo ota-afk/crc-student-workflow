@@ -4,9 +4,9 @@ A dashboard that shows an international student at Cosumnes River College which 
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
 workflow and a Streamlit dashboard displays it.
 
-**Status (2026-11-16):** `main` has the resolver, ENG's rules, school search, the live
-workflow endpoints, the API key, the rate limit, the CI end-to-end test and the deploy setup
-(#20, #21 and #22). Cited visit details are in review (#23). Nothing is deployed yet.
+**Status (2026-11-17):** both services are deployed on Render from `main`: the API and the
+Flyover dashboard (live links in [docs/deploy.md](docs/deploy.md#live-urls)). Every merge to
+`main` redeploys them once CI passes.
 [docs/contract.md](docs/contract.md) marks what is on `main`, in review, or proposed.
 
 How it works:
@@ -20,8 +20,7 @@ How it works:
 - `GET /workflow` serves the sample file (`data/mock/workflow.mock.json`, `is_mock: true`) while
   `USE_MOCK=true`, the local default. `POST /assistant` uses OpenAI when the API has
   `OPENAI_API_KEY` and `OPENAI_MODEL`, and returns a safe fallback message without them.
-- Set up for Render's free plan ([docs/deploy.md](docs/deploy.md)); the live URLs go there
-  after the first deploy.
+- Runs on Render's free plan ([docs/deploy.md](docs/deploy.md) has the live URLs and setup).
 
 ## First-time setup
 
