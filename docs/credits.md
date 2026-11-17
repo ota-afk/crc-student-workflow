@@ -253,3 +253,9 @@
 - STU-D07-FE-profile-page (Nov 17 2026): AI assistance (Claude Code) added Flyover's session
   profile dashboard and the opt-in email line in handoffs (`flyover.py`, `style.css`), with
   tests in `tests/test_flyover_live_api.py`.
+
+- STU-D07-BE-office-hours (Nov 17 2026): office hours researched by Claude (claude.ai web search,
+  official pages only, first check) and added by Claude Code to `data/rules/rules.json` and
+  `docs/sources.md` (ENG's files, named by the owner) as needs_verification, with the
+  `offices` models and validation (`rules.py`), response (`contract.py`), engine scoping and
+  `in_effect`, contract text and `tests/test_offices.py`.

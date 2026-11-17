@@ -53,7 +53,11 @@
             "rule_id": "rule_crc_international_appointment"
           }
         ]
-      }
+      },
+      "offices": [
+        "crc_international_students",
+        "crc_admissions_records"
+      ]
     },
     {
       "id": "task_proof_of_residency",
@@ -139,7 +143,11 @@
             "rule_id": "rule_dmv_real_id_booking"
           }
         ]
-      }
+      },
+      "offices": [
+        "dmv_sacramento_south",
+        "dmv_sacramento"
+      ]
     },
     {
       "id": "task_bank_account",
@@ -157,6 +165,10 @@
       "prerequisites": [],
       "rule_ids": [
         "rule_dso_sevis_confirmation_referral"
+      ],
+      "offices": [
+        "crc_international_students",
+        "crc_admissions_records"
       ]
     },
     {
@@ -166,6 +178,9 @@
       "prerequisites": [],
       "rule_ids": [
         "rule_crc_fall_2026_payment_deadline"
+      ],
+      "offices": [
+        "crc_business_services"
       ]
     }
   ],
@@ -501,6 +516,297 @@
       "second_checker": null,
       "second_check_date": null,
       "verification_status": "needs_verification"
+    }
+  ],
+  "offices": [
+    {
+      "office_id": "crc_international_students",
+      "name": "CRC International Students Office",
+      "school_id": "crc",
+      "address": null,
+      "period_note": "No hours published on the office page (checked 2026-11-17).",
+      "weekly_hours": null,
+      "closures": [],
+      "source_url": "https://crc.losrios.edu/student-resources/support-services/international-students-office",
+      "evidence": "Or call (916) 691-7411 to schedule an appointment with an International Admissions Advisor.",
+      "retrieved_on": "2026-11-17",
+      "verification_status": "needs_verification",
+      "checked_by": "Claude (AI web research for the team), 2026-11-17; second check pending",
+      "notes": "No hours, room or address on the page. Appointments by phone at (916) 691-7411 or crc-internationalstudents@crc.losrios.edu. The page says to see the International Student Advisor in Admissions & Records."
+    },
+    {
+      "office_id": "crc_admissions_records",
+      "name": "CRC Admissions and Records Office",
+      "school_id": "crc",
+      "address": "College Center, CC 151, 8401 Center Parkway, Sacramento, CA 95823",
+      "valid_from": "2026-08-03",
+      "valid_to": "2026-12-22",
+      "period_note": "Fall 2026 hours, August 3 to December 22, 2026, as dated on the page.",
+      "weekly_hours": [
+        {
+          "day": "Monday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Tuesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Wednesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Thursday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Friday",
+          "open": "08:00",
+          "close": "16:30",
+          "mode": "in_person",
+          "appointment": "unknown"
+        }
+      ],
+      "closures": [
+        {
+          "date": "2026-09-07",
+          "note": "Labor Day: 'offices will be closed' (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-11",
+          "note": "Veterans Day (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-26",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-27",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-28",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-29",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        }
+      ],
+      "source_url": "https://crc.losrios.edu/admissions/admissions-and-records-office",
+      "evidence": "Fall Hours August 3 to December 22, 2026 Monday to Thursday: 8:00 am to 5:00 pm Friday: 8:00 am to 4:30 pm",
+      "retrieved_on": "2026-11-17",
+      "verification_status": "needs_verification",
+      "checked_by": "Claude (AI web research for the team), 2026-11-17; second check pending",
+      "notes": "The International Students Office page says to see the International Student Advisor in Admissions & Records, but doesn't say the advisor keeps these hours. In person assumed from the listed location (College Center, CC 151); the page doesn't say. Phone (916) 691-7411."
+    },
+    {
+      "office_id": "crc_business_services",
+      "name": "CRC Business Services Office",
+      "school_id": "crc",
+      "address": "College Center, first floor, 8401 Center Parkway, Sacramento, CA 95823",
+      "period_note": "Current hours with no date range, seen 2026-11-17; may differ from August 2026.",
+      "weekly_hours": [
+        {
+          "day": "Monday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Tuesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Wednesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Thursday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Friday",
+          "open": "08:00",
+          "close": "16:30",
+          "mode": "in_person",
+          "appointment": "unknown"
+        }
+      ],
+      "closures": [
+        {
+          "date": "2026-09-07",
+          "note": "Labor Day: 'offices will be closed' (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-11",
+          "note": "Veterans Day (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-26",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-27",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-28",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        },
+        {
+          "date": "2026-11-29",
+          "note": "Thanksgiving Recess (CRC Fall 2026 Academic Calendar)"
+        }
+      ],
+      "source_url": "https://crc.losrios.edu/student-resources/support-services/business-services",
+      "evidence": "In-Person Hours Monday to Thursday: 8:00 am to 5:00 pm Friday: 8:00 am to 4:30 pm",
+      "retrieved_on": "2026-11-17",
+      "verification_status": "needs_verification",
+      "checked_by": "Claude (AI web research for the team), 2026-11-17; second check pending",
+      "notes": "Takes in-person payments by check, cash or credit card (fee payment deadlines page). An older copy of the page showed different hours, so they have changed before. (916) 691-7323, crc-businessservices@crc.losrios.edu."
+    },
+    {
+      "office_id": "dmv_sacramento_south",
+      "name": "California DMV, Sacramento South",
+      "school_id": "crc",
+      "address": "7775 La Mancha Way, Sacramento, CA 95823",
+      "period_note": "Current hours from the page’s two-week schedule (Nov 15–28, 2026); the August 2026 schedule is not available.",
+      "weekly_hours": [
+        {
+          "day": "Monday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Tuesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Wednesday",
+          "open": "09:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Thursday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Friday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        }
+      ],
+      "closures": [
+        {
+          "date": "2026-11-26",
+          "note": "Shown as 'closed' on the page"
+        },
+        {
+          "date": "2026-11-27",
+          "note": "Shown as 'closed' on the page"
+        }
+      ],
+      "source_url": "https://www.dmv.ca.gov/portal/field-office/sacramento-south/",
+      "evidence": "Monday Nov. 16 8am-5pm Tuesday Nov. 17 8am-5pm Wednesday Nov. 18 9am-5pm Thursday Nov. 19 8am-5pm Friday Nov. 20 8am-5pm Saturday Nov. 21 closed",
+      "retrieved_on": "2026-11-17",
+      "verification_status": "needs_verification",
+      "checked_by": "Claude (AI web research for the team), 2026-11-17; second check pending",
+      "notes": "First office the DMV locations search lists for CRC's address. Lists 'Licensing Services'; doesn't name REAL ID. Wait times shown for 'appt' and 'no appt'. Self-serve kiosk."
+    },
+    {
+      "office_id": "dmv_sacramento",
+      "name": "California DMV, Sacramento (Broadway)",
+      "school_id": "crc",
+      "address": "4700 Broadway, Sacramento, CA 95820",
+      "period_note": "Current hours from the page’s two-week schedule (Nov 15–28, 2026); the August 2026 schedule is not available.",
+      "weekly_hours": [
+        {
+          "day": "Monday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Tuesday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Wednesday",
+          "open": "09:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Thursday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        },
+        {
+          "day": "Friday",
+          "open": "08:00",
+          "close": "17:00",
+          "mode": "in_person",
+          "appointment": "unknown"
+        }
+      ],
+      "closures": [
+        {
+          "date": "2026-11-26",
+          "note": "Shown as 'closed' on the page"
+        },
+        {
+          "date": "2026-11-27",
+          "note": "Shown as 'closed' on the page"
+        }
+      ],
+      "source_url": "https://www.dmv.ca.gov/portal/field-office/sacramento/",
+      "evidence": "Monday Nov. 16 8am-5pm Tuesday Nov. 17 8am-5pm Wednesday Nov. 18 9am-5pm Thursday Nov. 19 8am-5pm Friday Nov. 20 8am-5pm Saturday Nov. 21 closed",
+      "retrieved_on": "2026-11-17",
+      "verification_status": "needs_verification",
+      "checked_by": "Claude (AI web research for the team), 2026-11-17; second check pending",
+      "notes": "Third in the DMV's results for CRC's address (the second, Sacramento-Florin, is an Industry Business Center for vehicle-industry customers). Lists 'Licensing Services' and 'Interpreter Services'."
     }
   ]
 }
