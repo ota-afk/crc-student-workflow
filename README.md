@@ -82,6 +82,11 @@ Profile setup opens pre-filled. There are no accounts: the email stays in the br
 and never reaches the API or the model. Settings shows the masked address and Sign out, which
 clears the session.
 
+**Your profile** (under Profile setup, or in Settings) is a dashboard for this session: the
+sign-in answers, how long since arrival, progress by status from the API, the next step,
+your free times, and an "Include my email in handoffs" switch (off by default) that adds a
+Contact line to handoffs you export. Nothing on it is sent anywhere.
+
 On a first visit a spotlight tour dims the page and walks through page 1 one control at a
 time (profile, Generate, the current step, View checklist, AI Help, Next, Settings), with Back,
 Next, Skip and Escape. It only explains; it never changes anything. The tab remembers it was

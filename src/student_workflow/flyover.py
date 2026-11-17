@@ -78,7 +78,8 @@ def esc(value) -> str:
 
 
 def go(page: str, task_id: str | None = None) -> None:
-    st.session_state['flyover_page'] = 'home' if page == 'home' else 'readiness'
+    # 'assistant' (Skip to Airshow) lives on the readiness page.
+    st.session_state['flyover_page'] = {'home': 'home', 'profile': 'profile'}.get(page, 'readiness')
     st.session_state['flyover_scroll'] = ('airshow' if page == 'assistant'
                                           else 'checklist' if task_id else 'top')
     if task_id:
@@ -112,6 +113,9 @@ def settings() -> None:
         st.rerun()
     if account := st.session_state.get('flyover_account'):
         st.caption('Signed in as ' + masked(account['email']))
+        if st.button('Your profile', key='flyover_settings_profile', icon=':material/badge:',
+                     on_click=go, args=('profile',)):
+            st.rerun()
         if st.button('Sign out', key='flyover_sign_out', on_click=sign_out):
             st.rerun()
     if st.button('Done', key='flyover_settings_done', type='primary'):
@@ -139,7 +143,7 @@ def _header():
 def _chat_context(data: dict, page: str) -> tuple[str, str | None]:
     """(page_context, task_id) for the dropdown: the page it is opened on and the task in view."""
     tasks = data['workflow']
-    if page == 'home':
+    if page in ('home', 'profile'):
         current = active_task(tasks)
         return 'journey', current['id'] if current else None
     # Page 2: the task chosen in "Your checklist", else the current one.
@@ -328,6 +332,8 @@ def _profile(data: dict, api_url: str) -> None:
                             st.session_state['flyover_flash'] = 'Your new workflow is ready to explore.'
                             st.rerun()
             st.caption('No names, document numbers or uploads. Your profile stays in this session.')
+            st.button('View your profile', key='flyover_open_profile', type='tertiary',
+                      icon=':material/badge:', on_click=go, args=('profile',))
 
 
 def _save_status(api_url: str, task_id: str) -> None:
@@ -868,6 +874,64 @@ def _readiness(data: dict, api_url: str) -> None:
         _prereq_dialog(by_id[opened], by_id)
 
 
+def _handoff_contact() -> str:
+    """' Contact: <email>' when the student switched it on in their profile; '' otherwise."""
+    account = st.session_state.get('flyover_account') or {}
+    if st.session_state.get('flyover_handoff_email') and account.get('email'):
+        return ' Contact: ' + account['email']
+    return ''
+
+
+def _keep_handoff_email() -> None:
+    st.session_state['flyover_handoff_email'] = st.session_state['flyover_handoff_email_widget']
+
+
+def _profile_page(data: dict) -> None:
+    """The profile dashboard: this session's answers, progress and handoff choices."""
+    profile, tasks = data['student_profile'], data['workflow']
+    st.button('Back to my journey', key='flyover_profile_back', on_click=go, args=('home',),
+              icon=':material/west:', type='tertiary')
+    with st.container(key='fly_profile_page'):
+        st.subheader('Your profile')
+        if account := st.session_state.get('flyover_account'):
+            st.caption('Signed in as ' + masked(account['email']))
+        arrival = date.fromisoformat(profile['arrival_date'])
+        days = (date.fromisoformat(data['as_of']) - arrival).days
+        since = f'{days} days ago' if days >= 0 else f'in {-days} days'
+        facts = [('School', profile['institution']), ('Visa type', profile['visa_type']),
+                 ('Arrival date', f'{arrival:%B} {arrival.day}, {arrival.year} · {since}'),
+                 ('Has an SSN', 'Yes' if profile['has_ssn'] else 'No')]
+        st.html('<dl class="fly-facts">' + ''.join(
+            f'<dt>{esc(label)}</dt><dd>{esc(value)}</dd>' for label, value in facts) + '</dl>')
+        st.button('Edit in Profile setup', key='flyover_profile_edit', on_click=go,
+                  args=('home',), icon=':material/edit:')
+    with st.container(key='fly_profile_progress'):
+        st.subheader('Progress')
+        columns = st.columns(4)
+        for column, status in zip(columns, ('Completed', 'In Progress', 'Ready', 'Blocked'),
+                                  strict=True):
+            column.metric(status, sum(task['status'] == status for task in tasks))
+        if upcoming := active_task(tasks):
+            st.markdown(f'**Next step:** {upcoming["title"]}')
+            st.button('Open its checklist', key='flyover_profile_next', type='primary',
+                      on_click=go, args=('readiness', upcoming['id']))
+        else:
+            st.success('Every step is completed.')
+    with st.container(key='fly_profile_more'):
+        st.subheader('Free times and handoffs')
+        windows = _windows()
+        st.write('Free times: ' + (describe_windows(windows) if windows else
+                                   'none yet. Add them under the appointment notice on page 1.'))
+        # Streamlit forgets a widget's value once it's off screen, so the choice is copied to
+        # its own key (like Settings' toggles) and survives going back to the other pages.
+        st.toggle('Include my email in handoffs', key='flyover_handoff_email_widget',
+                  value=bool(st.session_state.get('flyover_handoff_email')),
+                  on_change=_keep_handoff_email,
+                  help='Adds a Contact line to handoffs you generate and export. Off by default; '
+                       'nothing is sent anywhere.')
+    st.caption('Everything here lives in this browser session. Sign out (in Settings) clears it.')
+
+
 def _handoff(data: dict, goal: str, professional: str, office: str = '') -> dict:
     # office = the student's own label for "Another office"; '' for the preset professionals.
     profile = data['student_profile']
@@ -883,7 +947,8 @@ def _handoff(data: dict, goal: str, professional: str, office: str = '') -> dict
     return {'title': title, 'sections': [
         ('Who I am', [(f'{profile["visa_type"]} student at {profile["institution"]}. Arrived '
                        f'{arrival:%B} {arrival.day}, {arrival.year}. '
-                       f'{"Has an" if profile["has_ssn"] else "No"} SSN. Name: [YOUR NAME]')]),
+                       f'{"Has an" if profile["has_ssn"] else "No"} SSN. Name: [YOUR NAME]'
+                       + _handoff_contact())]),
         ('What I’m here to do', [goal]),
         ('Where I am', [f'Done: {titles("Completed")}', f'In progress: {titles("In Progress")}',
                         f'Blocked: {titles("Blocked")}']),
@@ -918,7 +983,9 @@ def _clear_handoff() -> None:
 def _assistant(data: dict, api_url: str) -> None:
     st.html(flight_scene(static=bool(st.session_state.get('flyover_reduce_motion'))))
     with st.container(key='fly_airshow'):
-        context = json.dumps([st.session_state.get('flyover_detail'), data['student_profile']], sort_keys=True)
+        # Includes the email switch, so turning it on or off clears an older handoff.
+        context = json.dumps([st.session_state.get('flyover_detail'), data['student_profile'],
+                              bool(st.session_state.get('flyover_handoff_email'))], sort_keys=True)
         if st.session_state.get('flyover_handoff_context') != context:
             st.session_state.pop('flyover_handoff', None)
             st.session_state['flyover_handoff_context'] = context
@@ -1011,6 +1078,8 @@ def render_app() -> None:
         elif data['student_profile'].get('school_verified') is not True:
             st.caption('School-specific guidance is not verified. Confirm requirements with your DSO.')
         _workflow(data, api_url)
+    elif page == 'profile':
+        _profile_page(data)
     else:
         _readiness(data, api_url)
         _assistant(data, api_url)
