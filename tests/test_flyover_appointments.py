@@ -62,7 +62,7 @@ def test_windows_are_sorted_by_day_then_time():
     merged = normalize_windows([_w('Friday', (9, 0), (10, 0)), _w('Monday', (14, 0), (15, 0)),
                                 _w('Monday', (8, 0), (9, 0))])
     assert describe_windows(merged) == (
-        'Monday 08:00–09:00, Monday 14:00–15:00, Friday 09:00–10:00')
+        'Monday 8:00 AM–9:00 AM, Monday 2:00 PM–3:00 PM, Friday 9:00 AM–10:00 AM')
 
 
 @pytest.mark.parametrize('end', [(9, 0), (8, 0)])
@@ -97,7 +97,7 @@ WEEK = [('Monday', '08:00:00', '17:00:00'), ('Tuesday', '08:00:00', '17:00:00'),
 def test_hours_summary_groups_consecutive_equal_days():
     from student_workflow.flyover_appointments import hours_summary
     assert hours_summary(_office(WEEK)) == (
-        'Mon–Tue 08:00–17:00 · Wed 09:00–17:00 · Fri 08:00–16:30')
+        'Mon–Tue 8:00 AM–5:00 PM · Wed 9:00 AM–5:00 PM · Fri 8:00 AM–4:30 PM')
     assert hours_summary(_office(None)) == 'No hours published'
 
 
@@ -122,3 +122,10 @@ def test_match_lines_are_honest_about_each_case():
     assert 'publishes no hours' in match_line(_office(None), monday)
     assert "not your workflow's date" in match_line(_office(WEEK, in_effect=False), monday)
     assert 'may differ' in match_line(_office(WEEK, in_effect=None), monday)
+
+
+@pytest.mark.parametrize(('moment', 'shown'), [((0, 0), '12:00 AM'), ((8, 0), '8:00 AM'),
+                                               ((12, 30), '12:30 PM'), ((16, 30), '4:30 PM')])
+def test_times_use_the_12_hour_clock(moment, shown):
+    from student_workflow.flyover_appointments import clock
+    assert clock(time(*moment)) == shown

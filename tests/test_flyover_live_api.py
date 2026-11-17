@@ -375,10 +375,10 @@ def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
 def test_free_times_are_matched_against_published_office_hours(live):
     app = add_free_time(signed_in_app(APP), 'Monday', (7, 0), (9, 30))
     captions = values(app.caption)
-    assert 'Your free times: Monday 07:00–09:30.' in captions
+    assert 'Your free times: Monday 7:00 AM–9:30 AM.' in captions
     # Admissions & Records opens at 08:00 on Mondays (Fall 2026 hours, in effect on the demo date).
     assert any(c.startswith("Your free times overlap CRC Admissions and Records Office's "
-                            'published hours: Monday 08:00–09:30.') for c in captions)
+                            'published hours: Monday 8:00 AM–9:30 AM.') for c in captions)
     # The International Students Office publishes none, and the notice says so.
     assert ('CRC International Students Office publishes no hours: check with the office '
             'before you go.') in captions
@@ -508,5 +508,38 @@ def test_checklist_lists_the_tasks_offices_with_their_hours(live):
     shown = values(app.markdown)
     assert '#### Office hours' in shown
     assert '**California DMV, Sacramento South** :orange-badge[Not verified]' in shown
-    assert 'Mon–Tue 08:00–17:00 · Wed 09:00–17:00 · Thu–Fri 08:00–17:00 (Pacific time)' in values(
-        app.get('markdown')) or any('Wed 09:00–17:00' in v for v in values(app.markdown))
+    assert ('Mon–Tue 8:00 AM–5:00 PM · Wed 9:00 AM–5:00 PM · Thu–Fri 8:00 AM–5:00 PM '
+            '(Pacific time)') in shown
+
+
+def test_sources_have_readable_names_not_rule_ids(live):
+    app = open_checklist(signed_in_app(APP), 'task_school_checkin')
+    html = ' '.join(values(app.get('html')))
+    assert 'Cosumnes River College · International students office' in html
+    assert 'Not double-checked by our team yet' in html
+    assert 'rule_crc_arrival_reporting<' not in html and 'Source date' not in html
+
+
+def test_the_checklist_explains_not_verified_once(live):
+    app = open_checklist(signed_in_app(APP), DMV)
+    notes = [v for v in values(app.get('html')) if 'means our team hasn' in str(v)]
+    assert len(notes) == 1
+
+
+def test_an_office_without_hours_says_so_without_a_time_zone(live):
+    app = open_checklist(signed_in_app(APP), 'task_school_checkin')
+    assert 'No hours published' in values(app.markdown)
+    assert 'No hours published (Pacific time)' not in values(app.markdown)
+
+
+@pytest.mark.parametrize(('url', 'label'), [
+    ('https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/what-is-real-id/',
+     'California DMV · What is REAL ID'),
+    ('https://www.ssa.gov/locator', 'Social Security · Locator'),
+    ('https://www.dmv.ca.gov/portal/driver-education-and-safety/educational-materials/fast-facts/'
+     'social-security-number-ffdl-8/', 'California DMV · Social security number'),
+    (None, 'Official source'),
+])
+def test_source_labels(url, label):
+    from student_workflow.flyover import source_label
+    assert source_label(url) == label

@@ -276,3 +276,8 @@
 - STU-D07-reminder-status (Nov 17 2026): AI assistance (Claude Code) added the reminder status
   route (`api.py`, `notifications.py`, `contract.py`) and Flyover's "Check status" with
   plain-language results (`flyover.py`, `flyover_client.py`), with tests.
+
+- STU-D07-FE-readable-text (Nov 17 2026): AI assistance (Claude Code) made Flyover's checklist
+  readable for new users: named sources instead of rule IDs, plain verification wording, a
+  "Not verified" explanation, 12-hour times, darker captions, no heading link icons
+  (`flyover.py`, `flyover_appointments.py`, `style.css`), with tests.

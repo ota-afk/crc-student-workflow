@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 from datetime import date, datetime, time, timedelta
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 import requests
@@ -36,7 +37,6 @@ from .flyover_state import (
 from .flyover_tour import tour_script
 from .frontend import safe_url, source_verified
 from .frontend_state import sync_profile_context
-from .frontend_views import render_sources
 
 PILLS = {'Completed': ('done', '✓'), 'In Progress': ('progress', '◐'),
          'Blocked': ('blocked', '✕'), 'Ready': ('ready', '▶')}
@@ -612,7 +612,8 @@ def _office_hours(task: dict) -> None:
         st.markdown(f'**{office["name"]}**{badge}')
         if office.get('address'):
             st.caption(office['address'])
-        st.write(hours_summary(office) + ' (Pacific time)')
+        summary = hours_summary(office)
+        st.write(summary if summary == 'No hours published' else summary + ' (Pacific time)')
         st.caption(office['period_note'])
         if windows:
             st.caption(match_line(office, windows))
@@ -622,6 +623,8 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
     st.markdown('### ' + task['title'])
     st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
             f'<span class="gate-priority">{esc(task["priority"])}</span></div>')
+    st.html('<p class="fly-note"><b>Not verified</b> means our team hasn\'t double-checked that '
+            'detail with the official source yet. Use it to plan, and confirm with the office.</p>')
     for blocker in task.get('blockers') or []:
         st.warning(blocker['explanation'])
         if blocker.get('unlocks_on'):
@@ -640,7 +643,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         st.html('<p class="fly-note">No document list on file yet. Ask the office what to bring.</p>')
     details, sources = st.columns([1, 1], gap='large')
     with details:
-        st.markdown('#### Visit details')
+        st.markdown('#### Before you visit')
         missing = []
         for label, field in VISIT_FACTS:
             if not (value := guide.get(field)):
@@ -657,8 +660,8 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         if link := safe_url(guide.get('official_url')):
             st.link_button('Official visit information', link)
     with sources:
-        st.markdown('#### Sources and verification')
-        render_sources(task.get('sources') or [])
+        st.markdown('#### Where this information comes from')
+        st.html(f'<div class="fly-sheet">{_source_rows(task.get("sources") or [])}</div>')
     for warning in guide.get('warnings') or []:
         st.warning(warning)
     _resolve_section(task, api_url)
@@ -846,17 +849,48 @@ def _open_prereqs(task_id: str) -> None:
     st.session_state['flyover_quote'] = st.session_state.get('flyover_quote', -1) + 1
 
 
+SITE_NAMES = {
+    'crc.losrios.edu': 'Cosumnes River College', 'losrios.edu': 'Los Rios Colleges',
+    'dmv.ca.gov': 'California DMV', 'ssa.gov': 'Social Security', 'i94.cbp.dhs.gov': 'U.S. CBP (I-94)',
+    'cbp.gov': 'U.S. Customs and Border Protection', 'fmjfee.com': 'SEVIS I-901 fee site',
+    'studyinthestates.dhs.gov': 'Study in the States (DHS)', 'ice.gov': 'U.S. ICE',
+}
+
+
+ACRONYMS = {'real id': 'REAL ID', 'id': 'ID', 'ssn': 'SSN', 'sevis': 'SEVIS', 'dmv': 'DMV',
+            'crc': 'CRC', 'i94': 'I-94', 'i 94': 'I-94', 'f 1': 'F-1'}
+
+
+def source_label(url: str | None) -> str:
+    """'Cosumnes River College · International students office', instead of a rule ID."""
+    if not (link := safe_url(url)):
+        return 'Official source'
+    host = urlsplit(link).hostname.removeprefix('www.')
+    site = SITE_NAMES.get(host) or next(
+        (name for domain, name in SITE_NAMES.items() if host.endswith('.' + domain)), host)
+    page = [part for part in urlsplit(link).path.split('/') if part]
+    words = page[-1].replace('-', ' ').replace('_', ' ').strip() if page else ''
+    words = re.sub(r'(\s+[a-z]{2,5}\s?\d+)+$', '', words)  # drop form codes like "ffdl 8"
+    # Keep the acronyms students know in capitals ("REAL ID", "SSN"), not "real id".
+    words = re.sub(r'\b(real id|id|ssn|sevis|dmv|crc|i94|i 94|f 1)\b',
+                   lambda m: ACRONYMS[m.group(1)], words)
+    return f'{site} · {words[:1].upper()}{words[1:]}' if words else site
+
+
 def _source_rows(sources: list[dict]) -> str:
     rows = []
     for source in sources:
         url = safe_url(source.get('url'))
-        label = esc(source.get('rule_id') or 'Official source')
+        label = esc(source_label(source.get('url')))
         link = (f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">{label}</a>'
                 if url else f'<span>{label}</span>')
-        tag = ('<span class="fly-tag ok">Verified</span>' if source_verified(source)
-               else '<span class="fly-tag">⚠ Not verified</span>')
-        when = esc(source.get('last_verified') or 'not recorded')
-        rows.append(f'<div class="fly-src"><div>{link}<small>Source date: {when}</small></div>{tag}</div>')
+        if source_verified(source):
+            tag = '<span class="fly-tag ok">Verified</span>'
+            when = f'Double-checked by our team on {esc(source.get("last_verified"))}'
+        else:
+            tag = '<span class="fly-tag">⚠ Not verified</span>'
+            when = 'Not double-checked by our team yet'
+        rows.append(f'<div class="fly-src"><div>{link}<small>{when}</small></div>{tag}</div>')
     return ''.join(rows) or '<p class="fly-muted">No sources on file. Confirm with the office.</p>'
 
 
