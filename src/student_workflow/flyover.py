@@ -277,7 +277,9 @@ def _profile(data: dict, api_url: str) -> None:
                             if school_id else 'School not listed', 'visa_type': visa,
                             'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes'}
                         try:
-                            result = client.generate_workflow(api_url, profile, changes)
+                            # The spinner is the feedback; the page itself no longer dims.
+                            with st.spinner('Building your workflow…'):
+                                result = client.generate_workflow(api_url, profile, changes)
                         except (requests.RequestException, ValueError):
                             st.error('Could not generate your workflow. Your progress has been kept. Try again.')
                         else:

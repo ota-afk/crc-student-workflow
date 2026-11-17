@@ -10,6 +10,9 @@
   --fly-ease:cubic-bezier(.28,.11,.32,1);
 }
 .stApp { background:var(--flyover-paper); color:var(--flyover-ink); }
+/* No flicker: Streamlit fades every element out while it redraws ("stale") and back in after,
+   so each click flashed the whole page. Keep it solid; spinners give the feedback instead. */
+.stApp [data-stale="true"] { opacity:1!important; transition:none!important; }
 .stApp, .stApp input, .stApp button, .stApp textarea, .stApp p, .stApp li, .stApp label { font-family:var(--fly-body); }
 [data-testid="stHeader"] { display:none; }
 [data-testid="stMain"] { overflow-x:hidden; }

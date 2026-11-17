@@ -232,3 +232,7 @@
 - STU-D06-FE-typography (Nov 17 2026): AI assistance (Claude Code) set Flyover's headings to
   deep sage, raised every label to at least 0.78rem (12.5px), and eased line height
   (`style.css`, `flyover_tour.py`), with checks in `tests/test_flyover_contrast.py`.
+
+- STU-D07-FE-no-flicker (Nov 17 2026): AI assistance (Claude Code) stopped Streamlit's
+  redraw dimming in Flyover (`style.css`) and added a "Building your workflow…" spinner on
+  Generate (`flyover.py`), with tests in `tests/test_flyover_app.py`.

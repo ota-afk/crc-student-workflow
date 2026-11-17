@@ -324,3 +324,32 @@ def test_office_name_is_html_escaped_on_the_page(monkeypatch):
     html_text = str([e.value for e in app.get('html')])
     assert '<script>x</script>' not in html_text
     assert '&lt;script&gt;' in html_text
+
+
+def test_redraws_do_not_dim_the_page():
+    css = (Path(__file__).resolve().parents[1] / 'app/assets/flyover/style.css').read_text()
+    assert '.stApp [data-stale="true"] { opacity:1!important; transition:none!important; }' in css
+
+
+def test_generate_shows_a_building_spinner(monkeypatch):
+    import contextlib
+
+    import streamlit
+    spinning, seen = [], []
+
+    @contextlib.contextmanager
+    def spinner(text, **kwargs):
+        spinning.append(text)
+        yield
+        spinning.pop()
+
+    monkeypatch.setattr(streamlit, 'spinner', spinner)
+    payload = base_payload()
+    payload['student_profile']['completed_tasks'] = []
+    payload['student_profile']['awaiting_reply'] = []
+    monkeypatch.setattr(requests, 'post', lambda *a, **kw: seen.append(list(spinning))
+                        or FakeResponse(payload))
+    app = app_with(monkeypatch, payload)
+    next(b for b in app.button if b.label == 'Generate workflow').click().run()
+    assert not app.exception
+    assert ['Building your workflow…'] in seen
