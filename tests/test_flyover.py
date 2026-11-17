@@ -8,9 +8,11 @@ import requests
 from test_streamlit import FakeResponse, base_payload
 
 from student_workflow.flyover_client import (
+    ask_airshow,
     change_status,
     fetch_workflow,
     generate_workflow,
+    resolve_blocker,
 )
 from student_workflow.flyover_state import active_task, map_piece_count
 
@@ -116,3 +118,42 @@ def test_map_progress_increases_on_every_completion():
     assert all(a < b for a, b in pairwise(progress))
     assert map_progress(0, 0) == 0
     assert map_progress(1, 1) == 3
+
+
+def test_resolve_sends_profile_date_and_key_and_returns_the_draft(monkeypatch):
+    data = base_payload()
+    calls = []
+    monkeypatch.setenv('API_KEY', 'test-only')
+    monkeypatch.setattr(requests, 'post', lambda url, **kw: calls.append((url, kw)) or FakeResponse(
+        {'workflow': base_payload(), 'email_draft': {'subject': 'Hello', 'body': 'Body'}}))
+    workflow, draft = resolve_blocker('http://api/', data, 'task_dmv_id')
+    (url, kw), = calls
+    assert url == 'http://api/tasks/task_dmv_id/resolve'
+    assert kw['json'] == {'student_profile': data['student_profile'], 'as_of': data['as_of']}
+    assert kw['headers'] == {'X-API-Key': 'test-only'}
+    assert draft == {'subject': 'Hello', 'body': 'Body'}
+    assert workflow['workflow']
+
+
+def test_airshow_sends_the_workflow_date_and_only_assistant_fields(monkeypatch):
+    data = base_payload()
+    calls = []
+    monkeypatch.setattr(requests, 'post', lambda url, **kw: calls.append((url, kw)) or FakeResponse(
+        {'answer': 'Task status: Blocked.', 'steps': [], 'sources': [], 'verified': False,
+         'contact': None, 'task_id': 'task_dmv_id', 'is_mock': False}))
+    answer = ask_airshow('http://api', data, '  Why is my ID blocked?  ', 'task_dmv_id')
+    (url, kw), = calls
+    assert url == 'http://api/assistant'
+    assert kw['timeout'] == 10
+    assert kw['json']['question'] == 'Why is my ID blocked?'
+    assert kw['json']['as_of'] == data['as_of']
+    # POST /assistant rejects these, and they must never leave the dashboard.
+    assert 'student_id' not in kw['json']['student_profile']
+    assert 'school_verified' not in kw['json']['student_profile']
+    assert answer['answer'] == 'Task status: Blocked.'
+
+
+def test_invalid_assistant_answer_is_rejected(monkeypatch):
+    monkeypatch.setattr(requests, 'post', lambda *a, **kw: FakeResponse({'answer': 123}))
+    with pytest.raises(ValueError):
+        ask_airshow('http://api', base_payload(), 'What next?', None)

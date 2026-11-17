@@ -33,8 +33,10 @@ services:
     runtime: python
     plan: free
     buildCommand: uv sync --locked --no-dev
+    # Flyover is the live demo (team decision, Nov 17). The classic dashboard,
+    # app/streamlit_app.py, still runs locally; swap the path back to restore it.
     startCommand: >-
-      uv run --no-sync streamlit run app/streamlit_app.py
+      uv run --no-sync streamlit run app/flyover_app.py
       --server.address 0.0.0.0 --server.port $PORT --server.headless true
     # Streamlit's own health endpoint.
     healthCheckPath: /_stcore/health

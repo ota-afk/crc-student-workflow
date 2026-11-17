@@ -54,8 +54,10 @@ API_URL=http://127.0.0.1:8001 uv run --locked streamlit run app/flyover_app.py -
 ```
 
 Open [Flyover](http://127.0.0.1:8502). `.streamlit/config.toml` supplies the light theme
-and palette. The original dashboard remains at `app/streamlit_app.py` (Render still runs that
-one); its setup and Day 3/4 preview behavior are documented below. After editing files under
+and palette. Render runs Flyover at the live dashboard link
+(https://crc-workflow-dashboard.onrender.com). The original dashboard remains at
+`app/streamlit_app.py` for local runs; its setup and Day 3/4 preview behavior are documented
+below. After editing files under
 `src/`, restart Streamlit: it does not reload those modules on its own.
 
 Flyover has two pages. Page 1 is profile setup over the travel banner and the workflow, one
@@ -63,15 +65,19 @@ step at a time: the step title flips in like a departures board, the status in t
 saves to the live API, and the three-piece flight map fills in behind it. Page 2 (Next,
 View checklist or AI) has Readiness and Before you take off (task left, status centre,
 prerequisite right; a prerequisite opens its documents and sources), a quote card, a
-scroll-driven flight into Airshow, and the handoff template with .txt/.md export.
+scroll-driven flight into Airshow, and the handoff template with .txt/.md export. A blocked
+task's checklist has **Resolve blocker** (`POST /tasks/{task_id}/resolve`), which shows the
+API's email draft and marks the missing step as waiting on an office.
 Statuses and prerequisites remain backend-authoritative. Applying a new profile requires
 explicit confirmation when progress exists. Settings can pause the banner or reduce motion;
 OS reduced-motion preferences are also respected, and browsers without CSS scroll timelines
 show the plane standing still. Profile and progress stay in the Streamlit browser session;
 a new session starts from the demo profile.
 
-Airshow is labeled as a preview: the handoff is a local template, not model-generated
-advice, and no model call is made. Verification warnings and official sources remain
+**Ask Airshow** calls `POST /assistant` with the workflow's `as_of` and progress, so an
+answer reflects "Resolve blocker" and "Mark done"; it never sends `student_id`. A timeout
+shows its own message. The handoff below it is still a local template, not model-generated
+advice, and is labeled that way. Verification warnings and official sources remain
 visible. Generated-art provenance and prompts are in
 [`app/assets/flyover/README.md`](app/assets/flyover/README.md).
 

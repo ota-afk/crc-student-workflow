@@ -15,6 +15,13 @@ walked through against the live API (results in [release-checklist.md](release-c
 | API | https://crc-workflow-api.onrender.com |
 | Dashboard | https://crc-workflow-dashboard.onrender.com |
 
+The dashboard service runs **Flyover** (`app/flyover_app.py`), the team's demo since Nov 17.
+Flyover's client (`src/student_workflow/flyover_client.py`) sends the same `X-API-Key` and
+calls the same endpoints, including `POST /assistant`, so it needs no extra settings. Changing
+`startCommand` in `render.yaml` reaches Render through the Blueprint: if the service's
+**Settings** page still shows the old command after the merge deploys, click **Manual sync**
+on the Blueprint page.
+
 ## The dashboard and the API key
 
 The deployed API needs the `X-API-Key` header on every endpoint except `/health`
