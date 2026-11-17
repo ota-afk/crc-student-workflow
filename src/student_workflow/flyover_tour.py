@@ -53,7 +53,7 @@ _CSS = """
  border-radius:18px;padding:18px 20px;box-shadow:0 18px 44px rgba(0,0,0,.28);transition:all .25s ease}
 .fly-tour-card h2{font-family:Fredoka,Nunito,system-ui,sans-serif;font-size:1.25rem;margin:2px 0 6px;color:#28323C}
 .fly-tour-card p{margin:0;font-size:.95rem;line-height:1.45}
-.fly-tour-count{font-size:.72rem!important;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#57616C}
+.fly-tour-count{font-size:.78rem!important;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#57616C}
 .fly-tour-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .fly-tour-actions button{font:inherit;font-weight:800;border-radius:10px;padding:8px 14px;cursor:pointer;
  border:2px solid #D3DED4;background:#FFFFFF;color:#3D6350;min-height:40px}
