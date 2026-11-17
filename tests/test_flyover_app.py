@@ -574,3 +574,17 @@ def test_reopen_posts_the_profile_without_that_task(monkeypatch):
     profile = sent['body']['student_profile']
     assert done['id'] not in profile['completed_tasks'] + profile['awaiting_reply']
     assert done['id'] in data['student_profile']['completed_tasks']  # the original is a copy
+
+
+def test_the_header_cannot_be_scrolled_out_of_place():
+    """AI Help reruns must not slide the sticky header: only stMain scrolls, and it has no
+    sideways overflow (the full-width header is clipped by the block container)."""
+    css = (Path(__file__).resolve().parents[1] / 'app/assets/flyover/style.css').read_text()
+    assert ('html, body, #root, .stApp, [data-testid="stAppViewContainer"] '
+            '{ overflow:clip!important; }') in css
+    assert 'max-width:none; overflow-x:clip; }' in css
+
+
+def test_the_logo_stays_small_enough_to_resend_on_every_rerun():
+    from student_workflow.flyover_art import logo
+    assert len(logo()) < 200_000  # was 2.4 MB, which the browser blanked while decoding

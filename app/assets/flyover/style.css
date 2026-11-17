@@ -16,7 +16,16 @@
 .stApp, .stApp input, .stApp button, .stApp textarea, .stApp p, .stApp li, .stApp label { font-family:var(--fly-body); }
 [data-testid="stHeader"] { display:none; }
 [data-testid="stMain"] { overflow-x:hidden; }
-[data-testid="stMainBlockContainer"] { padding:0 3.8% 2rem; max-width:1500px; }
+/* Only stMain scrolls. The containers around it can't be scrolled at all, not even by a
+   browser bringing a focused field into view (overflow:clip refuses scripted scrolling,
+   which overflow:hidden still allows); otherwise the sticky header could slide off. */
+html, body, #root, .stApp, [data-testid="stAppViewContainer"] { overflow:clip!important; }
+/* Full width, with the padding that centres the same 1500px column as before. The header
+   reaches the window edges (100vw), which with always-visible scrollbars is a few pixels
+   wider than stMain: clip that here (clip is not a scroll container, so the header still
+   sticks), so stMain has nothing to scroll sideways and AI Help can't slide the header. */
+[data-testid="stMainBlockContainer"] { padding:0 calc(max(0px, (100% - 1500px) / 2) + 3.8%) 2rem;
+  max-width:none; overflow-x:clip; }
 [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] { gap:1.2rem; }
 /* Headings in deep sage: 6.2:1 on the page (sage was 3.1:1, passing only because it's large). */
 .stApp h1, .stApp h2, .stApp h3 { font-family:var(--fly-display); color:var(--flyover-deep); font-weight:600; letter-spacing:-.02em; text-wrap:balance; }
