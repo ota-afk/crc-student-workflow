@@ -6,7 +6,7 @@ from typing import Literal
 from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, ConfigDict
 
-from .contract import Blocker, Source, Task
+from .contract import Blocker, EmailDraft, Source, Task
 
 
 class CitationChoice(BaseModel):
@@ -28,11 +28,6 @@ class TaskExplanation(BaseModel):
     message: str
     next_action: str | None = None
     citations: list[CitedBlocker] = []
-
-
-class EmailDraft(BaseModel):
-    subject: str
-    body: str
 
 
 def validate_citations(
