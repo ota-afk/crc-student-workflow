@@ -18,5 +18,8 @@
   {"q": "my name is Jane Doe and I need an ID", "expect": "rephrase"},
   {"q": "my student ID 12345 and I want a California ID", "expect": "rephrase"},
   {"q": "我可以在校外工作吗", "expect": "dso_referral"},
-  {"q": "Where is the job fair?", "expect": "no_match"}
+  {"q": "Where is the job fair?", "expect": "no_match"},
+  {"q": "How do I work out what I owe for tuition?", "expect": "matched", "task": "task_crc_fee_payment"},
+  {"q": "My SEVIS record was terminated", "expect": "dso_referral"},
+  {"q": "Can I work out of state?", "expect": "dso_referral"}
 ]

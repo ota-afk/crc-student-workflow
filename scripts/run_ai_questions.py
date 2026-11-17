@@ -14,9 +14,9 @@ from pathlib import Path
 from openai import OpenAI
 
 from student_workflow.ai_assistant import map_intent
+from student_workflow.rules import load_rules
 
 ROOT = Path(__file__).resolve().parents[1]
-RISKY = {'task_confirm_sevis_active'}
 
 
 class CountingClient:
@@ -40,10 +40,15 @@ class CountingClient:
 
 
 def load_tasks() -> list[dict]:
-    rules = json.loads((ROOT / 'data/rules/rules.json').read_text(encoding='utf-8'))
+    # Validate required flags and references, then derive risk from cited rules.
+    rules = load_rules()
     return [
-        {'id': t['id'], 'title': t['title'], 'high_risk': t['id'] in RISKY}
-        for t in rules['tasks']
+        {
+            'id': task.id,
+            'title': task.title,
+            'high_risk': any(rules.rule(rule_id).high_risk for rule_id in task.rule_ids),
+        }
+        for task in rules.tasks
     ]
 
 

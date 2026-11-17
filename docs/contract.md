@@ -527,9 +527,9 @@ template to "Resolve blocker". The assistant route and its HTTP response remain 
 
 | Plan item | Where | State |
 | --- | --- | --- |
-| Intent mapping: `map_intent(text, tasks) -> IntentResult` (`matched`, `no_match`, `dso_referral`, `error`) | AI's PR #15, `ai_assistant.py`, at `ddcce8d` | Exists; open, changes requested. Not called by the API. |
-| Privacy filtering | #15: `has_name()` refuses texts that look like they include a name; `scrub()` removes emails, ID-like tokens and long numbers and caps the length | Exists in #15; review comments open. |
-| High-risk referral | #15: `is_high_risk(text)` patterns give `dso_referral`; so does a matched task with `high_risk: true` | Exists in #15. A task without `high_risk` counts as not high risk (review asked for the opposite). The API doesn't pass `high_risk` from the rules yet. |
+| Intent mapping: `map_intent(text, tasks) -> IntentResult` (`matched`, `no_match`, `dso_referral`, `error`) | AI's PR #15, `ai_assistant.py` | Helper in PR #15; not called by the API. |
+| Privacy filtering | #15: `has_name()` and `has_sensitive_data()` refuse detected personal details; `scrub()` adds backup redaction and a length cap | Review regressions covered; patterns cannot guarantee all personal data is detected. Use presets for the demo. |
+| High-risk referral | #15: `is_high_risk(text)` patterns give `dso_referral`; so does a matched task with `high_risk: true` | Missing or non-bool risk flags return `error` before a model call. SEVIS state and employment patterns refer before a model call. API integration remains pending. |
 | Timeout | #15: `timeout=30` on the OpenAI client it creates | Exists in #15. |
 | One retry | #15 sets `max_retries=0` | **Missing** (the plan asks for one retry). |
 | Cited explanations and the citation validator | `src/student_workflow/ai_day3.py` | Available to BE as a helper. The assistant route is pending. |
@@ -547,6 +547,47 @@ template to "Resolve blocker". The assistant route and its HTTP response remain 
 - Where `high_risk` comes from. BE's proposal: the API fills it from the rules each task cites,
   and a missing flag never counts as safe.
 - Where the timeout, the one retry and the explanation cache live (AI's module or the API).
+
+### Intent mapping helper (PR #15)
+
+`map_intent(text, tasks)` in `src/student_workflow/ai_assistant.py` turns a
+student's sentence into one task ID. `tasks` is a list of dicts with `id`,
+`title` and `high_risk` (bool, required). Tasks missing an ID or title are skipped;
+any remaining task with a missing or non-bool risk flag returns `error` before a
+model call. The caller derives risk from the rules each task cites.
+`scripts/run_ai_questions.py` does this using the validated rules file, including
+`RULES_PATH` overrides. It returns an `IntentResult`:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `outcome` | string | One of the four outcomes below |
+| `task_id` | string or null | Set only when `outcome` is `matched` |
+| `message` | string or null | Text to show the student for every outcome except `matched` |
+
+Outcomes:
+
+- `matched`: the model picked a task ID that exists in the list. Show that task.
+- `no_match`: nothing fits, the model answered `none` or an unknown ID, or the
+  text had personal details, or was not in English, and the student is asked to rephrase. Show `message`.
+- `dso_referral`: an immigration-status or work-authorization question, or the
+  matched task has `high_risk: true`. Show `message`. No answer is given.
+- `error`: the model was unavailable, a key or model was missing, or the
+  call failed. Show `message` and let the student pick a task from the list.
+
+Code decides task status. The model only picks a task ID. SEVIS record-state
+questions are referred before a model call, regardless of the task the model
+might pick. “Work out” in a tuition question does not itself trigger referral;
+separate employment or status wording still does.
+
+Known limits of free text: patterns cannot catch every name (a lowercase name
+or one at the start of a sentence can pass). For a demo that must never send a
+name to the model, use the preset questions (`PRESET_QUESTIONS` in
+`ai_assistant.py`) instead of free text.
+
+Demo integration remains pending: FE/BE should offer only the five preset
+questions before enabling free text, and verify each button opens the intended
+task. The existing preset tests verify input filtering with a fake model; they
+do not establish real-model routing accuracy or enforce a preset-only API.
 
 ## The rules file: `data/rules/rules.json`
 
@@ -794,6 +835,10 @@ unreadable rules file raises the corresponding file error.
 
 ## Changelog
 
+- 2026-11-16, PR #15 pre-merge review: clarify required intent risk flags and
+  free-text limits; refer SEVIS state questions before model calls; allow tuition
+  “work out” wording. The manual evaluator derives task risk from cited rules.
+
 - 2026-11-16, STU-D05-BE-docs-status: #20, #21 and #22 are merged, so every "in review" label
   for them now says "on main". No API or model change.
 
@@ -841,32 +886,3 @@ unreadable rules file raises the corresponding file error.
 - 2026-11-12, STU-D01-BE: first version. Documents the live contract, the `POST /workflow`
   example, proposed Day 3 task actions, and answers to FE's questions. No code change.
 - 2026-11-11, Day 1 skeleton: `contract.py` and the mock created from the Final Repo Setup Guide.
-
-## Intent mapping (Live, Day 2)
-
-`map_intent(text, tasks)` in `src/student_workflow/ai_assistant.py` turns a
-student's sentence into one task ID. `tasks` is a list of dicts with `id`,
-`title` and `high_risk` (bool, required; a missing or non-bool value returns `error`). It returns an `IntentResult`:
-
-| Field | Type | Meaning |
-|-------|------|---------|
-| `outcome` | string | One of the four outcomes below |
-| `task_id` | string or null | Set only when `outcome` is `matched` |
-| `message` | string or null | Text to show the student for every outcome except `matched` |
-
-Outcomes:
-
-- `matched`: the model picked a task ID that exists in the list. Show that task.
-- `no_match`: nothing fits, the model answered `none` or an unknown ID, or the
-  text had personal details, or was not in English, and the student is asked to rephrase. Show `message`.
-- `dso_referral`: an immigration-status or work-authorization question, or the
-  matched task has `high_risk: true`. Show `message`. No answer is given.
-- `error`: the model was unavailable, a key or model was missing, or the
-  call failed. Show `message` and let the student pick a task from the list.
-
-Code decides task status. The model only picks a task ID.
-
-Known limits of free text: patterns cannot catch every name (a lowercase name
-or one at the start of a sentence can pass). For a demo that must never send a
-name to the model, use the preset questions (`PRESET_QUESTIONS` in
-`ai_assistant.py`) instead of free text.
