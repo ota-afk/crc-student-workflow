@@ -306,6 +306,11 @@ def _record_update(task: dict, result: dict) -> dict:
     if returned['status'] == 'Completed' and task['status'] != 'Completed':
         st.session_state['flyover_celebrate'] = True
         upcoming = active_task(result['workflow'])
+        # The boarding board is driven by this confirmed completion, never by the current
+        # step merely changing (picking a task by hand is not finishing one). None = last task.
+        st.session_state['flyover_boarding'] = {
+            'done': task['title'], 'next': upcoming['title'] if upcoming else None,
+            'next_id': upcoming['id'] if upcoming else None}
         st.session_state['flyover_flash'] = (
             f"{task['title']} completed. Next: {upcoming['title']}" if upcoming
             else 'All steps completed. Your route is assembled!')
@@ -325,20 +330,49 @@ def _confetti() -> None:
     st.html(f'<div class="flyover-confetti" aria-hidden="true">{particles}</div>')
 
 
-def _board(title: str, changing: bool) -> str:
-    """Departure-board title: every letter flips in, left to right, when the step changes."""
+def _flaps(text: str) -> str:
+    """Each letter in its own span, numbered for the left-to-right flip delay (--i)."""
     index = 0
     words = []
-    for word in title.split(' '):
+    for word in text.split(' '):
         letters = []
         for char in word:
             letters.append(f'<span class="flap" style="--i:{index}">{esc(char)}</span>')
             index += 1
         words.append('<span class="word">' + ''.join(letters) + '</span>')
         index += 1
+    return ' '.join(words)
+
+
+def _boarding_board(event: dict) -> str:
+    """The departures board shown once, right after the API confirms a task is Completed.
+
+    Screen readers hear one sentence (role=status); the flipping letters are hidden from them.
+    With reduce motion the letters simply appear (style.css and reduce-motion.css).
+    """
+    done, upcoming = event['done'], event['next']
+    rows = [('Departed', '✓ ' + done),
+            ('Now boarding', upcoming) if upcoming else ('Arrived', 'All steps completed')]
+    spoken = f'{done} completed. ' + (f'Now boarding: {upcoming}.' if upcoming
+                                      else 'All steps completed.')
+    body = ''.join(f'<div class="fly-board-row"><span class="fly-board-label">{esc(label)}</span>'
+                   f'<span class="fly-board-value">{_flaps(value)}</span></div>'
+                   for label, value in rows)
+    return (f'<div class="fly-board" role="status" aria-label="{esc(spoken)}">'
+            f'<div aria-hidden="true">{body}</div></div>')
+
+
+def _board(title: str, changing: bool) -> str:
+    """Departure-board title: every letter flips in, left to right, after a completion.
+
+    While the boarding board is announcing the change, the title stays quiet for screen
+    readers (aria-live off), so the new step is announced once, not twice.
+    """
     state = ' is-changing' if changing else ''
-    return (f'<div class="gate-title{state}" role="text" aria-live="polite" aria-label="{esc(title)}">'
-            + ' '.join(words) + '</div>')
+    live = 'off' if changing else 'polite'
+    words = _flaps(title)
+    return (f'<div class="gate-title{state}" role="text" aria-live="{live}" aria-label="{esc(title)}">'
+            + words + '</div>')
 
 
 def _workflow(data: dict, api_url: str) -> None:
@@ -353,6 +387,10 @@ def _workflow(data: dict, api_url: str) -> None:
                            previous=map_progress(previous_done, len(tasks))))
         if st.session_state.pop('flyover_celebrate', False):
             _confetti()
+        # Shown once per confirmed completion (set in _record_update), then consumed.
+        boarding = st.session_state.pop('flyover_boarding', None)
+        if boarding:
+            st.html(_boarding_board(boarding))
         if error := st.session_state.pop('flyover_status_error', None):
             st.error(error)
         st.subheader('Moving Forward (Workflow)')
@@ -367,11 +405,14 @@ def _workflow(data: dict, api_url: str) -> None:
                 st.info('No workflow steps are available. Generate a profile or try again.')
         else:
             task_id = current['id']
-            changing = st.session_state.get('flyover_active_id') not in (None, task_id)
+            # Flip the title only when a completion just moved us to this step, never when the
+            # current step merely changed (a new profile, or Required-first reordering).
+            changing = bool(boarding) and boarding.get('next_id') == task_id
             if st.session_state.get('flyover_active_id') != task_id:
                 st.session_state['flyover_active_id'] = task_id
                 st.session_state['flyover_status'] = current['status']
-            number = next(i + 1 for i, task in enumerate(tasks) if task['id'] == task_id)
+            # Progress, not the rules file's position: tasks are shown Required-first (task_queue).
+            number = done + 1
             with st.container(key='flyover_gate'):
                 title_col, status_col, action_col = st.columns([2.6, 1.3, 1.1], gap='large',
                                                                vertical_alignment='center')

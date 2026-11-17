@@ -214,3 +214,8 @@
 - STU-D06-BE-assistant-fallback (Nov 17 2026): AI assistance (Claude Code) added one intent
   retry and the selected-step fallback to `POST /assistant` (`assistant.py`), Flyover's 15-second
   chat timeout (`flyover_client.py`), the contract text and tests in `tests/test_api_assistant.py`.
+
+- STU-D06-FE-boarding-transition (Nov 17 2026): AI assistance (Claude Code) added the
+  departures board shown once after a confirmed completion, tied the title flip to that event,
+  and made "Step N of M" count progress (`flyover.py`, `style.css`, `reduce-motion.css`).
+  Tests in `tests/test_flyover_live_api.py`.
