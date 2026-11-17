@@ -104,8 +104,8 @@ preparation and the missing live backend dependencies.
 
 | Name | Default | What it does |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | none | Required for the manual OpenAI smoke test. Set it in the environment or local `.env`; never commit the key. |
-| `OPENAI_MODEL` | empty | Required for the manual OpenAI smoke test. Tested with `gpt-6-luna`. |
+| `OPENAI_API_KEY` | none | Enables model calls from the Assistant API and the manual OpenAI smoke test. Set it in the API service environment or local `.env`. |
+| `OPENAI_MODEL` | empty | Model used by the Assistant API and the manual OpenAI smoke test. The smoke test uses `gpt-6-luna`. |
 | `USE_MOCK` | `true` | Only changes `GET /workflow`: `true` serves the mock file, `false` runs the demo student through the live engine. `POST /workflow` and the task actions always use the live engine. |
 | `API_KEY` | empty | Shared secret for the `X-API-Key` header, needed on every endpoint except `/health` (FastAPI's `/docs` pages stay open; they show no data). Empty turns the check off (local only); the deployed API must set it. Never commit it. |
 | `RATE_LIMIT` | `60/minute` | One allowance shared by all endpoints except `/health`: requests with the right `API_KEY` share one, every other address has its own. Over it returns `429`. An invalid value stops the API at startup. |
@@ -114,8 +114,8 @@ preparation and the missing live backend dependencies.
 | `SCHOOLS_PATH` | `data/schools/sevp_schools_ca.csv` | Path to ENG's sourced California F-1 school directory. |
 | `API_URL` | `http://localhost:8000` | Where the dashboard and the check script find the API. |
 | `CORS_ORIGINS` | `http://localhost:8501` | Comma-separated origins allowed to call the API from a browser. Never `*`. |
-| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview; `live` requires an explicitly configured, agreed endpoint. |
-| `ASSISTANT_ENDPOINT` | empty | Exact full URL to configure only after BE/AI agree; no route is assumed. |
+| `ASSISTANT_MODE` | `mock` | Fixed sample chat preview. Switch to `live` after the dashboard integration is verified. |
+| `ASSISTANT_ENDPOINT` | empty | Full URL of `POST /assistant` for the dashboard's live mode. |
 
 ## School search and rule scope
 
@@ -145,6 +145,9 @@ student's workflow, computed from `data/rules/rules.json`. `POST /tasks/{task_id
 return the updated profile inside the answer. The server stores nothing, so the dashboard keeps
 that profile and sends it next time. See [the contract](docs/contract.md#task-actions)
 for the rules and error codes. Try them at <http://localhost:8000/docs>.
+
+`POST /assistant` uses the current workflow date and progress to explain a task. See the
+[Assistant API contract](docs/contract.md#post-assistant) for the request and fallback behavior.
 
 ## Manual OpenAI smoke test
 

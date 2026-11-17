@@ -1,15 +1,16 @@
 """Shared API shapes; missing verification is always explicit rather than inferred."""
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # extra='forbid': an unknown key in a request (a typo like 'completed_task') is a 422, not ignored.
 STRICT = ConfigDict(extra='forbid')
 
 # The demo has eight tasks. Leave room to grow while bounding untrusted progress lists.
 MAX_PROGRESS_TASKS = 1000
+MAX_ASSISTANT_QUESTION_CHARS = 500
 
 Status = Literal['Blocked', 'Ready', 'In Progress', 'Completed']
 Priority = Literal['Required', 'Recommended', 'Optional']
@@ -105,6 +106,55 @@ class WorkflowRequest(BaseModel):
     # None = not sent, so the API uses today's date in California (see docs/contract.md).
     as_of: date | None = None
     student_profile: StudentProfile
+
+
+class AssistantProfile(BaseModel):
+    """The workflow inputs needed for an answer, without a student identifier."""
+
+    model_config = STRICT
+
+    institution: str
+    visa_type: str
+    arrival_date: date
+    has_ssn: bool
+    school_id: str | None = None
+    completed_tasks: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
+    awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
+
+
+class AssistantRequest(BaseModel):
+    model_config = STRICT
+
+    question: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=1, max_length=MAX_ASSISTANT_QUESTION_CHARS
+        ),
+    ]
+    task_id: str | None = None
+    as_of: date
+    student_profile: AssistantProfile
+
+
+class AnswerSource(BaseModel):
+    model_config = STRICT
+
+    rule_id: str
+    url: str | None
+    last_verified: date | None
+    verification_status: Literal['verified', 'needs_verification', 're-checking']
+
+
+class AssistantAnswer(BaseModel):
+    model_config = STRICT
+
+    answer: str = Field(min_length=1)
+    steps: list[str]
+    sources: list[AnswerSource]
+    verified: bool = Field(strict=True)
+    contact: str | None
+    task_id: str | None
+    is_mock: bool = Field(strict=True)
 
 
 class EmailDraft(BaseModel):

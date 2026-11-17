@@ -86,6 +86,18 @@ def run_checks(url: str, key: str) -> None:
     expect(status_of(workflow, DMV) == "Blocked", "the demo DMV task is not Blocked")
     logger.info("ok  POST /workflow: DMV is Blocked")
 
+    assistant_profile = dict(workflow['student_profile'])
+    assistant_profile.pop('student_id')
+    assistant_profile.pop('school_verified', None)
+    referral = post_json(session, f'{url}/assistant', {
+        'question': 'Can I work off campus?',
+        'as_of': workflow['as_of'],
+        'student_profile': assistant_profile,
+    })
+    expect('DSO' in (referral.get('contact') or '') and referral.get('is_mock') is False,
+           'the Assistant did not return a live DSO referral')
+    logger.info('ok  POST /assistant: DSO referral')
+
     # Each step sends back the profile the last answer returned: the server stores nothing.
     resolved = post_json(session, f"{url}/tasks/{DMV}/resolve", request)
     draft = resolved["email_draft"]

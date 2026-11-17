@@ -54,9 +54,16 @@ never reaches a visitor's browser.
 5. Put both URLs in the "Live URLs" table above (a small docs pull request).
 
 After this, every merge to `main` deploys both services once CI passes (`autoDeployTrigger:
-checksPass`). The OpenAI key is not needed yet: the backend makes no OpenAI calls until the AI
-layer (#15) is wired in. When it is, add `OPENAI_API_KEY` and `OPENAI_MODEL` on the API's
-Environment page only, never in `render.yaml`.
+checksPass`).
+
+## Enable the Assistant API
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` on the `crc-workflow-api` Render Environment page.
+Use a model supported by the existing AI helpers and keep the key in Render's service
+environment. After redeploy, make an authenticated `POST /assistant` using the request
+example in the [Assistant API contract](contract.md#post-assistant). Confirm the answer
+matches the current task and that a status or work-authorization question returns a DSO
+referral. Enable the dashboard's live Assistant mode after the frontend integration passes.
 
 ## After every deploy: smoke test
 
