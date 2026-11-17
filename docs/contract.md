@@ -866,3 +866,8 @@ Outcomes:
   call failed. Show `message` and let the student pick a task from the list.
 
 Code decides task status. The model only picks a task ID.
+
+Known limits of free text: patterns cannot catch every name (a lowercase name
+or one at the start of a sentence can pass). For a demo that must never send a
+name to the model, use the preset questions (`PRESET_QUESTIONS` in
+`ai_assistant.py`) instead of free text.

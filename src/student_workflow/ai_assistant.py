@@ -18,6 +18,16 @@ from . import config  # noqa: F401  (importing config loads .env)
 
 MAX_INPUT_CHARS = 500
 
+# Fixed questions the dashboard can offer as buttons. They contain no personal
+# data, so a demo that uses only these cannot leak a name to the model.
+PRESET_QUESTIONS = (
+    'I want to apply for a California ID',
+    'How do I get my I-94 record?',
+    'I need to pay my CRC tuition',
+    'Where do I report to the international office?',
+    'I want to open a bank account',
+)
+
 _NOT_A_JOB_QUESTION = r'(?!\s+(fair|fairs|expo|board|boards|search|workshop))'
 
 HIGH_RISK_PATTERNS = [
@@ -49,6 +59,10 @@ HIGH_RISK_PATTERNS = [
         r'\b(spouse|wife|husband|partner|dependent|f-?2)\b[^.?!]{0,40}'
         r'\b(work|working|job|employment|paid)\b'
     ),
+    r'\b(students?|i|we|they|f-?1)\b[^.?!]{0,30}\b(work|working)\b',
+    r'\b(work|working)\b[^.?!]{0,40}\b(allowed|permitted|legal|legally|students?)\b',
+    r'\bwork(ing|s)?\b[^.?!]{0,40}\bcampus\b',
+    r'\bcampus\b[^.?!]{0,40}\bwork(ing)?\b',
     r'\bdeport',
     r'\boverstay',
     r'\bunlawful',
@@ -63,6 +77,9 @@ MULTILINGUAL_HIGH_RISK_PATTERNS = [
     r'\bestatus migratorio\b',
     r'\binmigracion\b',
     r'\bdeportacion\b|\bdeportar',
+    r'\bmi visa\b',
+    r'\b(vigente|vigencia|vencid[oa]s?|vence|caduc\w*)\b',
+    r'\bestatus\b',
 ]
 HIGH_RISK_REGEXES = [
     re.compile(p, re.IGNORECASE)
@@ -173,8 +190,28 @@ def is_high_risk(text: str) -> bool:
     )
 
 
+# Capitalized words that are not names. Any other capitalized word in the
+# middle of a sentence is treated as a possible name and refused.
+ALLOWED_CAPITALIZED = {
+    'california', 'american', 'united', 'states', 'cosumnes', 'river', 'college',
+    'los', 'rios', 'sacramento', 'state', 'university', 'international',
+    'english', 'real', 'department', 'motor', 'vehicles', 'office', 'form',
+    'student', 'students',
+}
+
+
+def has_bare_name(text: str) -> bool:
+    for match in re.finditer(r'\b[A-Z][a-z]+\b', text):
+        before = text[:match.start()].rstrip()
+        if not before or before[-1] in '.?!\u00bf\u00a1':
+            continue  # first word of a sentence
+        if match.group().lower() not in ALLOWED_CAPITALIZED:
+            return True
+    return False
+
+
 def has_name(text: str) -> bool:
-    return any(regex.search(text) for regex in NAME_REGEXES)
+    return has_bare_name(text) or any(regex.search(text) for regex in NAME_REGEXES)
 
 
 def has_sensitive_data(text: str) -> bool:

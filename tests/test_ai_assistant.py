@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 from openai import OpenAIError
 
-from student_workflow.ai_assistant import map_intent
+from student_workflow.ai_assistant import PRESET_QUESTIONS, map_intent
 
 TASKS = [
     {'id': 'task_school_checkin', 'title': 'Complete school check-in', 'high_risk': False},
@@ -311,4 +311,42 @@ def test_ordinary_english_is_not_refused_as_unsupported():
     result = map_intent('write me a poem about cats', TASKS, client=client, model='x')
     assert result.outcome == 'no_match'
     assert 'English' not in result.message
+    assert len(client.calls) == 1
+
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        'Can Jane Doe get a California ID?',
+        'Does Maria Lopez need a DMV ID?',
+    ],
+)
+def test_bare_capitalized_names_are_refused(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert 'rephrase' in result.message
+    assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        'Can international students work?',
+        'Is working on campus allowed for F-1 students?',
+        '\u00bfMi visa F-1 sigue vigente?',
+    ],
+)
+def test_more_work_and_visa_questions_get_dso_referral(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'dso_referral'
+    assert client.calls == []
+
+
+@pytest.mark.parametrize('question', PRESET_QUESTIONS)
+def test_preset_questions_are_never_refused(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'matched'
     assert len(client.calls) == 1
