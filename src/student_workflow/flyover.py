@@ -136,7 +136,8 @@ def _profile(data: dict, api_url: str) -> None:
                             st.session_state['flyover_data'] = result
                             st.session_state['flyover_clear_reset_confirmation'] = True
                             for key in ('flyover_active_id', 'flyover_status', 'flyover_detail', 'flyover_handoff',
-                                        'flyover_map_done', 'flyover_celebrate', 'flyover_status_error'):
+                                        'flyover_map_done', 'flyover_celebrate', 'flyover_status_error',
+                                        'flyover_email', 'flyover_resolve_error', 'flyover_answer'):
                                 st.session_state.pop(key, None)
                             for key in list(st.session_state):
                                 if key.startswith('flyover_doc:'):
@@ -257,6 +258,7 @@ def _workflow(data: dict, api_url: str) -> None:
                 if not current.get('sources') or not all(source_verified(s) for s in current['sources']):
                     st.caption('Not verified. Confirm with the office. Completing a step does not confirm eligibility.')
                 if current['status'] == 'Blocked':
+                    _resolve_section(current, api_url)
                     other_ready = [t for t in tasks if t['status'] in ('Ready', 'In Progress')]
                     if other_ready:
                         st.caption('You can prepare another available task while this step is blocked:')
@@ -299,6 +301,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         render_sources(task.get('sources') or [])
     for warning in guide.get('warnings') or []:
         st.warning(warning)
+    _resolve_section(task, api_url)
     if task['status'] in ('Ready', 'In Progress') and st.button(
             'Mark this step completed', key='flyover_detail_complete', type='primary'):
         try:
@@ -308,6 +311,39 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         else:
             go('home')
             st.rerun()
+
+
+def _resolve(api_url: str, task_id: str) -> None:
+    """Button callback: ask the API to resolve the blocker, then show only what it returns."""
+    st.session_state.pop('flyover_resolve_error', None)
+    try:
+        result, draft = client.resolve_blocker(api_url, st.session_state['flyover_data'], task_id)
+    except (requests.RequestException, ValueError):
+        # Nothing changed on screen; the API's own reason text stays out of the page.
+        st.session_state['flyover_resolve_error'] = task_id
+        return
+    st.session_state['flyover_data'] = result
+    # None = the API had no draft for this blocker; the step still moved to "waiting on an office".
+    st.session_state['flyover_email'] = {'task_id': task_id, 'draft': draft}
+
+
+def _resolve_section(task: dict, api_url: str) -> None:
+    """For a blocked task: the "Resolve blocker" button and, once used, the API's email draft."""
+    if task['status'] == 'Blocked' and task.get('next_action'):
+        st.button('Resolve blocker', key='flyover_resolve:' + task['id'], on_click=_resolve,
+                  args=(api_url, task['id']), icon=':material/mail:',
+                  help='Marks the missing step as waiting on an office and drafts an email to send.')
+    if st.session_state.get('flyover_resolve_error') == task['id']:
+        st.error('Could not resolve this blocker. Your progress has been kept. Try again.')
+    email = st.session_state.get('flyover_email') or {}
+    if email.get('task_id') != task['id']:
+        return
+    if draft := email.get('draft'):
+        st.warning('Draft email. Not verified. Fill in the placeholders, review it, and send it '
+                   'yourself. Nothing has been sent.')
+        st.code(f'Subject: {draft["subject"]}\n\n{draft["body"]}', language=None, wrap_lines=True)
+    else:
+        st.info('The missing step is now waiting on an office. No email draft is available.')
 
 
 def _pill(status: str) -> str:
@@ -499,15 +535,56 @@ def _clear_handoff() -> None:
     st.session_state.pop('flyover_handoff', None)
 
 
-def _assistant(data: dict) -> None:
+def _ask(data: dict, api_url: str) -> None:
+    """Ask Airshow: a live answer from POST /assistant, grounded in this workflow."""
+    with st.container(key='fly_ask'):
+        st.subheader('Ask Airshow')
+        st.caption('Ask about the task in your checklist. Answers come from your workflow and our '
+                   'sources. Do not include your name, SSN or document numbers.')
+        with st.form('flyover_ask_form', border=False, clear_on_submit=True):
+            question = st.text_input('Your question', max_chars=500, key='flyover_question',
+                                     placeholder='For example: why is my California ID blocked?')
+            asked = st.form_submit_button('Ask Airshow', type='primary')
+        if asked and question.strip():
+            try:
+                with st.spinner('Airshow is checking your workflow…'):
+                    answer = client.ask_airshow(api_url, data, question,
+                                                st.session_state.get('flyover_detail'))
+            except requests.Timeout:
+                # Its own message: on the free host the API may still be waking up.
+                st.error('Airshow took too long to answer. The service may be starting up: wait '
+                         'a minute and ask again. Your progress has been kept.')
+            except (requests.RequestException, ValueError):
+                st.error('Airshow could not answer right now. Try again, or use your checklist '
+                         'and its sources. Your progress has been kept.')
+            else:
+                st.session_state['flyover_answer'] = {'question': question.strip(), **answer}
+        if answer := st.session_state.get('flyover_answer'):
+            st.caption('You asked: ' + answer['question'])
+            if not answer['verified'] or not all(source_verified(s) for s in answer['sources']):
+                st.warning('Not verified. Confirm with the office.')
+            st.markdown(answer['answer'])
+            for number, step in enumerate(answer['steps'], 1):
+                st.write(f'{number}. {step}')
+            if answer['contact']:
+                st.write('Who to contact: ' + answer['contact'])
+            if answer['sources']:
+                st.html(f'<div class="fly-sheet">{_source_rows(answer["sources"])}</div>')
+
+
+def _assistant(data: dict, api_url: str) -> None:
     st.html(flight_scene(static=bool(st.session_state.get('flyover_reduce_motion'))))
     with st.container(key='fly_airshow'):
-        st.info('Preview: Live AI is not connected. Airshow drafts from a template on this page, '
-                'and nothing is sent.')
         context = json.dumps([st.session_state.get('flyover_detail'), data['student_profile']], sort_keys=True)
         if st.session_state.get('flyover_handoff_context') != context:
             st.session_state.pop('flyover_handoff', None)
+            # An answer about another task or older progress would now be out of date.
+            st.session_state.pop('flyover_answer', None)
             st.session_state['flyover_handoff_context'] = context
+        _ask(data, api_url)
+        st.subheader('Handoff for your visit')
+        st.info('The handoff below is drafted from a template on this page, not by AI, and '
+                'nothing is sent.')
         with st.container(key='fly_prompt'):
             goal = st.text_area('What you want to accomplish, given your situation', max_chars=1000,
                                 placeholder='For example: get my California ID. I have my passport, '
@@ -527,7 +604,7 @@ def _assistant(data: dict) -> None:
                            for h, items in doc['sections'])
             st.html(f'<article class="fly-doc"><div class="fly-doc-top"><h3>{esc(doc["title"])}</h3>'
                     f'<span class="fly-tag">⚠ Preview · Not verified</span></div>{body}'
-                    '<p class="fine">Drafted from a template on this page. Live AI is not connected. '
+                    '<p class="fine">Drafted from a template on this page, not by AI. '
                     'Never add document numbers. Confirm every requirement with the office.</p></article>')
             fmt_col, button_col, _ = st.columns([1, 1, 2], vertical_alignment='bottom')
             with fmt_col:
@@ -570,7 +647,7 @@ def render_app() -> None:
         _workflow(data, api_url)
     else:
         _readiness(data, api_url)
-        _assistant(data)
+        _assistant(data, api_url)
     if target := st.session_state.pop('flyover_scroll', None):
         _scroll(target)
     st.html('<footer class="flyover-footer">Flyover · A little preparation. A world of possibility.</footer>')

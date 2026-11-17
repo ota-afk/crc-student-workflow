@@ -7,8 +7,13 @@ import requests
 from pydantic import TypeAdapter
 
 from .config import api_key
-from .contract import StudentProfile, Workflow
+from .contract import AssistantAnswer, ResolveResult, StudentProfile, Workflow
 from .schools import School
+
+# The profile fields POST /assistant accepts (AssistantProfile); it rejects any other key, and
+# student_id and school_verified must never reach it.
+ASSISTANT_PROFILE_FIELDS = ('institution', 'visa_type', 'arrival_date', 'has_ssn', 'school_id',
+                            'completed_tasks', 'awaiting_reply')
 
 
 def _headers() -> dict[str, str]:
@@ -64,3 +69,28 @@ def change_status(api_url: str, data: dict, task_id: str, status: str) -> dict:
         profile['awaiting_reply'] = awaiting
     return _validated(requests.post(f'{api_url.rstrip("/")}{path}', json=body,
                                     headers=_headers(), timeout=15))
+
+
+def resolve_blocker(api_url: str, data: dict, task_id: str) -> tuple[dict, dict | None]:
+    """POST /tasks/{id}/resolve: the updated workflow and the API's email draft (or None)."""
+    body = {'student_profile': deepcopy(data['student_profile']), 'as_of': data['as_of']}
+    response = requests.post(f'{api_url.rstrip("/")}/tasks/{quote(task_id, safe="")}/resolve',
+                             json=body, headers=_headers(), timeout=15)
+    response.raise_for_status()
+    # A ValidationError is a ValueError, so callers that catch ValueError catch this too.
+    result = ResolveResult.model_validate(response.json())
+    draft = result.email_draft.model_dump() if result.email_draft else None
+    return result.workflow.model_dump(mode='json'), draft
+
+
+def ask_airshow(api_url: str, data: dict, question: str, task_id: str | None) -> dict:
+    """POST /assistant: an answer built from this workflow's own date and progress."""
+    profile = data['student_profile']
+    body = {'question': question.strip(), 'task_id': task_id, 'as_of': data['as_of'],
+            'student_profile': {key: profile[key] for key in ASSISTANT_PROFILE_FIELDS
+                                if key in profile}}
+    # 10 seconds, like the other dashboard: the API keeps its model calls inside that budget.
+    response = requests.post(f'{api_url.rstrip("/")}/assistant', json=body,
+                             headers=_headers(), timeout=10)
+    response.raise_for_status()
+    return AssistantAnswer.model_validate(response.json()).model_dump(mode='json')
