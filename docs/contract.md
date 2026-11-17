@@ -22,8 +22,9 @@ State on 2026-11-16 (check `git log origin/main` and the PRs for anything newer)
 | Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `e0798da` | On main |
 | Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21 | `bb914ac` | On main |
 | Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22 | `f84654f` | On main |
-| Cited visit details (STU-D05-BE-before-you-go) | PR #23 | not merged | In review |
-| Deploy to Render | `docs/deploy.md` | | Not deployed yet |
+| Cited visit details (STU-D05-BE-before-you-go) | PRs #23, #26 | `976661e` | On main |
+| Assistant route `POST /assistant` (STU-D06-BE-AI-assistant) | PR #32 | `90f4209` | On main |
+| Deploy to Render | `docs/deploy.md` | | Deployed; live checks passed 2026-11-17 |
 
 ## Ground rules that shape the API
 
@@ -44,12 +45,12 @@ From the build plan:
 | `GET /workflow` | On main | The fixed demo student. `USE_MOCK=true` (the local default): the mock file. `USE_MOCK=false`: the mock's demo profile and "as of" date run through the live engine. |
 | `GET /schools?q=&limit=20` | On main | Searches ENG's California F-1 school CSV (`data/schools/sevp_schools_ca.csv`, merged in #14) by name or city. `503` only if that file can't be read. |
 | `POST /workflow` | On main | Takes a profile, returns that student's computed workflow. Always the live engine. |
-| `POST /tasks/{task_id}/resolve` | On main, draft in review | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`) and returns a draft when available. |
+| `POST /tasks/{task_id}/resolve` | On main | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`) and returns a draft when available. |
 | `POST /tasks/{task_id}/complete` | On main | "Mark done": adds the task to the student's completed tasks. |
+| `POST /assistant` | On main (#32) | Answers a question about the workflow rebuilt from the request's profile and `as_of` (see [`POST /assistant`](#post-assistant)). |
 
 There is no `/api/` prefix. Every endpoint except `/health` needs the API key header (when the
-server sets `API_KEY`) and counts toward the rate limit (see "Access" below). No AI or assistant
-route exists on any BE branch (see "AI integration").
+server sets `API_KEY`) and counts toward the rate limit (see "Access" below).
 
 ## The Workflow response
 
@@ -338,8 +339,8 @@ verification" above):
 - `next_action: null`: the task isn't blocked by a missing prerequisite.
 - `blockers: []` on the DMV task: it is blocked only by its missing prerequisite. ENG's rules
   have no waiting period, so there is no `timing` blocker and no unlock date.
-- `before_you_go: null`: `rules.json` on `main` has no visit details. Once ENG adds them and
-  this branch's support merges, they appear here with `citations` (see "The rules file").
+- `before_you_go: null`: this task has no visit details in `rules.json`. The check-in and DMV
+  tasks have them, with `citations` (see "The rules file").
 - `last_verified: null` with `needs_verification`: no human check recorded yet.
 
 ### Errors
@@ -470,7 +471,7 @@ Returns a Workflow. Real answer for step 3, trimmed the same way:
 
 ## Access: API key and rate limit
 
-**Status: on main (PRs #20, #21 and #22).** The deployed API isn't running yet.
+**Status: on main (PRs #20, #21 and #22), and live on Render.**
 
 - **API key (#20).** When the server's `API_KEY` setting is not empty, every endpoint except
   `/health` needs the header `X-API-Key: <that value>`, or it returns `401`. FastAPI's own pages
@@ -491,15 +492,14 @@ Returns a Workflow. Real answer for step 3, trimmed the same way:
 
 ## Readiness: what "Ready" means
 
-**Status: a known gap.** Item 1 of the proposal at the end is built in review
-(STU-D05-BE-before-you-go); items 2 and 3 are not.
+**Status: a known gap.** Item 1 of the proposal at the end is on main (#23, #26); items 2 and
+3 are not.
 
 The plan's readiness check ("Are you ready, and when will you be?") isn't fully supported yet:
 
-- **`before_you_go` is `null` on every task with `rules.json` on `main`**, which has no visit
-  details. ENG has a draft with visit details for the check-in and DMV tasks. The backend can
-  read that shape once this branch merges; before that, the current models reject it, so it
-  must not merge first.
+- **`before_you_go` is filled only for the check-in and DMV tasks**, the two with visit
+  details in `rules.json`. Every other task returns `null`, which means "no guidance on file",
+  not "nothing to prepare".
 - **No request field says which documents the student has.** The dashboard (FE's #16, on `main`)
   keeps a local checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness
   uses checkboxes like "I have my passport". The `document` blocker type exists in the model, but
@@ -511,7 +511,7 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
 
 **Proposed, pending ENG, FE and BE agreement:**
 
-1. *(Built in review.)* ENG adds sourced visit details per task to `rules.json`, each fact
+1. *(On main, #23 and #26.)* ENG adds sourced visit details per task to `rules.json`, each fact
    citing its rule, and the resolver copies them into `before_you_go` with `citations`.
 2. The profile gains `documents_on_hand: dict[str, list[str]]` (task ID to the documents the
    student ticked). This widens the student inputs, so the team decides it with the ground
@@ -849,6 +849,10 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D06-BE-demo-checks: status lines brought up to date with main: visit
+  details (#23, #26), `POST /assistant` (#32) in the endpoint table, and the Render deploy.
+  No API or model change.
 
 - 2026-11-16, PR #15 pre-merge review: clarify required intent risk flags and
   free-text limits; refer SEVIS state questions before model calls; allow tuition
