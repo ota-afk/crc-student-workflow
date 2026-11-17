@@ -268,3 +268,7 @@
   Resend adapter (`api.py`, `notifications.py`, `contract.py`, `config.py`), the contract and
   deploy docs, and `tests/test_reminders.py` (Resend faked). Resend's API was checked against
   its documentation pages.
+
+- STU-D07-FE-reminders (Nov 17 2026): AI assistance (Claude Code) added Flyover's "Email me a
+  reminder" (schedule, list, cancel, cancel on completion) in `flyover.py` and
+  `flyover_client.py`, with `tests/test_flyover_reminders.py` (Resend faked).

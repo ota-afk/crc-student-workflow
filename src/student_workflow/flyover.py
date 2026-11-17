@@ -4,7 +4,9 @@ import html
 import json
 import os
 import re
-from datetime import date, time
+import uuid
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import requests
 import streamlit as st
@@ -353,11 +355,11 @@ def _save_status(api_url: str, task_id: str) -> None:
         st.session_state['flyover_status'] = task['status']
         st.session_state['flyover_status_error'] = 'Could not update this step. Your progress has been kept. Try again.'
         return
-    returned = _record_update(task, result)
+    returned = _record_update(task, result, api_url)
     st.session_state['flyover_status'] = returned['status']
 
 
-def _record_update(task: dict, result: dict) -> dict:
+def _record_update(task: dict, result: dict, api_url: str | None = None) -> dict:
     """The one success path for every status control: keep the API's answer, then celebrate.
 
     Both the status selector and "Mark this step completed" land here, so they give the same
@@ -377,6 +379,9 @@ def _record_update(task: dict, result: dict) -> dict:
         st.session_state['flyover_flash'] = (
             f"{task['title']} completed. Next: {upcoming['title']}" if upcoming
             else 'All steps completed. Your route is assembled!')
+        if api_url and not _cancel_task_reminders(api_url, task['id']):
+            st.session_state['flyover_flash'] += (
+                ' A reminder for this step could not be cancelled and may still arrive.')
     else:
         st.session_state['flyover_flash'] = 'Status saved.'
     return returned
@@ -657,6 +662,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
     for warning in guide.get('warnings') or []:
         st.warning(warning)
     _resolve_section(task, api_url)
+    _reminder_section(data, task, api_url)
     if task['status'] in ('Ready', 'In Progress') and st.button(
             'Mark this step completed', key='flyover_detail_complete', type='primary'):
         try:
@@ -665,9 +671,100 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
             st.error('Could not update this step. Your progress has been kept. Try again.')
         else:
             # Same feedback as the status selector: message, and confetti back on page 1.
-            _record_update(task, result)
+            _record_update(task, result, api_url)
             go('home')
             st.rerun()
+
+
+PACIFIC = ZoneInfo('America/Los_Angeles')
+
+
+def _reminders() -> list[dict]:
+    """Reminders scheduled in this session: Resend holds them, we keep their IDs to cancel."""
+    return st.session_state.setdefault('flyover_reminders', [])
+
+
+def _when(iso: str) -> str:
+    return f'{datetime.fromisoformat(iso).astimezone(PACIFIC):%a %b %d, %I:%M %p} Pacific'
+
+
+def _cancel_task_reminders(api_url: str, task_id: str) -> bool:
+    """Cancel this task's pending reminders (on completion). False if any wasn't confirmed."""
+    confirmed = True
+    for reminder in [r for r in _reminders() if r['task_id'] == task_id]:
+        try:
+            client.cancel_reminder(api_url, reminder['reminder_id'])
+        except client.ReminderError:
+            confirmed = False  # kept in the list, so the student can try Cancel again
+            continue
+        _reminders().remove(reminder)
+    return confirmed
+
+
+def _cancel_one(api_url: str, reminder_id: str) -> None:
+    """Cancel button callback."""
+    reminder = next((r for r in _reminders() if r['reminder_id'] == reminder_id), None)
+    if reminder is None:
+        return
+    try:
+        client.cancel_reminder(api_url, reminder_id)
+    except client.ReminderError as error:
+        st.session_state['flyover_reminder_note'] = (reminder['task_id'], 'error', str(error))
+        return
+    _reminders().remove(reminder)
+    st.session_state['flyover_reminder_note'] = (reminder['task_id'], 'info',
+                                                 'Reminder cancelled.')
+
+
+def _reminder_section(data: dict, task: dict, api_url: str) -> None:
+    """Email me a reminder: one scheduled email through the API (Resend), for this task."""
+    email = (st.session_state.get('flyover_account') or {}).get('email')
+    if task['status'] == 'Completed' or not email:
+        return
+    st.markdown('#### Email me a reminder')
+    today = datetime.now(PACIFIC).date()
+    with st.form(f'fly_reminder_form:{task["id"]}', border=False):
+        day_col, time_col = st.columns(2)
+        with day_col:
+            day = st.date_input('Day', value=today + timedelta(days=1), min_value=today,
+                                max_value=today + timedelta(days=30),
+                                key=f'fly_rem_day:{task["id"]}')
+        with time_col:
+            at = st.time_input('Time (Pacific)', value=time(9, 0), step=900,
+                               key=f'fly_rem_time:{task["id"]}')
+        consent = st.checkbox(f'Email this reminder to {masked(email)}',
+                              key=f'fly_rem_ok:{task["id"]}')
+        submitted = st.form_submit_button('Schedule reminder')
+    st.caption("A nudge to act on this step. It doesn't book anything, and the demo only emails "
+               'addresses the team allowed.')
+    if submitted:
+        if not consent:
+            st.error('Tick the box to agree to the email first.')
+        elif day is None or at is None:
+            st.error('Choose a day and a time.')
+        else:
+            send_at = datetime.combine(day, at, tzinfo=PACIFIC)
+            try:
+                with st.spinner('Scheduling your reminder…'):
+                    result = client.schedule_reminder(api_url, data, email, task['id'], send_at,
+                                                      str(uuid.uuid4()))
+            except client.ReminderError as error:
+                st.error(str(error))
+            else:
+                _reminders().append({'reminder_id': result['reminder_id'], 'task_id': task['id'],
+                                     'send_at': result['send_at']})
+                st.success(f'Reminder set for {_when(result["send_at"])}. It will arrive even '
+                           'if you close this page.')
+    note = st.session_state.pop('flyover_reminder_note', None)
+    if note and note[0] == task['id']:
+        (st.error if note[1] == 'error' else st.info)(note[2])
+    for reminder in [r for r in _reminders() if r['task_id'] == task['id']]:
+        line, button = st.columns([4, 1], vertical_alignment='center')
+        with line:
+            st.write(f'Reminder: {_when(reminder["send_at"])}')
+        with button:
+            st.button('Cancel', key=f'fly_rem_cancel:{reminder["reminder_id"]}', type='tertiary',
+                      on_click=_cancel_one, args=(api_url, reminder['reminder_id']))
 
 
 def _resolve(api_url: str, task_id: str) -> None:
