@@ -157,3 +157,14 @@ def test_invalid_assistant_answer_is_rejected(monkeypatch):
     monkeypatch.setattr(requests, 'post', lambda *a, **kw: FakeResponse({'answer': 123}))
     with pytest.raises(ValueError):
         ask_airshow('http://api', base_payload(), 'What next?', None)
+
+
+def test_airshow_sends_page_context_only_when_given(monkeypatch):
+    calls = []
+    monkeypatch.setattr(requests, 'post', lambda url, **kw: calls.append(kw['json']) or FakeResponse(
+        {'answer': 'ok', 'steps': [], 'sources': [], 'verified': False, 'contact': None,
+         'task_id': None, 'is_mock': False}))
+    ask_airshow('http://api', base_payload(), 'Hi?', None, 'journey')
+    ask_airshow('http://api', base_payload(), 'Hi?', None)
+    assert calls[0]['page_context'] == 'journey'
+    assert 'page_context' not in calls[1]  # older APIs never see the key

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="AI Help">
+  <!-- Compact AI Help launcher, traced from the owner's sketch in the Flyover palette.
+       Charcoal #28323C outlines, ivory #F7F4EF bubble, peach #E6CCBE cap, twilight #777DA7
+       book and sparkle, deep sage #3D6350 flight path, sage #629677 plane. -->
+  <path d="M3 54 C 16 46, 30 60, 50 57" fill="none" stroke="#3D6350" stroke-width="3" stroke-linecap="round"/>
+  <path d="M36 9 L46 6 L46 22 L36 25 Z" fill="#777DA7" stroke="#28323C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M46 6 L56 9 L56 25 L46 22 Z" fill="#9AA0C6" stroke="#28323C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M10 39 C 6 27, 14 15, 32 15 C 50 15, 58 26, 54 38 C 51 47, 40 51, 30 50 L 20 56 L 22 48 C 15 46, 11 43, 10 39 Z"
+        fill="#F7F4EF" stroke="#28323C" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M4 15 L16 10 L28 15 L16 20 Z" fill="#E6CCBE" stroke="#28323C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M9 17 L9 22 C 12 24, 20 24, 23 22 L23 17" fill="#E6CCBE" stroke="#28323C" stroke-width="2"/>
+  <path d="M27 15 L27 23" stroke="#28323C" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M18 27 L19.4 30.6 L23 32 L19.4 33.4 L18 37 L16.6 33.4 L13 32 L16.6 30.6 Z" fill="#777DA7"/>
+  <text x="34" y="39" text-anchor="middle" font-family="Fredoka, Nunito, Arial, sans-serif"
+        font-size="15" font-weight="700" fill="#28323C">AI</text>
+  <path d="M51 51 L62 45 L60 49 L56 52 L58 57 L55 56 L53 53 L49 55 Z" fill="#629677" stroke="#28323C"
+        stroke-width="1.4" stroke-linejoin="round"/>
+</svg>

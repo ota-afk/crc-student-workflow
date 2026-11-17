@@ -13,6 +13,11 @@ def asset_data(name: str) -> str:
     return 'data:image/png;base64,' + base64.b64encode((ASSETS / name).read_bytes()).decode()
 
 
+def svg_asset(name: str) -> str:
+    """A committed SVG from app/assets/flyover as a data URI (our own files, never user input)."""
+    return 'data:image/svg+xml;base64,' + base64.b64encode((ASSETS / name).read_bytes()).decode()
+
+
 def logo() -> str:
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1888 832" role="img" aria-label="Flyover"><rect width="1888" height="832" fill="#E6CCBE"/><image href="{asset_data("logo-peach.png")}" width="1888" height="832"/></svg>'
 

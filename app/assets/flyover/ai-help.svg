@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="AI Help">
+  <!-- Full AI Help badge, traced from the owner's sketch in the Flyover palette (see
+       ai-help-icon.svg for the colour roles). Shown at the top of the chat dropdown. -->
+  <path d="M4 98 C 34 80, 62 112, 118 104" fill="none" stroke="#3D6350" stroke-width="5" stroke-linecap="round"/>
+  <path d="M92 14 L112 7 L112 44 L92 50 Z" fill="#777DA7" stroke="#28323C" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M112 7 L132 14 L132 50 L112 44 Z" fill="#9AA0C6" stroke="#28323C" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M117 18 L127 21 M117 26 L127 29" stroke="#28323C" stroke-width="2" stroke-linecap="round"/>
+  <path d="M30 70 C 20 44, 40 24, 78 24 C 116 24, 134 44, 126 68 C 120 86, 98 94, 76 92 L 52 104 L 56 88 C 40 84, 33 78, 30 70 Z"
+        fill="#F7F4EF" stroke="#28323C" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M14 24 L40 14 L66 24 L40 34 Z" fill="#E6CCBE" stroke="#28323C" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M24 28 L24 38 C 32 43, 48 43, 56 38 L56 28" fill="#E6CCBE" stroke="#28323C" stroke-width="3"/>
+  <path d="M64 25 L64 40 L60 46 M64 40 L68 46" stroke="#28323C" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path d="M47 46 L49.5 52.5 L56 55 L49.5 57.5 L47 64 L44.5 57.5 L38 55 L44.5 52.5 Z" fill="#777DA7"/>
+  <text x="82" y="58" text-anchor="middle" font-family="Fredoka, Nunito, Arial, sans-serif"
+        font-size="24" font-weight="700" fill="#28323C">AI</text>
+  <text x="82" y="80" text-anchor="middle" font-family="Fredoka, Nunito, Arial, sans-serif"
+        font-size="18" font-weight="700" letter-spacing="2" fill="#28323C">HELP</text>
+  <path d="M124 96 L152 82 L148 91 L139 98 L144 110 L137 108 L132 101 L121 104 Z" fill="#629677"
+        stroke="#28323C" stroke-width="2.4" stroke-linejoin="round"/>
+</svg>

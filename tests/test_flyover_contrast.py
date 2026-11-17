@@ -76,7 +76,10 @@ def test_colour_pair_meets_wcag_minimum(what, fg, prop, bg, minimum):
     assert _ratio(_rgb(_value(fg, prop), background), background) >= minimum, what
 
 
-def test_ai_button_hover_meets_wcag_minimum():
+def test_ai_launcher_hover_ring_meets_wcag_minimum():
+    # The logo launcher shows a ring on hover instead of a fill: a UI boundary, so 3:1.
     hover = '.st-key-flyover_ai button:hover'
-    background = _rgb(_value(hover, 'background'))
-    assert _ratio(_rgb(_value(hover, 'color'), background), background) >= 4.5
+    ring = _value(hover, 'outline').split()[-1]  # "2.5px solid var(--flyover-ink)"
+    ring = re.search(rf'{ring[4:-1]}\s*:\s*([^;]+);', _rule(':root')).group(1).strip()
+    header = _rgb(_value(HEADER, 'background'))
+    assert _ratio(_rgb(ring), header) >= 3

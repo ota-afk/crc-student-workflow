@@ -73,12 +73,13 @@ def test_failed_status_update_keeps_current_workflow(monkeypatch):
     assert not any('private internal' in text for text in values(app.error))
 
 
-def test_ai_button_opens_airshow_with_the_template_honestly_labeled(monkeypatch):
+def test_airshow_section_is_the_template_handoff_only(monkeypatch):
     app = app_with(monkeypatch)
-    app.button(key='flyover_ai').click().run()
+    app.button(key='flyover_next').click().run()  # page 2: Airshow's handoff
     assert not app.exception
     assert app.session_state['flyover_page'] == 'readiness'
-    assert 'Ask Airshow' in values(app.subheader)
+    assert 'Handoff for your visit' in values(app.subheader)
+    assert 'Ask Airshow' not in values(app.subheader)  # the live chat lives in the dropdown
     # The handoff is still a page template, and says so.
     assert any('not by AI' in text for text in values(app.info))
 
@@ -215,7 +216,7 @@ def test_prerequisite_opens_documents_and_sources_and_advances_quote(monkeypatch
 
 def test_airshow_handoff_is_labeled_template_and_clears_on_change(monkeypatch):
     app = app_with(monkeypatch)
-    app.button(key='flyover_ai').click().run()
+    app.button(key='flyover_next').click().run()  # page 2: Airshow's handoff
     assert app.button(key='flyover_prepare_handoff').disabled
     app.text_area(key='flyover_goal').input('Get my California ID').run()
     app.button(key='flyover_prepare_handoff').click().run()
@@ -258,7 +259,7 @@ def test_reduce_motion_renders_the_flight_without_scrubbing(monkeypatch):
 
 def _airshow_with_goal(monkeypatch):
     app = app_with(monkeypatch)
-    app.button(key='flyover_ai').click().run()
+    app.button(key='flyover_next').click().run()  # page 2: Airshow's handoff
     app.text_area(key='flyover_goal').input('Ask about my enrollment letter').run()
     return app
 
