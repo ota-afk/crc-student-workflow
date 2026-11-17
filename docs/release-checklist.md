@@ -74,7 +74,7 @@ It is a set of patterns, not proof that no secret or personal data is in the his
 
 | Check | Date | Result |
 | --- | --- | --- |
-| Key audit, all history | 2026-11-16 | No findings. 77 commits on all branches and the 21 fetched pull request refs, merges included, with the audit as of the Codex update (working tree on `feature/STU-D05-BE`): no key-shaped strings or literal secret assignments, no `.env`, key or secrets file ever committed (also not by rename). Tested on fake keys, a key typed into a merge, a rename to `.env`, digit-free and quoted secrets, and Render `key:`/`value:` pairs (`tests/test_audit_secrets.py`). Not proof; see "What the audit can't prove". |
+| Key audit, all history | 2026-11-16 | No findings. 77 commits on all branches and the 21 fetched pull request refs, merges included, with the audit as merged in #22: no key-shaped strings or literal secret assignments, no `.env`, key or secrets file ever committed (also not by rename). Tested on fake keys, a key typed into a merge, a rename to `.env`, digit-free and quoted secrets, and Render `key:`/`value:` pairs (`tests/test_audit_secrets.py`). Not proof; see "What the audit can't prove". |
 | Word files in history | 2026-11-16 | Clean. Every version of the three `docs/Day1_*.docx` files: no keys, no SEVIS-like numbers, no author name in the file properties. The only email address is CRC's public office address. |
 | Commit emails | 2026-11-16 | **Team decision.** 5 commit email addresses are not GitHub "noreply" addresses, so they become public with the history. See below. |
 | Pre-recording check, live engine on a laptop | 2026-11-16 | Passes (`USE_MOCK=false`, local server). Warning: all 8 cited rules are still `needs_verification`. Not a check of the deployed API. |
