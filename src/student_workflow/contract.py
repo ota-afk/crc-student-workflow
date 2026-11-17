@@ -14,6 +14,7 @@ MAX_ASSISTANT_QUESTION_CHARS = 500
 
 Status = Literal['Blocked', 'Ready', 'In Progress', 'Completed']
 Priority = Literal['Required', 'Recommended', 'Optional']
+EnrollmentTerm = Literal['fall_2026', 'spring_2027']
 
 
 class NextAction(BaseModel):
@@ -100,7 +101,7 @@ class TaskDue(BaseModel):
 
     # None = can't be worked out yet; `needs` says which profile date is missing.
     due_on: date | None = None
-    needs: Literal['enrollment_date'] | None = None
+    needs: Literal['enrollment_date', 'enrollment_term'] | None = None
     rule_id: str
     verification_status: Literal['verified', 'needs_verification']
     # True = as_of is after due_on. None when due_on is unknown.
@@ -140,6 +141,7 @@ class StudentProfile(BaseModel):
     school_verified: bool = False
     # None = not given. Only used to work out enrollment-based deadlines (CRC fees).
     enrollment_date: date | None = None
+    enrollment_term: EnrollmentTerm | None = None
 
 
 class Workflow(BaseModel):
@@ -174,6 +176,7 @@ class AssistantProfile(BaseModel):
     awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
     # Accepted so a profile from a workflow response can be sent back as-is (deadlines only).
     enrollment_date: date | None = None
+    enrollment_term: EnrollmentTerm | None = None
 
 
 # Where in Flyover the question was asked. A display hint only; see docs/contract.md.

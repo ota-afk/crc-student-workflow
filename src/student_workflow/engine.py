@@ -12,6 +12,7 @@ from .contract import (
     BeforeYouGo,
     Blocker,
     Citation,
+    EnrollmentTerm,
     NextAction,
     Source,
     StudentProfile,
@@ -47,7 +48,7 @@ class RulesError(ValueError):
 
 def resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow:
     # as_of is always passed in, never "today", so the demo and the tests repeat exactly.
-    scoped = _for_school(rules, profile.school_id)
+    scoped = _for_school(rules, profile.school_id, profile.enrollment_term)
     _reject_repeats(profile)  # before the sets below, which would hide a repeat
     completed = set(profile.completed_tasks)
     awaiting = set(profile.awaiting_reply)
@@ -67,7 +68,9 @@ def resolve(rules: RulesFile, profile: StudentProfile, as_of: date) -> Workflow:
     )
 
 
-def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
+def _for_school(
+    rules: RulesFile, school_id: str | None, enrollment_term: EnrollmentTerm | None = None,
+) -> RulesFile:
     """Keep the tasks that apply to this school, each citing only the rules that apply.
 
     The choice is made per task (see rules.applicable_rules): a school's own rule replaces
@@ -75,7 +78,11 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
     """
     tasks = []
     for task in rules.tasks:
-        applicable = applicable_rules(rules, task, school_id)
+        applicable = [
+            rule for rule in applicable_rules(rules, task, school_id)
+            if enrollment_term is None or rule.deadline is None
+            or rule.deadline.term in (None, enrollment_term)
+        ]
         # Empty = only other schools' rules, so this task is not part of this workflow.
         if applicable:
             update = {
@@ -226,10 +233,19 @@ def _resolve_task(
 
 
 def _due(task_rules: list[Rule], profile: StudentProfile, as_of: date) -> TaskDue | None:
-    """The task's deadline from the first rule that sets one, or None if none does."""
-    rule = next((r for r in task_rules if r.deadline), None)
-    if rule is None:
+    """The selected semester's deadline, or the input needed before calculating it."""
+    candidates = [rule for rule in task_rules if rule.deadline]
+    if not candidates:
         return None
+    rule = next(
+        (rule for rule in candidates
+         if rule.deadline.term is None or rule.deadline.term == profile.enrollment_term),
+        None,
+    )
+    if rule is None:
+        # A selected semester is required for term-specific fees, including older profiles.
+        return TaskDue(needs="enrollment_term", rule_id=candidates[0].rule_id,
+                       verification_status=candidates[0].verification_status)
     deadline, enrolled = rule.deadline, profile.enrollment_date
     if enrolled is None:
         # Never guess a due date: say which date the student still has to give.

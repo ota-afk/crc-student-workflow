@@ -21,6 +21,8 @@ EMAIL_SHAPE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 EMAIL_MAX = 254  # the longest an email address can be
 # Never a real student ID: the workflow only needs some identifier for this session.
 SESSION_STUDENT_ID = 'flyover_session'
+ENROLLMENT_TERMS = {None: 'Choose a term', 'fall_2026': 'Fall 2026',
+                    'spring_2027': 'Spring 2027'}
 
 
 def valid_email(email: str) -> bool:
@@ -84,6 +86,10 @@ def render_signin(api_url: str) -> None:
                 ssn = st.radio('Do you have an SSN?', ['No', 'Yes'], horizontal=True,
                                key='flyover_signin_ssn',
                                help='Yes or no only. Never enter the number.')
+                term = st.selectbox(
+                    'Enrollment term', list(ENROLLMENT_TERMS),
+                    format_func=ENROLLMENT_TERMS.get, key='flyover_signin_term',
+                    help='Choose the semester these classes belong to.')
                 enrolled = st.date_input(
                     'Enrollment date (optional)', value=None, key='flyover_signin_enrollment',
                     help='The day you enrolled in classes. Only used to work out your tuition '
@@ -93,11 +99,11 @@ def render_signin(api_url: str) -> None:
             st.caption('No names, document numbers or uploads.')
             if submitted:
                 _sign_in(api_url, email.strip(), school_id, schools, arrival, visa, ssn,
-                         enrolled)
+                         enrolled, term)
 
 
 def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: str,
-             ssn: str, enrolled=None) -> None:
+             ssn: str, enrolled=None, term=None) -> None:
     # The password is never kept: drop the widget's value whatever happens next.
     st.session_state.pop('flyover_signin_password', None)
     if not valid_email(email):
@@ -110,7 +116,8 @@ def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: 
                'institution': schools[school_id]['institution'] if school_id
                else 'School not listed',
                'visa_type': visa, 'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
-               'enrollment_date': enrolled.isoformat() if enrolled else None}
+               'enrollment_date': enrolled.isoformat() if enrolled else None,
+               'enrollment_term': term}
     try:
         with st.spinner('Building your workflow…'):
             workflow = client.generate_workflow(api_url, {}, changes)

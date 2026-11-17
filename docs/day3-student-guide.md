@@ -1,6 +1,6 @@
 # Before you go
 
-Official pages consulted November 13–16, 2026.
+Official pages consulted November 13–17, 2026.
 
 This summary is still awaiting an independent review. Use the official links below to confirm your visit details.
 
@@ -16,6 +16,12 @@ For questions about check-in, contact CRC:
 - **Email:** crc-internationalstudents@crc.losrios.edu — send your questions.
 
 Ask about your documents, any check-in fee, meeting time and location before making the trip. [CRC international student instructions and contact details](https://crc.losrios.edu/admissions/get-started-and-apply/international-student-admission-steps).
+
+## Enroll for Spring 2027 at CRC
+
+CRC lists November 2, 2026 for posting Spring 2027 class schedules, November 5 for assigning priority registration times, and November 23 for the start of enrollment. Check eServices for your own assigned date and time. [CRC enrollment instructions](https://crc.losrios.edu/admissions/enroll-in-classes)
+
+In Profile setup, choose **Spring 2027** and enter the day you actually enrolled. For Spring classes, enrollment on or before December 25, 2026 has a January 8, 2027 payment deadline. Enrollment on or after December 26 has a deadline of the following day. CRC's later-enrollment exception avoids a drop for nonpayment, but unpaid fees after the term ends place a hold on future enrollment. These Spring details are awaiting human review. [CRC payment deadlines](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
 
 ## Apply for a California REAL ID card
 

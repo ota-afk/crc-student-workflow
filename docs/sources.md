@@ -49,6 +49,36 @@ The source does not specify an exact payment cutoff time.
 
 https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines
 
+## CRC Spring 2027 enrollment and payment — November 17, 2026
+
+- Verification status: needs_verification
+- Date checked: 2026-11-17
+- Enrollment source: https://crc.losrios.edu/admissions/enroll-in-classes
+- Payment source: https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines
+- Payment rule: `rule_crc_spring_2027_payment_deadline`
+- Human checker fields remain empty pending completed checks.
+
+### Enrollment timeline
+
+| Spring 2027 event | Date |
+| --- | --- |
+| Class schedules posted | November 2, 2026 |
+| Priority registration date/time assigned | November 5, 2026 |
+| Enrollment begins | November 23, 2026 |
+
+Each student's assigned date and time is in eServices. The November 23 opening is the published semester-wide start. [CRC enrollment instructions](https://crc.losrios.edu/admissions/enroll-in-classes)
+
+### Payment calculation
+
+| Actual Spring 2027 enrollment date | Payment due |
+| --- | --- |
+| On or before December 25, 2026 | January 8, 2027 |
+| December 26, 2026 or later | The following calendar day |
+
+For the latter group, CRC states that nonpayment will not cause a drop. Unpaid fees after the term ends will result in a hold on future enrollment until payment is received. [CRC payment table and footnote](https://crc.losrios.edu/admissions/financial-aid-and-fees/tuition-and-fees/fee-payment-deadlines)
+
+The profile's `enrollment_term` selects `fall_2026` or `spring_2027`. It refers to the semester of the classes. A missing term asks the student to choose one before calculating a term-specific deadline. A missing enrollment date continues to ask for that date. Existing saved profiles and API clients can omit the new field and receive the missing-term prompt. The August demo profile explicitly selects Fall 2026.
+
 ## Day 2 task sources — November 14, 2026
 
 These entries support the expanded `data/rules/rules.json`. Each rule retains its URL, evidence excerpt and check metadata in that file. The Day 2 task rules remain **needs_verification** pending human source review. The CRC payment rule above records its completed checks.

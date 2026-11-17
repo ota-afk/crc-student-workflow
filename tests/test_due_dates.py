@@ -15,10 +15,10 @@ from student_workflow.rules import RulesFile, load_rules
 FEE = 'task_crc_fee_payment'
 
 
-def fee_due(enrolled=None, as_of=date(2026, 8, 14), completed=()):
+def fee_due(enrolled=None, as_of=date(2026, 8, 14), completed=(), term='fall_2026'):
     profile = StudentProfile(student_id='t', institution='Cosumnes River College', visa_type='F-1',
                              arrival_date=date(2026, 8, 11), has_ssn=False, school_id='crc',
-                             enrollment_date=enrolled, completed_tasks=list(completed))
+                             enrollment_date=enrolled, enrollment_term=term, completed_tasks=list(completed))
     return next(t for t in resolve(load_rules(), profile, as_of).workflow if t.id == FEE).due
 
 
@@ -90,3 +90,33 @@ def test_due_note_wording(due, expected):
 def test_no_note_for_completed_tasks_or_tasks_without_a_deadline():
     assert due_note(_task(_due('2026-08-14'), status='Completed'), '2026-08-14') is None
     assert due_note(_task(None), '2026-08-14') is None
+
+
+@pytest.mark.parametrize(('enrolled', 'expected'), [
+    (date(2026, 11, 23), date(2027, 1, 8)),
+    (date(2026, 12, 25), date(2027, 1, 8)),
+    (date(2026, 12, 26), date(2026, 12, 27)),
+    (date(2027, 1, 5), date(2027, 1, 6)),
+])
+def test_spring_2027_uses_its_own_payment_table(enrolled, expected):
+    due = fee_due(enrolled=enrolled, term='spring_2027', as_of=date(2026, 11, 17))
+    assert due.due_on == expected
+    assert due.rule_id == 'rule_crc_spring_2027_payment_deadline'
+    assert due.verification_status == 'needs_verification'
+
+
+def test_an_older_profile_without_a_term_needs_a_choice_before_calculating():
+    due = fee_due(enrolled=date(2026, 12, 1), term=None)
+    assert due.due_on is None and due.needs == 'enrollment_term'
+    assert due_note(_task(due.model_dump(mode='json')), '2026-08-14') == (
+        'info', 'Choose your enrollment term in Profile setup to see when tuition is due.')
+
+
+def test_only_the_selected_terms_payment_rule_is_cited():
+    profile = StudentProfile(student_id='t', institution='Synthetic CRC', visa_type='F-1',
+                             school_id='crc', arrival_date=date(2027, 1, 5), has_ssn=False,
+                             enrollment_term='spring_2027', enrollment_date=date(2026, 12, 1))
+    fee = next(task for task in resolve(load_rules(), profile, date(2027, 1, 5)).workflow
+               if task.id == FEE)
+    assert [source.rule_id for source in fee.sources] == [
+        'rule_crc_spring_2027_payment_deadline']

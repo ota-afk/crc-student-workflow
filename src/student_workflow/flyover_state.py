@@ -91,6 +91,8 @@ def due_note(task: dict, as_of: str) -> tuple[str, str] | None:
     due = task.get('due')
     if not due or task.get('status') == 'Completed':
         return None
+    if due.get('needs') == 'enrollment_term':
+        return 'info', 'Choose your enrollment term in Profile setup to see when tuition is due.'
     if due.get('needs') == 'enrollment_date':
         return 'info', 'Add your enrollment date in Profile setup to see when this is due.'
     due_on, today = date.fromisoformat(due['due_on']), date.fromisoformat(as_of)

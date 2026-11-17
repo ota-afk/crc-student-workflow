@@ -94,6 +94,7 @@ def test_masked_email_hides_the_name_part():
 
 def test_an_enrollment_date_at_sign_in_shows_the_tuition_deadline(live):
     app = first_screen()
+    app.selectbox(key='flyover_signin_term').select('fall_2026')
     app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 7, 1))
     app = sign_in(app)
     assert app.session_state['flyover_data']['student_profile']['enrollment_date'] == '2026-07-01'
@@ -107,4 +108,18 @@ def test_without_an_enrollment_date_flyover_asks_for_it(live):
     app = sign_in(first_screen())
     app.button(key='flyover_next').click().run()
     app = app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
-    assert 'Add your enrollment date in Profile setup to see when this is due.' in values(app.info)
+    assert 'Choose your enrollment term in Profile setup to see when tuition is due.' in values(app.info)
+
+
+def test_spring_term_and_due_date_survive_sign_in_and_profile_edits(live):
+    app = first_screen()
+    app.selectbox(key='flyover_signin_term').select('spring_2027')
+    app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 12, 1))
+    app = sign_in(app)
+    profile = app.session_state['flyover_data']['student_profile']
+    assert profile['enrollment_term'] == 'spring_2027'
+    assert app.selectbox(key='flyover_term').value == 'spring_2027'
+    app.button(key='flyover_next').click().run()
+    app.selectbox(key='flyover_detail').select('task_crc_fee_payment').run()
+    assert any('Jan 8, 2027' in value and 'Not verified' in value
+               for value in values(app.info))
