@@ -28,18 +28,24 @@ PRESET_QUESTIONS = (
     'I want to open a bank account',
 )
 
+# 'Work out' can mean calculate; other work phrases still trigger referral.
+_WORK = r'\bwork(?:ing|s)?\b(?!\s+out\b(?!\s+of\b))'
+_SEVIS_STATE = r'\b(active|inactive|terminated|termination|deactivated|status)\b'
+
 _NOT_A_JOB_QUESTION = r'(?!\s+(fair|fairs|expo|board|boards|search|workshop))'
 
 HIGH_RISK_PATTERNS = [
     r'immigration status',
     r'visa status',
+    r'\bsevis\b[^.?!]{0,50}' + _SEVIS_STATE,
+    _SEVIS_STATE + r'[^.?!]{0,50}\bsevis\b',
     r'(f-?1|student) status',
     r'maintain(ing)? (my )?status',
     r'out of status',
     r'work authori[sz]ation',
     r'authori[sz]ed to work',
     r'work permit',
-    r'(can|may|am) i (legally )?work',
+    r'(can|may|am) i (legally )?' + _WORK,
     r'(allowed|permitted|able|eligible) to work',
     r'work (off|on)[- ]campus',
     r'off[- ]campus (job|work|employment)',
@@ -59,10 +65,10 @@ HIGH_RISK_PATTERNS = [
         r'\b(spouse|wife|husband|partner|dependent|f-?2)\b[^.?!]{0,40}'
         r'\b(work|working|job|employment|paid)\b'
     ),
-    r'\b(students?|i|we|they|f-?1)\b[^.?!]{0,30}\b(work|working)\b',
-    r'\b(work|working)\b[^.?!]{0,40}\b(allowed|permitted|legal|legally|students?)\b',
-    r'\bwork(ing|s)?\b[^.?!]{0,40}\bcampus\b',
-    r'\bcampus\b[^.?!]{0,40}\bwork(ing)?\b',
+    r'\b(students?|i|we|they|f-?1)\b[^.?!]{0,30}' + _WORK,
+    _WORK + r'[^.?!]{0,40}\b(allowed|permitted|legal|legally|students?)\b',
+    _WORK + r'[^.?!]{0,40}\bcampus\b',
+    r'\bcampus\b[^.?!]{0,40}' + _WORK,
     r'\bdeport',
     r'\boverstay',
     r'\bunlawful',
@@ -92,7 +98,7 @@ _RELATIVES = (
 )
 _SAFE_AFTER_IM = (
     'trying|not|a|an|the|new|here|in|on|at|from|looking|going|wondering|asking|'
-    'applying|ready|still|just|also|planning|confused|worried|unsure|'
+    'applying|working|ready|still|just|also|planning|confused|worried|unsure|'
     'international|first|currently|studying|enrolled|so|very|really|sure'
 )
 _SAFE_AFTER_RELATIVE = (

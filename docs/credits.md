@@ -136,3 +136,7 @@
 - STU-D03-AI (Nov 16 2026): AI assistance (Codex) drafted the citation validator,
   engine-grounded task explanations, placeholder email drafts, and regression tests
   in `src/student_workflow/ai_day3.py` and `tests/test_ai_day3.py`.
+
+- PR #15 pre-merge review (Nov 16 2026): Codex assisted with teammate-comment
+  verification, SEVIS-status and tuition-wording regressions, rules-derived risk
+  in the manual evaluator, and intent contract corrections.

@@ -350,3 +350,34 @@ def test_preset_questions_are_never_refused(question):
     result = map_intent(question, TASKS, client=client, model='x')
     assert result.outcome == 'matched'
     assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize('question', [
+    'How do I work out what I owe for tuition?',
+    'Can I work out what I owe for tuition?',
+    'I am working out what I owe for tuition',
+])
+def test_work_out_tuition_can_match_a_task(question):
+    tasks = [{'id': 'task_crc_fee_payment', 'title': 'Pay CRC tuition', 'high_risk': False}]
+    client = FakeClient('task_crc_fee_payment')
+    result = map_intent(question, tasks, client=client, model='x')
+    assert result.outcome == 'matched'
+    assert result.task_id == 'task_crc_fee_payment'
+    assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize('question', [
+    'Is my SEVIS record active?',
+    'Is my SEVIS record inactive?',
+    'My SEVIS record was terminated',
+    'Can an inactive record in SEVIS be restored?',
+    'Can I work out my tuition and work off campus?',
+    'I am working on campus, is that allowed?',
+    'Can I work out of state?',
+])
+def test_status_and_work_questions_refer_even_if_model_would_choose_safe_task(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'dso_referral'
+    assert result.task_id is None
+    assert client.calls == []
