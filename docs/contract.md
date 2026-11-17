@@ -622,6 +622,31 @@ name to the model, use the preset questions (`PRESET_QUESTIONS` in
 The dashboard demo should use the five preset questions and verify that each one opens the
 intended task with the Render model configuration.
 
+## Office hours (STU-D07-BE-office-hours)
+
+**Status: on main once this merges.** The rules file has a top-level `offices` list, and each
+task may name its offices (`"offices": ["crc_admissions_records"]`). An office:
+
+| Field | Meaning |
+| --- | --- |
+| `office_id`, `name`, `address` | Identity. `address` null = not published. |
+| `school_id` | The school whose students it serves (`crc` for CRC's offices and the DMV offices chosen for being near CRC); null = every student. Other schools' students never get it. |
+| `valid_from`, `valid_to` | The dates the source gives for these hours; both null = undated (current hours). |
+| `period_note` | In words, which period the hours are for. |
+| `weekly_hours` | `[{day, open, close, mode, appointment}]`; null = the source publishes no hours. `open` < `close`; `mode` is `in_person`, `phone` or `virtual`; `appointment` is `required`, `walk_in`, `either` or `unknown` (unknown unless the source says). |
+| `closures` | `[{date, note}]` from the source. |
+| `source_url`, `evidence`, `retrieved_on` | Where the hours come from, the source's exact words, and when they were read. |
+| `verification_status`, `checked_by`, `second_checker`, `second_check_date` | As for rules; `verified` requires a second checker. |
+| `notes` | Anything the checker needs to know. |
+
+The response gives each task `offices: [TaskOffice]` with the same facts (no checker names) plus
+`in_effect`: `true` when the source's dates cover the workflow's `as_of`, `false` when they
+don't, `null` when the source gave no dates. `[]` means no office was researched for the task,
+not "no office needed". Times serialize as `HH:MM:SS`.
+
+The first five offices (2026-11-17) come from AI web research, quoted word for word, and are
+all `needs_verification` until a teammate checks them a second time (see `docs/sources.md`).
+
 ## The rules file: `data/rules/rules.json`
 
 **Status: on main.**
@@ -867,6 +892,10 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D07-BE-office-hours: rules-file `offices` (sourced weekly hours, closures,
+  validity dates, school scope) and `offices` on each task in the response, with `in_effect`
+  against `as_of`. Additive: existing fields are unchanged.
 
 - 2026-11-17, STU-D06-BE-assistant-fallback: `POST /assistant` retries intent matching once
   (two 4-second tries) and, if the model still can't answer, explains the selected task from

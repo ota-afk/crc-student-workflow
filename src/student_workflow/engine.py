@@ -16,6 +16,7 @@ from .contract import (
     Source,
     StudentProfile,
     Task,
+    TaskOffice,
     Workflow,
 )
 from .rules import (
@@ -23,6 +24,7 @@ from .rules import (
     SINGLE_FIELDS,
     VISIT_FIELDS,
     CitedText,
+    Office,
     Rule,
     RuleBeforeYouGo,
     RulesFile,
@@ -82,6 +84,10 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
                 "before_you_go": _visit_details(
                     applicable_facts(rules, task, school_id)
                 ),
+                # Only offices for every student or for this school (never another
+                # school's offices, or DMV offices chosen for being near another campus).
+                "offices": [o for o in task.offices
+                            if rules.office(o).school_id in (None, school_id)],
             }
             tasks.append(task.model_copy(update=update))
     if not tasks:
@@ -99,7 +105,9 @@ def _for_school(rules: RulesFile, school_id: str | None) -> RulesFile:
             )
     # Keep every rule a task or one of its visit-details facts cites, so each source is found.
     used = {rule_id for task in tasks for rule_id in _cited_rule_ids(task)}
-    return RulesFile(tasks=tasks, rules=[r for r in rules.rules if r.rule_id in used])
+    named = {office_id for task in tasks for office_id in task.offices}
+    return RulesFile(tasks=tasks, rules=[r for r in rules.rules if r.rule_id in used],
+                     offices=[o for o in rules.offices if o.office_id in named])
 
 
 def _visit_details(facts: list[tuple[str, CitedText]]) -> RuleBeforeYouGo | None:
@@ -181,8 +189,9 @@ def _resolve_task(
     ]
 
     visit = _before_you_go(rules, task)
+    offices = [_office(rules.office(office_id), as_of) for office_id in task.offices]
     if task.id in completed:
-        return _task(task, "Completed", sources=sources, visit=visit)
+        return _task(task, "Completed", sources=sources, visit=visit, offices=offices)
 
     # Kept in file order, so next_action always points at the same first prerequisite.
     missing = [p for p in task.prerequisites if p not in completed]
@@ -209,6 +218,24 @@ def _resolve_task(
         blockers=blockers,
         next_action=next_action,
         visit=visit,
+        offices=offices,
+    )
+
+
+def _office(office: Office, as_of: date) -> TaskOffice:
+    """The office as the response shows it, with whether its hours cover as_of."""
+    if office.valid_from is None and office.valid_to is None:
+        in_effect = None  # the source gave no dates: today's hours, maybe not as_of's
+    else:
+        in_effect = ((office.valid_from is None or office.valid_from <= as_of)
+                     and (office.valid_to is None or as_of <= office.valid_to))
+    return TaskOffice(
+        **office.model_dump(include={
+            "office_id", "name", "address", "timezone", "period_note", "weekly_hours",
+            "closures", "source_url", "evidence", "retrieved_on", "verification_status",
+            "notes",
+        }),
+        in_effect=in_effect,
     )
 
 
@@ -266,6 +293,7 @@ def _task(
     blockers: list[Blocker] | None = None,
     next_action: NextAction | None = None,
     visit: BeforeYouGo | None = None,
+    offices: list[TaskOffice] | None = None,
 ) -> Task:
     return Task(
         id=task.id,
@@ -278,4 +306,5 @@ def _task(
         blockers=blockers or [],
         before_you_go=visit,
         sources=sources,
+        offices=offices or [],
     )

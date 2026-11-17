@@ -101,3 +101,28 @@ CRC’s public pages leave the arrival document list, check-in fee, advisor hour
 ### Student wording
 
 Show the source and consultation date, and keep **This summary is still awaiting an independent review** visible while review is pending. The student guide puts school check-in first for reading. The engine handles dependencies separately.
+
+## Office hours — first check by AI research, November 17, 2026
+
+Recorded in `data/rules/rules.json` under `offices`, each with the source's exact words as
+`evidence`. **All are `needs_verification`.** The first check was web research by Claude for
+the team (official .edu/.gov pages only); a teammate still has to compare each entry with its
+page and record themselves as `second_checker` before any of it is marked verified.
+
+| Office | Hours found | Period | Source |
+| --- | --- | --- | --- |
+| CRC International Students Office | none published (appointments by phone, (916) 691-7411) | — | https://crc.losrios.edu/student-resources/support-services/international-students-office |
+| CRC Admissions and Records (CC 151) | Mon–Thu 8:00–5:00, Fri 8:00–4:30 | Fall 2026, Aug 3 – Dec 22 (dated on page) | https://crc.losrios.edu/admissions/admissions-and-records-office |
+| CRC Business Services | Mon–Thu 8:00–5:00, Fri 8:00–4:30 (in person) | undated, seen 2026-11-17 | https://crc.losrios.edu/student-resources/support-services/business-services |
+| DMV Sacramento South | Mon, Tue, Thu, Fri 8–5; Wed 9–5 | two-week schedule, Nov 15–28, 2026 | https://www.dmv.ca.gov/portal/field-office/sacramento-south/ |
+| DMV Sacramento (Broadway) | Mon, Tue, Thu, Fri 8–5; Wed 9–5 | two-week schedule, Nov 15–28, 2026 | https://www.dmv.ca.gov/portal/field-office/sacramento/ |
+
+Things the second checker should look at:
+- The International Student Advisor works in Admissions & Records per the ISO page, but no page
+  says the advisor keeps A&R's hours; the check-in task lists both offices for that reason.
+- A&R's page doesn't say its hours are in person; that was assumed from its listed room.
+- Business Services and DMV hours are undated or current-only; they may differ from August 2026.
+- College closures (Labor Day, Veterans Day, Thanksgiving recess) come from the CRC Fall 2026
+  Academic Calendar: https://crc.losrios.edu/admissions/academic-calendar-and-deadlines/fall-2026-academic-calendar
+- An SSA office (40 Massie Circle) was also found but isn't used: no task in the rules is an SSN
+  application.

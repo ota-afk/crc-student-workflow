@@ -3,7 +3,7 @@
 docs/contract.md, section "The rules file", is the written version of these models.
 """
 
-from datetime import date
+from datetime import date, time
 from pathlib import Path
 from typing import Literal
 
@@ -153,6 +153,77 @@ class RuleBeforeYouGo(BaseModel):
         return found
 
 
+Weekday = Literal["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+class OpeningHours(BaseModel):
+    """One day's published opening hours at one office, exactly as the source gives them."""
+
+    model_config = STRICT
+
+    day: Weekday
+    open: time
+    close: time
+    mode: Literal["in_person", "phone", "virtual"]
+    # What the source says about appointments. "unknown" unless the page says so.
+    appointment: Literal["required", "walk_in", "either", "unknown"] = "unknown"
+
+    @model_validator(mode="after")
+    def _opens_before_it_closes(self) -> "OpeningHours":
+        if not self.open < self.close:
+            raise ValueError(f"{self.day}: open {self.open} is not before close {self.close}")
+        return self
+
+
+class Closure(BaseModel):
+    model_config = STRICT
+
+    date: date
+    note: str = Field(min_length=1)
+
+
+class Office(BaseModel):
+    """An office a task sends the student to, with its published hours and their source.
+
+    Hours are facts like any rule: they carry their source, the exact quoted evidence and a
+    verification state, and stay "needs_verification" until a second person checks them.
+    """
+
+    model_config = STRICT
+
+    office_id: str
+    name: str
+    # The school whose students this office is for (CRC's offices, and the DMV/SSA offices
+    # nearest CRC). None = for every student. Scoping drops it for other schools' students.
+    school_id: str | None = None
+    address: str | None = None
+    timezone: Literal["America/Los_Angeles"] = "America/Los_Angeles"
+    # The dates the source says these hours apply to. None = the source gives no range
+    # (today's hours, seen on retrieved_on), so they may not match the workflow's date.
+    valid_from: date | None = None
+    valid_to: date | None = None
+    period_note: str = Field(min_length=1)
+    # None = the source publishes no hours for this office. Never filled in with a guess.
+    weekly_hours: list[OpeningHours] | None = None
+    closures: list[Closure] = []
+    source_url: str
+    evidence: str = Field(min_length=1)  # the source's exact words for the hours
+    retrieved_on: date
+    verification_status: Literal["verified", "needs_verification"]
+    checked_by: str
+    second_checker: str | None = None
+    second_check_date: date | None = None
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def _range_is_in_order(self) -> "Office":
+        if self.valid_from and self.valid_to and self.valid_from > self.valid_to:
+            raise ValueError(f"office {self.office_id}: valid_from is after valid_to")
+        if self.verification_status == "verified" and not self.second_checker:
+            raise ValueError(f"office {self.office_id}: verified needs a second checker")
+        return self
+
+
 class RuleTask(BaseModel):
     """A task as ENG writes it. The engine turns it into a contract Task with a status."""
 
@@ -167,6 +238,8 @@ class RuleTask(BaseModel):
     rule_ids: list[str] = Field(min_length=1)
     # None = no visit details for this task yet. Never a reason to call it "ready".
     before_you_go: RuleBeforeYouGo | None = None
+    # The offices this task sends the student to (office_id in RulesFile.offices).
+    offices: list[str] = []
 
 
 class RulesFile(BaseModel):
@@ -174,6 +247,8 @@ class RulesFile(BaseModel):
 
     tasks: list[RuleTask]
     rules: list[Rule]
+    # [] = no office hours researched yet; tasks then simply have no offices.
+    offices: list[Office] = []
 
     @model_validator(mode="after")
     def _ids_are_consistent(self) -> "RulesFile":
@@ -195,8 +270,16 @@ class RulesFile(BaseModel):
                         f"task {task.id} before_you_go.{field} cites unknown rule "
                         f"{fact.rule_id}"
                     )
+        office_ids = _unique([o.office_id for o in self.offices], "office")
+        for task in self.tasks:
+            for office_id in task.offices:
+                if office_id not in office_ids:
+                    raise ValueError(f"task {task.id} names unknown office {office_id}")
         _reject_loops(self.tasks)
         return self
+
+    def office(self, office_id: str) -> "Office":
+        return next(o for o in self.offices if o.office_id == office_id)
 
     def task(self, task_id: str) -> RuleTask:
         return next(t for t in self.tasks if t.id == task_id)
