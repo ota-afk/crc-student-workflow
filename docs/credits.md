@@ -183,3 +183,7 @@
   field for "Another office" in Flyover's handoff (`src/student_workflow/flyover.py`, FE's
   file, under the team's advance approval of the v2 plan), with Markdown-safe export and
   tests in `tests/test_flyover_app.py`.
+
+- STU-D06-BE-assistant-page-context (Nov 17 2026): AI assistance (Claude Code) added the
+  optional `page_context` hint to `POST /assistant` (`contract.py`, `assistant.py`,
+  `docs/contract.md`) and its tests in `tests/test_api_assistant.py`.

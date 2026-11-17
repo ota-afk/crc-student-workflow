@@ -203,3 +203,46 @@ def test_timing_and_citations_survive_ranking_timeout(workflow_request, provider
     after_unlock = ask(body)
     assert all('Unlock date' not in step for step in after_unlock.steps)
     assert all(source.rule_id != timing_rule_id for source in after_unlock.sources)
+
+
+PAGES = ['journey', 'readiness', 'airshow']
+
+
+@pytest.mark.parametrize('page', PAGES)
+def test_page_context_adds_its_lead_and_keeps_the_cited_answer(workflow_request, provider, page):
+    plain = ask(assistant_body(workflow_request))
+    framed = ask({**assistant_body(workflow_request), 'page_context': page})
+    assert framed.answer == f'{assistant.PAGE_LEADS[page]} {plain.answer}'
+    assert (framed.steps, framed.sources, framed.verified, framed.task_id) == (
+        plain.steps, plain.sources, plain.verified, plain.task_id)
+
+
+def test_null_page_context_leaves_the_answer_unchanged(workflow_request, provider):
+    body = assistant_body(workflow_request)
+    assert ask({**body, 'page_context': None}) == ask(body)
+
+
+def test_unknown_page_context_is_rejected_before_any_model_call(workflow_request, provider):
+    body = {**assistant_body(workflow_request), 'page_context': 'settings'}
+    assert client.post('/assistant', json=body).status_code == 422
+    assert provider.clients == []
+
+
+def test_page_context_never_reaches_the_model(workflow_request, provider):
+    ask({**assistant_body(workflow_request), 'page_context': 'readiness'})
+    sent = json.dumps(provider.calls, default=str)  # every call's instructions, input, etc.
+    assert 'readiness' not in sent and assistant.PAGE_LEADS['readiness'] not in sent
+
+
+def test_referral_is_not_framed_on_any_page(workflow_request, provider):
+    body = assistant_body(workflow_request, None, 'Can I work off campus?')
+    referral = ask({**body, 'page_context': 'airshow'})
+    assert 'DSO' in referral.contact
+    assert not referral.answer.startswith(assistant.PAGE_LEADS['airshow'])
+
+
+def test_every_page_in_the_contract_has_a_lead():
+    from typing import get_args
+
+    from student_workflow.contract import PageContext
+    assert set(get_args(PageContext)) == set(assistant.PAGE_LEADS)

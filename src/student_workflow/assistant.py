@@ -17,6 +17,13 @@ from .rules import RulesFile
 INTENT_TIMEOUT = 5.0
 CITATION_TIMEOUT = 2.0
 DSO_CONTACT = "Your school's international student office (DSO)"
+# One fixed lead per PageContext (docs/contract.md). A KeyError here means the contract's
+# Literal gained a page without a lead: fail loudly rather than answer unframed.
+PAGE_LEADS = {
+    'journey': 'Where this step stands on your journey.',
+    'readiness': 'What this step needs before you go.',
+    'airshow': 'What to confirm with the office for this step.',
+}
 
 
 async def _within[T](seconds: float, call: Callable[[], T]) -> T | None:
@@ -58,7 +65,19 @@ async def answer_question(
         ranked = await _within(CITATION_TIMEOUT, partial(_rank_citations, task, prerequisite))
         if ranked is not None:
             explanation = ranked
-    return _adapt_explanation(task, explanation)
+    return _frame(_adapt_explanation(task, explanation), request.page_context)
+
+
+def _frame(answer: AssistantAnswer, page: str | None) -> AssistantAnswer:
+    """Lead an explained answer with one fixed sentence for the page it was asked on.
+
+    Deterministic and server-side: the page never reaches the model, and the steps, sources
+    and `verified` stay exactly as the cited explanation made them. Referrals and fallbacks
+    (task_id None) are not framed, and page None leaves the answer unchanged.
+    """
+    if page is None or answer.task_id is None:
+        return answer
+    return answer.model_copy(update={'answer': f'{PAGE_LEADS[page]} {answer.answer}'})
 
 
 def _rank_citations(task: Task, prerequisite: Task | None) -> TaskExplanation | None:

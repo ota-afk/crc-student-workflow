@@ -122,6 +122,10 @@ class AssistantProfile(BaseModel):
     awaiting_reply: list[str] = Field(default_factory=list, max_length=MAX_PROGRESS_TASKS)
 
 
+# Where in Flyover the question was asked. A display hint only; see docs/contract.md.
+PageContext = Literal['journey', 'readiness', 'airshow']
+
+
 class AssistantRequest(BaseModel):
     model_config = STRICT
 
@@ -133,6 +137,8 @@ class AssistantRequest(BaseModel):
     ]
     task_id: str | None = None
     as_of: date
+    # None = the caller didn't say (older clients): the answer is unchanged.
+    page_context: PageContext | None = None
     student_profile: AssistantProfile
 
 
