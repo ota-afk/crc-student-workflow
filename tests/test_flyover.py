@@ -14,7 +14,7 @@ from student_workflow.flyover_client import (
     generate_workflow,
     resolve_blocker,
 )
-from student_workflow.flyover_state import active_task, map_piece_count
+from student_workflow.flyover_state import active_task, map_piece_count, task_queue
 
 
 def test_initial_request_sends_configured_api_key(monkeypatch):
@@ -100,12 +100,62 @@ def test_map_assembles_at_first_half_and_final_completion(done, total, pieces):
     assert map_piece_count(done, total) == pieces
 
 
-def test_active_task_skips_completed_and_retains_blocked_steps():
+def test_active_task_skips_completed_and_puts_ready_before_blocked():
+    # Plan feature 8: at equal priority Ready comes first; a blocked step stays in the queue.
     tasks = [{'id': 'a', 'status': 'Completed'}, {'id': 'b', 'status': 'Blocked'},
              {'id': 'c', 'status': 'Ready'}]
-    assert active_task(tasks)['id'] == 'b'
+    assert active_task(tasks)['id'] == 'c'
+    assert [t['id'] for t in task_queue(tasks)] == ['c', 'b']
     assert active_task([]) is None
     assert active_task([tasks[0]]) is None
+
+
+def _t(task_id, priority='Recommended', status='Ready', prerequisites=()):
+    return {'id': task_id, 'priority': priority, 'status': status,
+            'prerequisites': list(prerequisites)}
+
+
+def _order(tasks):
+    return [t['id'] for t in task_queue(tasks)]
+
+
+def test_required_comes_before_recommended_and_optional():
+    assert _order([_t('o', 'Optional'), _t('r', 'Recommended'), _t('q', 'Required')]) == [
+        'q', 'r', 'o']
+
+
+def test_a_prerequisite_comes_before_the_task_that_needs_it():
+    # Even though 'need' is Required: it waits on 'first'.
+    tasks = [_t('need', 'Required', 'Blocked', ['first']), _t('first', 'Recommended')]
+    assert _order(tasks) == ['first', 'need']
+
+
+def test_a_prerequisite_inherits_the_priority_of_what_needs_it():
+    # 'opt' is Optional but a Required task needs it, so it goes ahead of a Recommended task.
+    tasks = [_t('rec', 'Recommended'), _t('opt', 'Optional'),
+             _t('req', 'Required', 'Blocked', ['opt'])]
+    assert _order(tasks) == ['opt', 'req', 'rec']
+
+
+def test_priority_is_inherited_along_a_chain():
+    tasks = [_t('rec'), _t('a', 'Optional'), _t('b', 'Optional', 'Blocked', ['a']),
+             _t('c', 'Required', 'Blocked', ['b'])]
+    assert _order(tasks) == ['a', 'b', 'c', 'rec']
+
+
+def test_equal_priority_orders_ready_then_in_progress_then_blocked_then_file_order():
+    tasks = [_t('b1', status='Blocked'), _t('p', status='In Progress'), _t('r1'), _t('r2')]
+    assert _order(tasks) == ['r1', 'r2', 'p', 'b1']
+
+
+def test_a_cycle_in_the_data_still_returns_every_task():
+    tasks = [_t('x', prerequisites=['y']), _t('y', prerequisites=['x'])]
+    assert sorted(_order(tasks)) == ['x', 'y']
+
+
+def test_the_queue_never_changes_a_status():
+    tasks = [_t('b', 'Required', 'Blocked', ['a']), _t('a')]
+    assert [t['status'] for t in task_queue(tasks)] == ['Ready', 'Blocked']
 
 
 def test_map_progress_increases_on_every_completion():
