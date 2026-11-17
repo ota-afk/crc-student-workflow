@@ -105,3 +105,7 @@
   performance fix with linear duplicate counting and a 1,000-item limit on each profile
   progress list. Added API regression tests for early rejection and the limit boundary,
   and documented the limits in `docs/contract.md`. Pending the BE owner's review.
+
+- STU-D05-BE-docs-status (Nov 16 2026): AI assistance (Claude Code) updated the status wording
+  in `docs/contract.md`, `README.md`, `docs/deploy.md` and `docs/release-checklist.md` after
+  #20, #21 and #22 merged. Documentation only. Pending the BE owner's review.
