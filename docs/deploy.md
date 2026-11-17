@@ -4,11 +4,9 @@ Both services run on Render's free plan, set up from [`render.yaml`](../render.y
 "Blueprint": one file that describes both services). Only the BE owner's Render account is
 used; teammates don't need one.
 
-**Status (2026-11-16): not deployed.** `render.yaml` and this guide are in PR #21, which builds
-on #20; neither is merged. Render reads `render.yaml` from the branch you pick, and `main` doesn't
-have it yet. Merge #20, #21 and #22 first and deploy from `main`. If the deploy can't wait,
-pick the branch `feature/STU-D05-BE` in the Blueprint step (it has all three tickets), and
-switch both services to `main` after the merges.
+**Status (2026-11-16): not deployed yet.** `render.yaml` and this guide are on `main` (#21), so
+pick the branch `main` in the Blueprint step below. The dashboard on `main` doesn't send the API
+key yet (FE's change), so deploy and smoke test the API first.
 
 ## Live URLs
 
