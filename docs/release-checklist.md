@@ -74,23 +74,26 @@ It is a set of patterns, not proof that no secret or personal data is in the his
 
 | Check | Date | Result |
 | --- | --- | --- |
-| Key audit, all history | 2026-11-16 | No findings. 77 commits on all branches and the 21 fetched pull request refs, merges included, with the audit as merged in #22: no key-shaped strings or literal secret assignments, no `.env`, key or secrets file ever committed (also not by rename). Tested on fake keys, a key typed into a merge, a rename to `.env`, digit-free and quoted secrets, and Render `key:`/`value:` pairs (`tests/test_audit_secrets.py`). Not proof; see "What the audit can't prove". |
+| Key audit, all history | 2026-11-17 | No findings. 139 commits on all branches and the 30 fetched pull request refs (main at #30), merges included: no key-shaped strings or literal secret assignments, no `.env`, key or secrets file ever committed (also not by rename). Tested on fake keys, a key typed into a merge, a rename to `.env`, digit-free and quoted secrets, and Render `key:`/`value:` pairs (`tests/test_audit_secrets.py`). Not proof; see "What the audit can't prove". |
 | Word files in history | 2026-11-16 | Clean. Every version of the three `docs/Day1_*.docx` files: no keys, no SEVIS-like numbers, no author name in the file properties. The only email address is CRC's public office address. |
-| Commit emails | 2026-11-16 | **Team decision.** 5 commit email addresses are not GitHub "noreply" addresses, so they become public with the history. See below. |
+| Commit emails | 2026-11-17 | **Already public.** The repo is public, and 7 commit email addresses are not GitHub "noreply" addresses. See below. |
 | Pre-recording check, live engine on a laptop | 2026-11-16 | Passes (`USE_MOCK=false`, local server). Warning: all 8 cited rules are still `needs_verification`. Not a check of the deployed API. |
-| Pre-recording check, live API | Not run yet | Needs the deploy (docs/deploy.md). |
-| Warm-up, both live URLs | Not run yet | Needs the deploy. |
+| Smoke test, live API | 2026-11-17 | `All checks passed` against the deployed API (main at #30): every endpoint, the key check, and the demo path. |
+| Pre-recording check, live API | 2026-11-17 | `clean`. Warning: 19 cited rules are still `needs_verification` (1 of the 21 rules in `rules.json` is verified). |
+| Dashboard walkthrough, live API | 2026-11-17 | Passes. The dashboard code on main (#30), run on a laptop against the deployed API: load, school search, generate (DMV Blocked), resolve (draft shown, residency In Progress), mark done (DMV Ready), reload (still Ready). Clicking through the deployed dashboard in a browser is still to do. |
+| Warm-up, both live URLs | 2026-11-17 | Both awake. A sleeping API makes the dashboard's first load fail after its 10-second timeout; Retry works about a minute later. Warm up before recording and before judging. |
 
 ## Team decisions (not BE's alone)
 
-- **When the repo goes public.** The plan: submissions are public, and Devpost needs a repo
-  link that works for someone not on the team. Run the audit again right before switching it.
-- **Commit emails.** Some teammates' commits show a real email address, which becomes public
+- **The repo is public** (made public for Render). The audit above was run after that, on
+  2026-11-17.
+- **Commit emails.** Some teammates' commits show a real email address, which is public
   with the repo. Rewriting shared history is drastic and needs everyone's agreement. The light
   option: each person turns on GitHub's "Keep my email addresses private" (Settings → Emails)
   and sets git's `user.email` to their noreply address, so future commits are private. Run
   `uv run --locked python scripts/audit_secrets.py` to see the count; it never prints the
   addresses.
-- **Unverified rules in the video.** Every rule ENG has cited is still `needs_verification`.
-  The demo can show them labeled "Not verified", but the plan's video rules say to state only
-  verified facts. ENG's second checks decide what can be said.
+- **Unverified rules in the video.** 1 of the 21 rules is verified; 19 rules the workflow
+  cites are still `needs_verification`. The demo can show them labeled "Not verified", but the
+  plan's video rules say to state only verified facts. ENG's second checks decide what can be
+  said.
