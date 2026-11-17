@@ -370,3 +370,10 @@
 .fly-facts dt { font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--flyover-soft); padding-top:3px; }
 .fly-facts dd { margin:0; font-weight:700; color:var(--flyover-ink); }
 @media(max-width:760px) { .fly-facts { grid-template-columns:1fr; gap:2px; } .fly-facts dd { margin-bottom:8px; } }
+
+/* ---- Readability (STU-D07-FE-readable-text) ----
+   Streamlit draws captions through an inner element with its own faded colour; darken both
+   levels (#4A544E on ivory is 7.6:1). Heading link icons are clutter for students: hidden. */
+.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] p {
+  color:#4A544E!important; opacity:1!important; }
+.stApp [data-testid="stHeaderActionElements"] { display:none!important; }

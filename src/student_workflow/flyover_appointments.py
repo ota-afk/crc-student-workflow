@@ -84,8 +84,8 @@ def normalize_windows(windows: list[dict]) -> list[dict]:
 
 
 def describe_windows(windows: list[dict]) -> str:
-    """'Monday 09:00–12:00, Wednesday 14:00–16:30' for the notice."""
-    return ', '.join(f'{w["day"]} {w["start"]:%H:%M}–{w["end"]:%H:%M}' for w in windows)
+    """'Monday 9:00 AM–12:00 PM, Wednesday 2:00 PM–4:30 PM' for the notice."""
+    return ', '.join(f'{w["day"]} {clock(w["start"])}–{clock(w["end"])}' for w in windows)
 
 
 def notice_key(guidance: dict, windows: list[dict]) -> str:
@@ -128,8 +128,13 @@ def hours_summary(office: dict) -> str:
         else:
             groups.append([day, day, span])
     return ' · '.join(
-        f'{first[:3]}{"–" + last[:3] if last != first else ""} {s:%H:%M}–{e:%H:%M}'
+        f'{first[:3]}{"–" + last[:3] if last != first else ""} {clock(s)}–{clock(e)}'
         for first, last, (s, e) in groups)
+
+
+def clock(moment: time) -> str:
+    """'8:00 AM', '4:30 PM': the 12-hour clock most students in the US read at a glance."""
+    return f'{moment.hour % 12 or 12}:{moment:%M} {"AM" if moment.hour < 12 else "PM"}'
 
 
 def overlaps(windows: list[dict], office: dict) -> list[dict]:
