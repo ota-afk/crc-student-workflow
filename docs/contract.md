@@ -859,7 +859,7 @@ Outcomes:
 
 - `matched`: the model picked a task ID that exists in the list. Show that task.
 - `no_match`: nothing fits, the model answered `none` or an unknown ID, or the
-  text had personal details and the student is asked to rephrase. Show `message`.
+  text had personal details, or was not in English, and the student is asked to rephrase. Show `message`.
 - `dso_referral`: an immigration-status or work-authorization question, or the
   matched task has `high_risk: true`. Show `message`. No answer is given.
 - `error`: the model was unavailable, a key or model was missing, or the

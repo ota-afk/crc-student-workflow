@@ -1,8 +1,9 @@
 """Intent mapping: turn a student's sentence into one task ID.
 
 The model only picks a task ID. Plain code decides everything else:
-high-risk questions never reach the model, personal details are refused or
-removed, and any ID that is not in the allowed list is treated as "no match".
+high-risk questions never reach the model, text with personal details or in an
+unsupported language is refused, and any ID that is not in the allowed list is
+treated as "no match".
 """
 
 import os
@@ -15,6 +16,8 @@ from pydantic import BaseModel
 from . import config  # noqa: F401  (importing config loads .env)
 
 MAX_INPUT_CHARS = 500
+
+_NOT_A_JOB_QUESTION = r'(?!\s+(fair|fairs|expo|board|boards|search|workshop))'
 
 HIGH_RISK_PATTERNS = [
     r'immigration status',
@@ -30,11 +33,21 @@ HIGH_RISK_PATTERNS = [
     r'work (off|on)[- ]campus',
     r'off[- ]campus (job|work|employment)',
     r'\b(opt|cpt)\b(?![- ]out)',
-    r'\bjobs?\b',
-    r'\bemployment\b',
-    r'\binternships?\b',
+    r'\b(get|have|take|accept|apply for|find|start|need|want)\b[^.?!]{0,30}'
+    r'\b(jobs?|employment|internships?)\b' + _NOT_A_JOB_QUESTION,
+    r'\b(campus|part-time|full-time) jobs?\b' + _NOT_A_JOB_QUESTION,
+    r'\bpaid employment\b',
     r'\bget(ting)? paid\b',
     r'\bpaid (work|employment|job|position)',
+    r'\bunauthori[sz]ed\b',
+    r'\bvisa\b[^.?!]{0,20}\b(expired|expires|expiring|expire)\b',
+    r'\bexpired\b[^.?!]{0,20}\bvisa\b',
+    r'\bi-?20\b[^.?!]{0,40}\b(valid|invalid|expired|expires|expiring|expire)\b',
+    r'\b(valid|expired|expires|expire)\b[^.?!]{0,30}\bi-?20\b',
+    (
+        r'\b(spouse|wife|husband|partner|dependent|f-?2)\b[^.?!]{0,40}'
+        r'\b(work|working|job|employment|paid)\b'
+    ),
     r'\bdeport',
     r'\boverstay',
     r'\bunlawful',
@@ -43,13 +56,41 @@ HIGH_RISK_PATTERNS = [
 ]
 HIGH_RISK_REGEXES = [re.compile(p, re.IGNORECASE) for p in HIGH_RISK_PATTERNS]
 
+_RELATIVES = (
+    'friend|roommate|classmate|brother|sister|mother|father|parent|cousin|'
+    'advisor|professor|teacher|boyfriend|girlfriend|spouse|wife|husband|partner'
+)
 NAME_REGEXES = [
     re.compile(r'\bmy name is\b', re.IGNORECASE),
     re.compile(r'\bcall me\b', re.IGNORECASE),
-    # Case-sensitive on purpose: "I'm Jane" is a name, "I'm trying" is not.
-    re.compile(r"(?i:\bi(?:['\u2019]m| am)) [A-Z][a-z]+"),
     re.compile(r'\bname\s*[:=-]', re.IGNORECASE),
+    # The intro words are case-insensitive, the name must be capitalized:
+    # "i'm Jane" and "my friend Jane" are names, "I'm trying" is not.
+    re.compile(r"(?i:\bi(?:['\u2019]m| am)) [A-Z][a-z]+"),
+    re.compile(r'(?i:\bmy (?:' + _RELATIVES + r')) [A-Z][a-z]+'),
+    re.compile(r'(?i:\b(?:named|called)) [A-Z][a-z]+'),
 ]
+
+# When we cannot redact reliably, we refuse instead.
+SENSITIVE_REGEXES = [
+    re.compile(r'\S+@\S+'),
+    re.compile(r'\d{5,}'),
+    re.compile(r'\b\d{3}[-.\s]\d{2,3}[-.\s]\d{3,4}\b'),
+    re.compile(r'\b(?=[A-Za-z0-9-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{6,}\b'),
+    re.compile(
+        r'\b(student id|passport|sevis|ssn|social security|a-number|alien number)\b'
+        r'[^.?!]*\d',
+        re.IGNORECASE,
+    ),
+]
+
+# Simple English check. Not a language detector: it only catches obvious
+# non-English text. Day 4's question set should cover this.
+ENGLISH_WORDS = {
+    "i", "i'm", 'the', 'to', 'my', 'can', 'do', 'how', 'what', 'where', 'when',
+    'is', 'are', 'get', 'want', 'need', 'apply', 'for', 'of', 'in', 'and',
+    'please', 'does', 'should',
+}
 
 DSO_MESSAGE = (
     'This question is about immigration status or work authorization. '
@@ -63,6 +104,10 @@ NO_MATCH_MESSAGE = (
 REPHRASE_MESSAGE = (
     'Please rephrase your question without names, ID numbers or other '
     'personal details.'
+)
+LANGUAGE_MESSAGE = (
+    'Sorry, I can only read questions in English right now. Please rephrase in '
+    'English, or ask your international student office (your DSO).'
 )
 ERROR_MESSAGE = (
     "I couldn't process that request right now. "
@@ -92,10 +137,20 @@ def has_name(text: str) -> bool:
     return any(regex.search(text) for regex in NAME_REGEXES)
 
 
+def has_sensitive_data(text: str) -> bool:
+    return any(regex.search(text) for regex in SENSITIVE_REGEXES)
+
+
+def is_supported_language(text: str) -> bool:
+    if any(ch.isalpha() and not ch.isascii() for ch in text):
+        return False
+    words = re.findall(r"[a-z']+", text.lower())
+    return len(words) < 3 or bool(ENGLISH_WORDS.intersection(words))
+
+
 def scrub(text: str) -> str:
-    """Remove obvious personal data and cap the length (see docs/ai-data-policy.md)."""
+    """Backup redaction and length cap (see docs/ai-data-policy.md)."""
     text = re.sub(r'\S+@\S+', '[email removed]', text)
-    # Whole ID-like tokens: letters and digits mixed, 6+ characters.
     text = re.sub(
         r'\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{6,}\b',
         '[id removed]',
@@ -131,8 +186,10 @@ def map_intent(
     """
     if is_high_risk(text):
         return IntentResult(outcome='dso_referral', message=DSO_MESSAGE)
-    if has_name(text):
+    if has_name(text) or has_sensitive_data(text):
         return IntentResult(outcome='no_match', message=REPHRASE_MESSAGE)
+    if not is_supported_language(text):
+        return IntentResult(outcome='no_match', message=LANGUAGE_MESSAGE)
 
     cleaned = scrub(text)
     valid = [t for t in tasks if t.get('id') and t.get('title')]

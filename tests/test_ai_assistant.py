@@ -101,24 +101,6 @@ def test_high_risk_task_becomes_dso_referral():
     assert result.task_id is None
 
 
-def test_personal_data_is_removed_before_sending():
-    client = FakeClient('none')
-    map_intent('email me at jane@example.com about my ID 123456789', TASKS, client=client, model='x')
-    sent = client.calls[0]['input']
-    assert 'jane@example.com' not in sent
-    assert '123456789' not in sent
-
-
-def test_alphanumeric_ids_are_removed_whole():
-    client = FakeClient('none')
-    map_intent('my ID is W1234567 and my SEVIS is N0012345678', TASKS, client=client, model='x')
-    sent = client.calls[0]['input']
-    assert 'W1234567' not in sent
-    assert 'N0012345678' not in sent
-    assert 'W[' not in sent
-    assert 'N[' not in sent
-
-
 def test_names_are_refused_without_calling_the_model():
     client = FakeClient('task_dmv_id')
     text = "Hi, I'm Jane Doe, student ID W1234567, SEVIS N0012345678"
@@ -217,4 +199,70 @@ def test_none_high_risk_flag_is_an_error():
     client = FakeClient('task_dmv_id')
     result = map_intent('I want a California ID', tasks, client=client, model='x')
     assert result.outcome == 'error'
+    assert client.calls == []
+
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        'My friend Jane Doe needs a DMV ID',
+        'my student ID 12345 and I want a California ID',
+        'passport AB-12345, how do I get an ID?',
+        'email me at jane@example.com about my ID',
+        'my phone is 916-555-1234, how do I get an ID?',
+        'my SSN is 123-45-6789 and I want an ID',
+        'my ID is W1234567, how do I check in?',
+    ],
+)
+def test_sensitive_text_is_refused_without_calling_the_model(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'no_match'
+    assert 'rephrase' in result.message
+    assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        'My F-1 visa expired',
+        'Is my I-20 still valid?',
+        'Can my spouse legally work while I study?',
+    ],
+)
+def test_more_immigration_questions_get_dso_referral(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'dso_referral'
+    assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        'Where do I pick up a job fair pass?',
+        'What time is the campus job fair?',
+    ],
+)
+def test_job_fair_is_not_a_work_authorization_question(question):
+    client = FakeClient('none')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'no_match'
+    assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize(
+    'question',
+    [
+        '我可以在校外工作吗',
+        'Puedo trabajar fuera del campus por favor',
+        '¿Cómo obtengo una identificación de California?',
+    ],
+)
+def test_unsupported_language_is_refused_without_calling_the_model(question):
+    client = FakeClient('task_dmv_id')
+    result = map_intent(question, TASKS, client=client, model='x')
+    assert result.outcome == 'no_match'
+    assert 'English' in result.message
     assert client.calls == []
