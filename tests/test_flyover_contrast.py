@@ -83,3 +83,17 @@ def test_ai_launcher_hover_ring_meets_wcag_minimum():
     ring = re.search(rf'{ring[4:-1]}\s*:\s*([^;]+);', _rule(':root')).group(1).strip()
     header = _rgb(_value(HEADER, 'background'))
     assert _ratio(_rgb(ring), header) >= 3
+
+
+@pytest.mark.parametrize('selector', ['.stApp h1', '.st-key-flyover_workflow h3'])
+def test_headings_meet_the_normal_text_minimum(selector):
+    # Deep sage, 6.2:1 on the page: readable at any size, not only because headings are large.
+    assert _ratio(_rgb(_value(selector, 'color')), PAPER) >= 4.5
+
+
+def test_no_text_is_smaller_than_12_5_pixels():
+    # 0.78rem = 12.5px at the browser default. font-size:0 (hidden labels) has no unit.
+    rem = [float(v) for v in re.findall(r'font-size:\s*([\d.]+)rem', CSS)]
+    px = [float(v) for v in re.findall(r'font-size:\s*([\d.]+)px', CSS)]
+    assert rem and min(rem) >= 0.78, sorted(rem)[:3]
+    assert not px or min(px) >= 12.5, sorted(px)[:3]

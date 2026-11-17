@@ -228,3 +228,7 @@
 - STU-D06-FE-session-tour (Nov 17 2026): AI assistance (Claude Code) wrote Flyover's
   first-session spotlight tour (`flyover_tour.py`), its Settings replay and wiring
   (`flyover.py`, `style.css`), and `tests/test_flyover_tour.py`.
+
+- STU-D06-FE-typography (Nov 17 2026): AI assistance (Claude Code) set Flyover's headings to
+  deep sage, raised every label to at least 0.78rem (12.5px), and eased line height
+  (`style.css`, `flyover_tour.py`), with checks in `tests/test_flyover_contrast.py`.
