@@ -534,6 +534,7 @@ selected tasks return `404`. Invalid dates, questions or profiles return `422`.
   "question": "Why is this task blocked?",
   "task_id": "task_dmv_id",
   "as_of": "2026-08-14",
+  "page_context": "readiness",
   "student_profile": {
     "institution": "Cosumnes River College",
     "visa_type": "F-1",
@@ -545,6 +546,16 @@ selected tasks return `404`. Invalid dates, questions or profiles return `422`.
   }
 }
 ```
+
+`page_context` (optional, STU-D06-BE-assistant-page-context) says where the student asked:
+`"journey"` (Flyover page 1, the current step), `"readiness"` (page 2, the checklist) or
+`"airshow"` (the handoff section). Omitted or `null` keeps the answer exactly as before. Any
+other value is a `422`. It is a display hint only: for an explained task the answer starts
+with one fixed sentence for that page ("Where this step stands on your journey.", "What this
+step needs before you go.", "What to confirm with the office for this step."), followed by
+the same cited explanation. It never reaches the model, and never changes the matched task,
+the risk referral, the steps, the sources or `verified`. Referrals and fallbacks are not
+framed.
 
 Send `as_of` from the workflow response and both progress lists from its latest profile.
 Questions contain 1–500 characters after trimming. `school_id` may be omitted or null.
@@ -849,6 +860,11 @@ unreadable rules file raises the corresponding file error.
 - **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
+
+- 2026-11-17, STU-D06-BE-assistant-page-context: optional `page_context` on
+  `POST /assistant` (`journey`, `readiness`, `airshow` or null), a server-side display hint
+  that adds one fixed lead sentence to explained answers. Not sent to the model; omitting it
+  changes nothing.
 
 - 2026-11-17, STU-D06-BE-demo-checks: status lines brought up to date with main: visit
   details (#23, #26), `POST /assistant` (#32) in the endpoint table, and the Render deploy.
