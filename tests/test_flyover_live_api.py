@@ -382,9 +382,10 @@ def test_free_times_never_match_hours_that_are_not_confirmed(live):
                             'confirmed.') for c in captions)
     assert not any('overlap' in c for c in captions)
     # Each office's own page is offered instead.
-    assert '[Official page: CRC International Students Office](https://crc.losrios.edu/' \
-           'student-resources/support-services/international-students-office)' in values(
-               app.markdown)
+    assert ('<a class="fly-office-src" href="https://crc.losrios.edu/student-resources/'
+            'support-services/international-students-office" target="_blank" rel="noopener '
+            'noreferrer">View CRC International Students Office hours source</a>'
+            ) in page_html(app)
 
 
 def test_a_backwards_free_time_is_refused(live):
@@ -430,11 +431,16 @@ def test_a_task_with_no_visit_details_says_so_once(live):
     assert not any(v.startswith('Hours: Not verified') for v in values(app.markdown))
 
 
-def test_sourced_visit_details_show_with_a_not_verified_badge(live):
+def test_sourced_visit_details_open_their_evidence_in_place(live):
     app = open_checklist(signed_in_app(APP), DMV)
     hours = [v for v in values(app.markdown) if v.startswith('**Hours:**')]
-    assert len(hours) == 1 and hours[0].endswith(':orange-badge[Not verified]')
+    assert len(hours) == 1 and 'badge' not in hours[0]  # no repeated badge on the fact
     assert 'DMV office finder' in hours[0]  # ENG's sourced wording, link included
+    # Its evidence: the cited rule's page (field + text matched), unreviewed, in place.
+    assert ('<details class="fly-more"><summary>more info included here</summary>'
+            '<div class="fly-sheet"><div class="fly-src"><div><a href="https://www.dmv.ca.gov/'
+            'portal/locations/"') in page_html(app)
+    assert 'Confirm this detail with the office.' in page_html(app)
 
 
 def test_airshow_greets_an_empty_chat(live):
@@ -482,8 +488,8 @@ def test_profile_dashboard_shows_this_sessions_answers(live):
 
 def test_profile_progress_counts_follow_the_api(live):
     app = open_checklist(signed_in_app(APP), RESIDENCY)
-    app.button(key='flyover_detail_complete').click().run()
-    app = open_profile(app)
+    app.button(key='flyover_detail_complete').click().run()  # stays on the checklist
+    app = open_profile(go_to(app, 'workflow'))
     metrics = {m.label: m.value for m in app.metric}
     assert metrics['Completed'] == '1'
     assert sum(int(v) for v in metrics.values()) == 8
@@ -509,7 +515,9 @@ def test_checklist_lists_the_tasks_offices_with_their_hours(live):
     app = open_checklist(signed_in_app(APP), DMV)
     shown = values(app.markdown)
     assert '#### Office hours' in shown
-    assert '**California DMV, Sacramento South** :orange-badge[Not verified]' in shown
+    assert '**California DMV, Sacramento South**' in shown
+    assert 'View California DMV, Sacramento South hours source</a>' in page_html(app)
+    assert 'View California DMV, Sacramento (Broadway) hours source</a>' in page_html(app)
     assert ('Mon–Tue 8:00 AM–5:00 PM · Wed 9:00 AM–5:00 PM · Thu–Fri 8:00 AM–5:00 PM '
             '(Pacific time)') in shown
 
@@ -518,21 +526,26 @@ def test_sources_have_readable_names_not_rule_ids(live):
     app = open_checklist(signed_in_app(APP), 'task_school_checkin')
     html = ' '.join(values(app.get('html')))
     assert 'Cosumnes River College · International students office' in html
-    assert 'Not double-checked by our team yet' in html
+    assert 'Confirm this detail with the office.' in html  # awaiting review
     assert 'rule_crc_arrival_reporting<' not in html and 'Source date' not in html
 
 
-def test_the_checklist_explains_not_verified_once(live):
+def test_the_old_not_verified_sentence_is_gone(live):
     app = open_checklist(signed_in_app(APP), DMV)
-    notes = [v for v in values(app.get('html')) if 'means our team hasn' in str(v)]
-    assert len(notes) == 1
+    assert 'means our team hasn' not in page_html(app)
+    assert ':orange-badge[Not verified]' not in ' '.join(values(app.markdown))
+    assert 'more info included here' in page_html(app)
 
 
 def test_an_office_without_hours_says_so_and_links_its_page(live):
     app = open_checklist(signed_in_app(APP), 'task_school_checkin')
-    assert "**Hours for this date aren't confirmed** (August 14, 2026)." in values(app.markdown)
+    assert '**No hours published**' in values(app.markdown)  # International Students Office
+    assert 'View CRC International Students Office hours source</a>' in page_html(app)
     assert ('The office publishes no in-person hours we can use. Check the official office '
             'page before visiting.') in values(app.caption)
+    # Admissions & Records is its own record, with its own source.
+    assert '**CRC Admissions and Records Office**' in values(app.markdown)
+    assert 'View CRC Admissions and Records Office hours source</a>' in page_html(app)
     assert not any('(Pacific time)' in v for v in values(app.markdown) if 'No hours' in v)
 
 
