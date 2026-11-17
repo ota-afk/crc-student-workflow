@@ -219,3 +219,8 @@
   departures board shown once after a confirmed completion, tied the title flip to that event,
   and made "Step N of M" count progress (`flyover.py`, `style.css`, `reduce-motion.css`).
   Tests in `tests/test_flyover_live_api.py`.
+
+- STU-D06-FE-appointment-notices (Nov 17 2026): AI assistance (Claude Code) added Flyover's
+  appointment notice and session-only weekly free times (`flyover_appointments.py`,
+  `flyover.py`, `style.css`), with tests in `tests/test_flyover_appointments.py` and
+  `tests/test_flyover_live_api.py`. Guidance only; matching waits for structured office hours.

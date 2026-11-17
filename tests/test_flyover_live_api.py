@@ -345,3 +345,70 @@ def test_last_task_board_says_arrived():
     assert 'aria-label="Open a bank account completed. All steps completed."' in html
     assert '>Arrived<' in html and 'Now boarding' not in html
     assert '<div aria-hidden="true">' in html  # the flipping letters aren't read out
+
+
+def add_free_time(app: AppTest, day: str, start: tuple, end: tuple) -> AppTest:
+    from datetime import time
+    app.selectbox(key='fly_avail_day').select(day)
+    app.time_input(key='fly_avail_start').set_value(time(*start))
+    app.time_input(key='fly_avail_end').set_value(time(*end))
+    next(b for b in app.button if b.label == 'Add free time').click().run()
+    return app
+
+
+def notice_shown(app: AppTest) -> bool:
+    return any(v.startswith('**Appointment information for your next step:**')
+               for v in values(app.markdown))
+
+
+def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    # School check-in is first (Required) and has CRC's appointment guidance.
+    assert notice_shown(app)
+    assert any('schedule an in-person or phone appointment' in v for v in values(app.markdown))
+    assert any('Not verified' in v for v in values(app.caption))
+    assert not any('required' in v.lower() and 'appointment' in v.lower()
+                   for v in values(app.markdown))  # never claims an appointment is required
+
+
+def test_free_times_show_without_claiming_a_match(live):
+    from student_workflow.flyover_appointments import NO_HOURS_NOTE
+    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+                        'Monday', (9, 0), (12, 0))
+    assert any(v == f'Your free times: Monday 09:00–12:00. {NO_HOURS_NOTE}'
+               for v in values(app.caption))
+
+
+def test_a_backwards_free_time_is_refused(live):
+    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+                        'Monday', (14, 0), (9, 0))
+    assert any('start before it ends' in v for v in values(app.error))
+    assert app.session_state['flyover_preferences']['availability'] == []
+
+
+def test_dismissed_notice_stays_dismissed_on_rerun(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app.button(key='fly_appt_dismiss').click().run()
+    assert not notice_shown(app)
+    app.run()
+    assert not notice_shown(app)
+
+
+def test_free_times_are_never_sent_to_the_api(live):
+    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+                        'Wednesday', (13, 0), (15, 0))
+    ask(app, 'What next?')
+    app = open_checklist(app, DMV)
+    app.button(key='flyover_resolve:' + DMV).click().run()
+    sent = str([body for _, body in live.posts()])
+    assert 'Wednesday' not in sent and 'availability' not in sent
+
+
+def test_generating_a_new_profile_clears_free_times(live):
+    app = add_free_time(AppTest.from_file(str(APP), default_timeout=30).run(),
+                        'Monday', (9, 0), (12, 0))
+    assert app.session_state['flyover_preferences']['availability']
+    next(b for b in app.button if b.label == 'Generate workflow').click().run()
+    assert not app.exception
+    assert 'flyover_preferences' not in app.session_state or not app.session_state[
+        'flyover_preferences'].get('availability')

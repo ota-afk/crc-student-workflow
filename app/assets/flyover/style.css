@@ -329,3 +329,7 @@
   animation:fly-flap .52s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i) * 18ms); }
 @media(prefers-reduced-motion:reduce) { .fly-board .flap { animation:none!important; } }
 @media(max-width:760px) { .fly-board-row { flex-direction:column; gap:2px; } .fly-board-label { width:auto; } }
+
+/* ---- Appointment notice (STU-D06-FE-appointment-notices). Twilight edge is 3.6:1 on ivory. ---- */
+.st-key-fly_appt_notice { background:var(--flyover-card); border:1px solid var(--flyover-line);
+  border-left:5px solid var(--flyover-sky); border-radius:18px; padding:16px 20px; margin-top:14px; max-width:760px; }
