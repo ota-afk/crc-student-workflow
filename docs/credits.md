@@ -249,3 +249,7 @@
 - STU-D07-FE-airshow-voice (Nov 17 2026): AI assistance (Claude Code) gave Airshow a greeting,
   fixed status-based opening lines and a warmer spinner (`flyover.py`), chosen by code from the
   API's answer and never replacing it, with tests in `tests/test_flyover_live_api.py`.
+
+- STU-D07-FE-profile-page (Nov 17 2026): AI assistance (Claude Code) added Flyover's session
+  profile dashboard and the opt-in email line in handoffs (`flyover.py`, `style.css`), with
+  tests in `tests/test_flyover_live_api.py`.

@@ -457,3 +457,43 @@ def test_airshow_opens_with_its_line_and_keeps_the_cited_answer(live):
 def test_airshow_picks_its_line_from_the_api_answer(entry, kind):
     from student_workflow.flyover import AIRSHOW_INTROS, airshow_intro
     assert airshow_intro(entry) == AIRSHOW_INTROS[kind]
+
+
+def open_profile(app: AppTest) -> AppTest:
+    return app.button(key='flyover_open_profile').click().run()
+
+
+def test_profile_dashboard_shows_this_sessions_answers(live):
+    app = open_profile(signed_in_app(APP))
+    assert app.session_state['flyover_page'] == 'profile'
+    assert 'Your profile' in values(app.subheader)
+    assert 'Signed in as s***@example.com' in values(app.caption)
+    html = ' '.join(values(app.get('html')))
+    assert '<dt>School</dt><dd>Cosumnes River College</dd>' in html
+    assert 'August 11, 2026 · 3 days ago' in html  # demo arrival vs the workflow's date
+
+
+def test_profile_progress_counts_follow_the_api(live):
+    app = open_checklist(signed_in_app(APP), RESIDENCY)
+    app.button(key='flyover_detail_complete').click().run()
+    app = open_profile(app)
+    metrics = {m.label: m.value for m in app.metric}
+    assert metrics['Completed'] == '1'
+    assert sum(int(v) for v in metrics.values()) == 8
+
+
+def test_email_joins_the_handoff_only_when_switched_on(live):
+    app = open_checklist(signed_in_app(APP), DMV)
+    app.text_area(key='flyover_goal').input('Get my California ID').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    assert 'student@example.com' not in str(app.session_state['flyover_handoff'])
+    app.button(key='flyover_back').click().run()
+    app = open_profile(app)
+    app.toggle(key='flyover_handoff_email_widget').set_value(True).run()
+    app = open_checklist(app.button(key='flyover_profile_back').click().run(), DMV)
+    assert 'flyover_handoff' not in app.session_state  # the old handoff no longer matches
+    app.text_area(key='flyover_goal').input('Get my California ID').run()
+    app.button(key='flyover_prepare_handoff').click().run()
+    who = dict(app.session_state['flyover_handoff']['sections'])['Who I am'][0]
+    assert who.endswith('Contact: student@example.com')
+    assert 'student@example.com' not in str(live.calls)  # still never sent to the API
