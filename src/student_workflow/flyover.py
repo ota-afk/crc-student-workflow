@@ -19,10 +19,8 @@ from .flyover_appointments import (
     NO_HOURS_NOTE,
     TIMEZONE_LABEL,
     describe_windows,
-    fact_verified,
     first_with_guidance,
     hours_summary,
-    in_person_hours,
     match_line,
     normalize_windows,
     notice_key,
@@ -30,6 +28,7 @@ from .flyover_appointments import (
     visit_hours,
 )
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
+from .flyover_checklist import document_groups, fact_sources, task_actions
 from .flyover_scenario import (
     DEMO_PROFILE,
     SCENARIO_AS_OF,
@@ -707,10 +706,38 @@ def _availability_editor() -> None:
                       args=(index,), type='tertiary')
 
 
-def _office_link(office: dict) -> None:
-    """The office's own page (from the rules file), the place to check hours for a date."""
+def _office_link(office: dict) -> str:
+    """'View <office> hours source': the office's own page from the rules file, underlined.
+
+    A missing or unsafe URL gives plain text, so a bad link never becomes clickable.
+    """
+    label = esc(f'View {office["name"]} hours source')
     if link := safe_url(office.get('source_url')):
-        st.markdown(f'[Official page: {office["name"]}]({link})')
+        return (f'<a class="fly-office-src" href="{esc(link)}" target="_blank" '
+                f'rel="noopener noreferrer">{label}</a>')
+    return f'<span class="fly-office-src">{label}</span>'
+
+
+SOURCE_UNAVAILABLE = 'Source unavailable. Confirm with the office.'
+UNREVIEWED = 'Confirm this detail with the office.'
+MORE_INFO = 'more info included here'
+
+
+def _more_info(rows_html: str) -> str:
+    """The evidence disclosure: opens in place (native <details>, keyboard and touch friendly)."""
+    return (f'<div class="fly-sheet"><details class="fly-more"><summary>{MORE_INFO}</summary>'
+            f'<div class="fly-sheet">{rows_html}</div></details></div>')
+
+
+def _office_evidence(office: dict) -> str:
+    """The office record's own evidence: the source's words, when it was read, and its state."""
+    verified = office.get('verification_status') == 'verified'
+    state = ('<span class="fly-tag ok">Verified</span>' if verified
+             else '<span class="fly-tag">Not verified</span>')
+    when = (f'Retrieved {esc(long_date(office["retrieved_on"]))}' if office.get('retrieved_on')
+            else '') + ('' if verified else f' · {UNREVIEWED}')
+    return (f'<div class="fly-src"><div>{_office_link(office)}<small>{when}</small>'
+            f'<small>“{esc(office.get("evidence") or "")}”</small></div>{state}</div>')
 
 
 def _appointment_notice(tasks: list[dict], as_of: str) -> None:
@@ -722,23 +749,22 @@ def _appointment_notice(tasks: list[dict], as_of: str) -> None:
     key = notice_key(guidance, windows)
     if key in st.session_state.get('flyover_appt_dismissed', []):
         return  # dismissed; the same text stays in the task's checklist under Visit details
+    task = next((t for t in tasks if t['id'] == guidance['task_id']), {})
     with st.container(key='fly_appt_notice'):
         st.markdown(f'**Appointment information for your next step:** {guidance["title"]}')
         st.markdown(guidance['text'])  # ENG's sourced wording, unchanged
-        if not guidance['verified']:
-            st.caption('⚠ Not verified. Confirm with the office.')
-        if link := safe_url(guidance['url']):
-            st.link_button('Official visit information', link)
+        st.html(_more_info(_source_rows(fact_sources(task, 'appointment_rules') or [])))
+        # The same action links as the checklist, named for where they go.
+        _task_action_links(task)
         if windows:
             st.caption(f'Your free times: {describe_windows(windows)}.')
-            task = next((t for t in tasks if t['id'] == guidance['task_id']), {})
             # One line per office on file (rules.json offices), else the honest no-hours note.
             # A time is only suggested from hours confirmed for the workflow's date; otherwise
             # the line says so and the office's own page follows it.
             for office in task.get('offices') or []:
                 st.caption(match_line(office, windows, as_of))
                 if not visit_hours(office, as_of)['confirmed']:
-                    _office_link(office)
+                    st.html(f'<div class="fly-sheet">{_office_link(office)}</div>')
             if not task.get('offices'):
                 st.caption(NO_HOURS_NOTE)
         with st.expander('Your free times (optional)'):
@@ -816,56 +842,85 @@ def _workflow(data: dict, api_url: str, boarding: dict | None = None) -> None:
 
 
 def _office_hours(task: dict, as_of: str) -> None:
-    """The task's offices: hours only when confirmed for the workflow's date, else the office's
-    page, with any other published hours kept below as dated reference, never as a suggestion."""
+    """Compact office rows, shared by the "Before you go" preview and the Checklist tab.
+
+    Hours only when confirmed for the workflow's date; otherwise the reason and, for offices
+    that publish hours for another date, a dated reference. Each office gets its own
+    "View <office> hours source" link and evidence, even when several serve one task.
+    """
     offices = task.get('offices') or []
     if not offices:
         return
     windows = _windows()
     st.markdown('#### Office hours')
     for office in offices:
-        badge = '' if office['verification_status'] == 'verified' else ' :orange-badge[Not verified]'
-        st.markdown(f'**{office["name"]}**{badge}')
-        if office.get('address'):
-            st.caption(office['address'])
-        check = visit_hours(office, as_of)
-        if check['confirmed']:
-            st.write(hours_summary(office) + ' (Pacific time)')
-            st.caption(office['period_note'])
-            for closure in upcoming_closures(office, as_of):
-                st.caption('Listed closure · ' + closure)
-            if windows:
-                st.caption(match_line(office, windows, as_of))
-            continue
-        st.markdown(f'**{HOURS_NOT_CONFIRMED}** ({long_date(as_of)}).')
-        st.caption(check['detail'] + ' Check the official office page before visiting.')
-        _office_link(office)
-        if in_person_hours(office):
-            # Kept as dated reference only: the source's own period words, its retrieval date
-            # and verification state. No free-time match is ever worked out from these.
-            with st.expander('Reference only: the hours this office published'):
-                st.caption(f'{office["period_note"]} Retrieved {long_date(office["retrieved_on"])}'
-                           f' · {"Verified" if office["verification_status"] == "verified" else "Not verified"}.')
+        with st.container():  # unkeyed: the preview and checklist may show the same task
+            st.markdown(f'**{office["name"]}**')
+            if office.get('address'):
+                st.caption(office['address'])
+            check = visit_hours(office, as_of)
+            if check['confirmed']:
                 st.write(hours_summary(office) + ' (Pacific time)')
-                for closure in office.get('closures') or []:
-                    st.caption(f'Listed closure · {long_date(closure["date"])}: {closure["note"]}')
+                st.caption(office['period_note'])
+                for closure in upcoming_closures(office, as_of):
+                    st.caption('Listed closure · ' + closure)
+                if windows:
+                    st.caption(match_line(office, windows, as_of))
+            elif check['reason'] == 'no_hours':
+                st.markdown('**No hours published**')
+                st.caption(check['detail'] + ' Check the official office page before visiting.')
+            else:
+                st.markdown(f'**{HOURS_NOT_CONFIRMED}** ({long_date(as_of)}).')
+                st.caption(check['detail'] + ' Check the official office page before visiting.')
+                # Kept as dated reference only: the source's own period words, its retrieval
+                # date and verification state. No free-time match is worked out from these.
+                with st.expander('Reference only: the hours this office published'):
+                    st.caption(f'{office["period_note"]} Retrieved '
+                               f'{long_date(office["retrieved_on"])} · '
+                               f'{"Verified" if office["verification_status"] == "verified" else "Not verified"}.')
+                    st.write(hours_summary(office) + ' (Pacific time)')
+                    for closure in office.get('closures') or []:
+                        st.caption(f'Listed closure · {long_date(closure["date"])}: '
+                                   f'{closure["note"]}')
+            st.html(f'<div class="fly-sheet">{_office_link(office)}'
+                    f'{_more_info(_office_evidence(office))}</div>')
+
+
+def _task_action_links(task: dict) -> None:
+    """Links to where the student acts, each labelled by its real destination."""
+    for action in task_actions(task, source_label):
+        st.link_button(action['label'], action['url'], type='primary', width='stretch')
+        if action['note']:
+            st.caption(action['note'])
+
+
+def _visit_fact(task: dict, label: str, field: str, value: str) -> None:
+    """A visit fact as sourced, with its evidence one click away (never a repeated badge)."""
+    st.markdown(f'**{label}:** {value}')  # ENG's sourced wording (it may contain a link)
+    st.html(_more_info(_source_rows(fact_sources(task, field) or [])))
 
 
 def _checklist(data: dict, task: dict, api_url: str) -> None:
-    st.markdown('### ' + task['title'])
-    st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
-            f'<span class="gate-priority">{esc(task["priority"])}</span></div>')
+    """The full checklist: status by the title, then documents, step actions, office hours."""
+    title_col, status_col = st.columns([2.4, 1], vertical_alignment='bottom')
+    with title_col:
+        st.markdown('### ' + task['title'])
+        st.html(f'<div class="fly-card-meta">{_pill(task["status"])}'
+                f'<span class="gate-priority">{esc(task["priority"])}</span></div>')
+    with status_col:
+        # The shared status control (Edit status, Reopen); its key is the Checklist's own.
+        _status_control(data, task, api_url, 'flyover_checklist_status')
     if note := due_note(task, data['as_of']):
         getattr(st, note[0])(note[1])
-    st.html('<p class="fly-note"><b>Not verified</b> means our team hasn\'t double-checked that '
-            'detail with the official source yet. Use it to plan, and confirm with the office.</p>')
     for blocker in task.get('blockers') or []:
         st.warning(blocker['explanation'])
         if blocker.get('unlocks_on'):
             st.caption('Listed unlock date: ' + blocker['unlocks_on'])
     guide = task.get('before_you_go') or {}
     documents = list(dict.fromkeys(guide.get('required_documents') or []))
+    # {document: on hand?} per task ID, so a check stays with the task it was made on.
     selected = st.session_state.setdefault('documents_on_hand', {}).setdefault(task['id'], {})
+    st.markdown('#### Documents')
     for document in documents:
         key = f'flyover_doc:{task["id"]}:{document}'
         if key not in st.session_state:
@@ -875,6 +930,21 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         st.caption('Checked documents are your inventory, not a readiness or eligibility decision.')
     else:
         st.html('<p class="fly-note">No document list on file yet. Ask the office what to bring.</p>')
+    st.markdown('#### Next action')
+    _task_action_links(task)
+    _resolve_section(task, api_url)
+    if task['status'] in ('Ready', 'In Progress') and st.button(
+            'Mark this step completed', key='flyover_detail_complete', type='primary'):
+        try:
+            result = client.change_status(api_url, data, task['id'], 'Completed')
+        except (requests.RequestException, ValueError):
+            st.error('Could not update this step. Your progress has been kept. Try again.')
+        else:
+            # Same feedback as the status selector, drawn on this page by _status_feedback;
+            # the chosen task and this tab stay put (no jump back to page 1).
+            _record_update(task, result, api_url)
+            st.rerun()
+    _reminder_section(data, task, api_url)
     details, sources = st.columns([1, 1], gap='large')
     with details:
         st.markdown('#### Before you visit')
@@ -883,34 +953,17 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
             if not (value := guide.get(field)):
                 missing.append(label)
                 continue
-            # The fact as sourced (it may contain a link), with a badge when it's unverified.
-            badge = '' if fact_verified(guide, field) else ' :orange-badge[Not verified]'
-            st.markdown(f'**{label}:** {value}{badge}')
+            _visit_fact(task, label, field, value)
         _office_hours(task, data['as_of'])
         if missing:
             # One line for everything not on file, instead of the same warning four times.
             st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
                     'Confirm with the office.</p>')
-        if link := safe_url(guide.get('official_url')):
-            st.link_button('Official visit information', link)
     with sources:
         st.markdown('#### Where this information comes from')
-        st.html(f'<div class="fly-sheet">{_source_rows(task.get("sources") or [])}</div>')
+        st.html(_more_info(_source_rows(task.get('sources') or [])))
     for warning in guide.get('warnings') or []:
         st.warning(warning)
-    _resolve_section(task, api_url)
-    _reminder_section(data, task, api_url)
-    if task['status'] in ('Ready', 'In Progress') and st.button(
-            'Mark this step completed', key='flyover_detail_complete', type='primary'):
-        try:
-            result = client.change_status(api_url, data, task['id'], 'Completed')
-        except (requests.RequestException, ValueError):
-            st.error('Could not update this step. Your progress has been kept. Try again.')
-        else:
-            # Same feedback as the status selector: message, and confetti back on page 1.
-            _record_update(task, result, api_url)
-            go('home')
-            st.rerun()
 
 
 PACIFIC = ZoneInfo('America/Los_Angeles')
@@ -1116,6 +1169,11 @@ def source_label(url: str | None) -> str:
 
 
 def _source_rows(sources: list[dict]) -> str:
+    """Evidence rows: the source's title, its link (plain text if missing or unsafe) and date.
+
+    A reviewed source keeps its real verified date; one awaiting review says to confirm with
+    the office; no source at all says so. Same signature and HTML as before for every caller.
+    """
     rows = []
     for source in sources:
         url = safe_url(source.get('url'))
@@ -1124,36 +1182,48 @@ def _source_rows(sources: list[dict]) -> str:
                 if url else f'<span>{label}</span>')
         if source_verified(source):
             tag = '<span class="fly-tag ok">Verified</span>'
-            when = f'Double-checked by our team on {esc(source.get("last_verified"))}'
+            when = ('Double-checked by our team on ' + esc(source['last_verified'])
+                    if source.get('last_verified') else 'Double-checked by our team')
         else:
-            tag = '<span class="fly-tag">⚠ Not verified</span>'
-            when = 'Not double-checked by our team yet'
+            tag = '<span class="fly-tag">Not verified</span>'
+            when = UNREVIEWED
         rows.append(f'<div class="fly-src"><div>{link}<small>{when}</small></div>{tag}</div>')
-    return ''.join(rows) or '<p class="fly-muted">No sources on file. Confirm with the office.</p>'
+    return ''.join(rows) or f'<p class="fly-muted">{SOURCE_UNAVAILABLE}</p>'
+
+
+def _preview_group(group: dict, kind: str) -> str:
+    """One task in the preview: its title and status, then its own documents."""
+    task = group['task']
+    items = ''.join(
+        f'<li><span>{esc(doc)}'
+        + (f'<small>Also needed for: {esc(", ".join(group["shared"][doc]))}</small>'
+           if doc in group['shared'] else '') + '</span></li>'
+        for doc in group['documents'])
+    docs = (f'<ul class="fly-docs">{items}</ul>' if items
+            else '<p class="fly-muted">No document list on file. Confirm with the office.</p>')
+    return (f'<section class="fly-group"><div class="fly-group-head"><span class="fly-group-kind">'
+            f'{esc(kind)}</span><span class="fly-group-title">{esc(task["title"])}</span>'
+            f'{_pill(task["status"])}</div>{docs}</section>')
 
 
 @st.dialog('Before you go', width='medium')
 def _prereq_dialog(task: dict, by_id: dict) -> None:
+    """Quick look at one task: it first, then each prerequisite with its own documents."""
     st.html(f'<h3 class="fly-sheet-title">{esc(task["title"])}</h3>')
-    prereqs = [by_id[key] for key in task.get('prerequisites') or [] if key in by_id]
-    if prereqs:
-        items = ''.join(f'<li><span>{esc(p["title"])}</span>{_pill(p["status"])}</li>' for p in prereqs)
-        needs = f'<ul class="fly-needs">{items}</ul>'
-    else:
-        needs = '<p class="fly-muted">No other step has to come first.</p>'
-    documents: list[str] = []
-    for item in [task, *prereqs]:
-        documents += (item.get('before_you_go') or {}).get('required_documents') or []
-    documents = list(dict.fromkeys(documents))
-    docs = (f'<ul class="fly-docs">{"".join(f"<li>{esc(d)}</li>" for d in documents)}</ul>' if documents
-            else '<p class="fly-muted">No document list on file. Confirm with the office.</p>')
-    sources = list({s.get('rule_id'): s for item in [task, *prereqs] for s in item.get('sources') or []}.values())
-    st.html('<div class="fly-sheet">'
-            f'<h4>Needs first</h4>{needs}<h4>Bring these</h4>{docs}'
-            f'<h4>Our sources</h4>{_source_rows(sources)}</div>')
-    st.caption('Not verified unless marked. Confirm requirements with the office before your visit.')
-    if st.button('Open full checklist', key='flyover_prereq_full', type='primary'):
-        go('checklist', task['id'])  # the Checklist tab, with this task selected
+    groups = document_groups(task, by_id)
+    sections = [_preview_group(groups[0], 'Selected step'),
+                *(_preview_group(group, 'Needs first') for group in groups[1:])]
+    if len(groups) == 1:
+        sections.append('<p class="fly-muted">No other step has to come first.</p>')
+    sources = list({s.get('rule_id'): s for group in groups
+                    for s in group['task'].get('sources') or []}.values())
+    st.html(f'<div class="fly-sheet"><div class="fly-needs">{"".join(sections)}</div>'
+            f'<h4>Our sources</h4>{_more_info(_source_rows(sources))}</div>')
+    _task_action_links(task)
+    _office_hours(task, st.session_state['flyover_data']['as_of'])
+    if st.button('Open full checklist', key='flyover_prereq_full', type='primary',
+                 width='stretch'):
+        go('checklist', task['id'])
         st.rerun()
 
 
@@ -1312,8 +1382,7 @@ def _checklist_page(data: dict, api_url: str) -> None:
     by_id = {task['id']: task for task in tasks}
     with st.container(key='fly_checklist'):
         task_id = _task_picker(tasks, 'flyover_checklist_pick', 'Your checklist')
-        # Part 2 places this control beside the checklist title; its key is the Checklist's own.
-        _status_control(data, by_id[task_id], api_url, 'flyover_checklist_status')
+        # The status control sits beside the checklist title (inside _checklist).
         _checklist(data, by_id[task_id], api_url)
     if (opened := st.session_state.pop('flyover_prereq_open', None)) in by_id:
         _prereq_dialog(by_id[opened], by_id)
