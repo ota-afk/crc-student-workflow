@@ -118,3 +118,62 @@ def ask_airshow(api_url: str, data: dict, question: str, task_id: str | None,
                              headers=_headers(), timeout=15)
     response.raise_for_status()
     return AssistantAnswer.model_validate(response.json()).model_dump(mode='json')
+
+
+# ---- Reminder emails (POST /notifications/reminders, STU-D07-FE-reminders) ----
+
+REMINDER_MESSAGES = {
+    403: "This address can't receive demo reminders. Ask the team to add it.",
+    409: 'This step is already completed, so no reminder is needed.',
+    503: 'Reminders are switched off right now.',
+}
+
+
+class ReminderError(Exception):
+    """Scheduling or cancelling failed; str(error) is safe to show the student."""
+
+
+def _reminder_error(response) -> ReminderError:
+    status = getattr(response, 'status_code', 0)
+    if status in REMINDER_MESSAGES:
+        return ReminderError(REMINDER_MESSAGES[status])
+    if status in (422, 502):
+        # Our API's own wording ("Pick a time at least a minute from now.", "may still arrive").
+        try:
+            detail = response.json().get('detail')
+        except ValueError:
+            detail = None
+        if isinstance(detail, str):
+            return ReminderError(detail)
+    return ReminderError('Could not reach the reminder service. Try again in a moment.')
+
+
+def schedule_reminder(api_url: str, data: dict, recipient: str, task_id: str, send_at,
+                      operation_id: str) -> dict:
+    """Schedule one reminder email; send_at is a timezone-aware datetime."""
+    profile = data['student_profile']
+    body = {'recipient': recipient, 'consent': True, 'operation_id': operation_id,
+            'task_id': task_id, 'send_at': send_at.isoformat(), 'as_of': data['as_of'],
+            'student_profile': {key: profile[key] for key in ASSISTANT_PROFILE_FIELDS
+                                if key in profile}}
+    try:
+        response = requests.post(f'{api_url.rstrip("/")}/notifications/reminders', json=body,
+                                 headers=_headers(), timeout=15)
+    except requests.RequestException as error:
+        raise ReminderError('Could not reach the reminder service. Try again in a moment.') \
+            from error
+    if getattr(response, 'status_code', 200) >= 400:
+        raise _reminder_error(response)
+    return response.json()
+
+
+def cancel_reminder(api_url: str, reminder_id: str) -> None:
+    try:
+        response = requests.post(
+            f'{api_url.rstrip("/")}/notifications/reminders/{quote(reminder_id, safe="")}/cancel',
+            headers=_headers(), timeout=15)
+    except requests.RequestException as error:
+        raise ReminderError('Cancellation not confirmed: the reminder may still arrive.') \
+            from error
+    if getattr(response, 'status_code', 200) >= 400:
+        raise _reminder_error(response)

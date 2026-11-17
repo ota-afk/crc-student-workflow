@@ -78,8 +78,14 @@ a new session starts from the demo profile with no steps completed yet.
 The first screen is a **demo sign-in**: email (real, shape-checked), a password (any text
 works; never stored or sent) and the profile questions (school, arrival date, visa type, SSN
 yes/no). "Sign in and start" builds the workflow from those answers through the API, so
-Profile setup opens pre-filled. There are no accounts: the email stays in the browser session
-and never reaches the API or the model. Settings shows the masked address and Sign out, which
+Profile setup opens pre-filled. There are no accounts: the email stays in the browser session,
+never reaches the model, and goes to the API only when you schedule a reminder.
+
+Each unfinished task's checklist has **Email me a reminder**: a day and time (Pacific, up to 30
+days ahead) and a consent box. The API schedules it with Resend, so it arrives even if you
+close the page; scheduled reminders are listed with Cancel, and completing the task cancels
+them. The public demo only emails addresses on the server's allow-list (`docs/deploy.md`).
+Signing out doesn't cancel reminders already scheduled. Settings shows the masked address and Sign out, which
 clears the session.
 
 **Your profile** (under Profile setup, or in Settings) is a dashboard for this session: the
