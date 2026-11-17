@@ -282,10 +282,33 @@ def test_resolve_keeps_the_blocked_task_blocked(sample_rules):
     assert status_of(result['workflow'], 'dmv') == 'Blocked'
 
 
-def test_resolve_has_no_email_draft_yet(sample_rules):
-    # None = AI's generate_email() is not built; the API never makes one up.
-    result = client.post('/tasks/dmv/resolve', json=body()).json()
+def test_resolve_drafts_an_email_for_the_actual_prerequisite(sample_rules):
+    response = client.post('/tasks/dmv/resolve', json=body())
+
+    assert response.status_code == 200
+    draft = response.json()['email_draft']
+    assert draft['subject'] == 'Request for guidance: Title of dmv (sample)'
+    assert 'Title of residency (sample)' in draft['body']
+    assert '[Your Name]' in draft['body']
+    assert '[Student ID]' in draft['body']
+    assert 'demo_001' not in draft['body']
+
+
+@pytest.mark.parametrize('failure', [None, RuntimeError, TimeoutError])
+def test_resolve_keeps_workflow_when_no_draft_is_available(sample_rules, monkeypatch, failure):
+    def unavailable_draft(*args, **kwargs):
+        if failure is not None:
+            raise failure('Draft unavailable')
+
+    monkeypatch.setattr(api, 'generate_email', unavailable_draft)
+    response = client.post('/tasks/dmv/resolve', json=body())
+
+    assert response.status_code == 200
+    result = response.json()
     assert result['email_draft'] is None
+    assert result['workflow']['student_profile']['awaiting_reply'] == ['residency']
+    assert status_of(result['workflow'], 'residency') == 'In Progress'
+    assert status_of(result['workflow'], 'dmv') == 'Blocked'
 
 
 def test_resolve_twice_changes_nothing(sample_rules):

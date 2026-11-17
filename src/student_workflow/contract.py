@@ -107,10 +107,15 @@ class WorkflowRequest(BaseModel):
     student_profile: StudentProfile
 
 
+class EmailDraft(BaseModel):
+    """A placeholder draft for the student to review and send."""
+
+    subject: str
+    body: str
+
+
 class ResolveResult(BaseModel):
     """Answer of POST /tasks/{task_id}/resolve."""
 
     workflow: Workflow
-    # Always None for now: no draft exists until AI's generate_email() is built and agreed.
-    # FE shows "Email draft not available yet" and never a made-up draft.
-    email_draft: None = None
+    email_draft: EmailDraft | None = None

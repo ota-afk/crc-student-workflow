@@ -88,13 +88,16 @@ def run_checks(url: str, key: str) -> None:
 
     # Each step sends back the profile the last answer returned: the server stores nothing.
     resolved = post_json(session, f"{url}/tasks/{DMV}/resolve", request)
-    expect(resolved["email_draft"] is None, "resolve returned an email draft")
+    draft = resolved["email_draft"]
+    expect(isinstance(draft, dict), "resolve did not return an email draft")
+    expect(bool(draft.get("subject")), "the email draft has no subject")
+    expect("[Your Name]" in draft.get("body", ""), "the email draft is missing a name placeholder")
     workflow = resolved["workflow"]
     expect(
         status_of(workflow, RESIDENCY) == "In Progress", "residency is not In Progress"
     )
     expect(status_of(workflow, DMV) == "Blocked", "resolve unblocked DMV on its own")
-    logger.info("ok  POST /tasks/%s/resolve: residency is In Progress", DMV)
+    logger.info("ok  POST /tasks/%s/resolve: placeholder draft, residency is In Progress", DMV)
 
     next_request = {
         "as_of": request["as_of"],
