@@ -4,9 +4,9 @@ Both services run on Render's free plan, set up from [`render.yaml`](../render.y
 "Blueprint": one file that describes both services). Only the BE owner's Render account is
 used; teammates don't need one.
 
-**Status (2026-11-16): deployed from `main`.** The API passed the full smoke test. The dashboard
-is up, but its calls get `401` until FE's change that sends the API key is on `main`; Render
-redeploys it by itself once that merges and CI passes.
+**Status (2026-11-17): both services deployed from `main`.** The API passes the full smoke test.
+The dashboard sends the API key and calls the `POST` endpoints since FE's #30; its code was
+walked through against the live API (results in [release-checklist.md](release-checklist.md)).
 
 ## Live URLs
 
@@ -15,16 +15,13 @@ redeploys it by itself once that merges and CI passes.
 | API | https://crc-workflow-api.onrender.com |
 | Dashboard | https://crc-workflow-dashboard.onrender.com |
 
-## Before the first deploy: the dashboard must send the API key
+## The dashboard and the API key
 
 The deployed API needs the `X-API-Key` header on every endpoint except `/health`
-([contract](contract.md#access-api-key-and-rate-limit)). The dashboard on `main` does
-not send it yet, and it only calls `GET /workflow`. So:
-
-- **FE** adds the header (from the dashboard's `API_KEY` setting) to every request, and wires
-  onboarding, "Resolve blocker" and "Mark done" to the `POST` endpoints.
-- Until that is merged, a deployed dashboard gets `401` from a deployed API. Deploy the API
-  first and smoke test it (below); deploy the dashboard once FE's change is on `main`.
+([contract](contract.md#access-api-key-and-rate-limit)). The dashboard sends it on every
+request from its own `API_KEY` setting (`src/student_workflow/frontend_api.py`, FE's #30), so
+both services must have the same `API_KEY` on Render. Streamlit runs on the server, so the key
+never reaches a visitor's browser.
 
 ## One-time setup
 
@@ -116,9 +113,10 @@ fresh one. `/health` is never limited.
 
 - **Deploy fails at "health check".** Open the service's **Logs**. An invalid `RATE_LIMIT`
   stops the API at startup with a message naming it.
-- **Dashboard shows "Could not reach the API".** Check `API_URL` on the dashboard (https, no
-  trailing path), and that the API's `/health` answers. The API may be waking up: wait a
-  minute and reload.
+- **Dashboard shows "Could not load your workflow".** Most often the API was asleep: the
+  dashboard gives up after 10 seconds, and waking takes about a minute. Wait a minute and click
+  Retry, or run `scripts/warm_up.py` first. If it keeps failing, check `API_URL` on the
+  dashboard (https, no trailing path) and that the API's `/health` answers.
 - **Smoke test says `no key gave 200, not 401`.** `API_KEY` is empty on the API: set it.
 - **Smoke test says `GET /workflow returned mock data`.** Set `USE_MOCK=false` on the API.
 - **First deploy: check the log once.** Confirm the API's log shows `Uvicorn running on
