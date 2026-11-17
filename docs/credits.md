@@ -151,3 +151,13 @@
   timeout as #30, the workflow's `as_of` and progress, and a timeout message. Updated the
   assistant tests and added round-trip tests in `tests/test_live_api.py`. Done by BE in FE's
   files at the owner's request. Pending the BE owner's review.
+
+- Flyover frontend (Nov 17 2026): the user supplied the logo, page sketches and
+  travel photo references. Codex implemented the travel layout, backend-connected
+  sequential workflow, readiness and session-only handoff template. The built-in
+  imagegen tool generated the three city illustrations; prompts and provenance
+  are recorded in `app/assets/flyover/README.md`.
+- Flyover revision (Nov 17 2026): Claude restyled both pages to the user's sketches
+  (sticky header, departures-board step title, readiness tables, quote card), drew the
+  low-poly airplane as SVG, and built the scroll-driven flight into Airshow and its
+  handoff template.

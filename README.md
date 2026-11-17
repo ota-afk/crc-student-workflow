@@ -39,6 +39,44 @@ keys. An OpenAI key is only needed for the manual OpenAI smoke test below. Never
 
 ## Run the API
 
+### Flyover design frontend
+
+The travel-inspired frontend combines profile setup and sequential workflow steps,
+with readiness/checklists and an Airshow preview on separate screens. From this checkout,
+start these in two terminals:
+
+```bash
+USE_MOCK=false uv run --locked uvicorn student_workflow.api:app --reload --host 127.0.0.1 --port 8001
+```
+
+```bash
+API_URL=http://127.0.0.1:8001 uv run --locked streamlit run app/flyover_app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+Open [Flyover](http://127.0.0.1:8502). `.streamlit/config.toml` supplies the light theme
+and palette. The original dashboard remains at `app/streamlit_app.py` (Render still runs that
+one); its setup and Day 3/4 preview behavior are documented below. After editing files under
+`src/`, restart Streamlit: it does not reload those modules on its own.
+
+Flyover has two pages. Page 1 is profile setup over the travel banner and the workflow, one
+step at a time: the step title flips in like a departures board, the status in the centre
+saves to the live API, and the three-piece flight map fills in behind it. Page 2 (Next,
+View checklist or AI) has Readiness and Before you take off (task left, status centre,
+prerequisite right; a prerequisite opens its documents and sources), a quote card, a
+scroll-driven flight into Airshow, and the handoff template with .txt/.md export.
+Statuses and prerequisites remain backend-authoritative. Applying a new profile requires
+explicit confirmation when progress exists. Settings can pause the banner or reduce motion;
+OS reduced-motion preferences are also respected, and browsers without CSS scroll timelines
+show the plane standing still. Profile and progress stay in the Streamlit browser session;
+a new session starts from the demo profile.
+
+Airshow is labeled as a preview: the handoff is a local template, not model-generated
+advice, and no model call is made. Verification warnings and official sources remain
+visible. Generated-art provenance and prompts are in
+[`app/assets/flyover/README.md`](app/assets/flyover/README.md).
+
+### Original dashboard API
+
 ```bash
 uv run uvicorn student_workflow.api:app --reload --port 8000
 ```
