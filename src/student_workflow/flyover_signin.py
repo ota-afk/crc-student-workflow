@@ -23,6 +23,13 @@ EMAIL_MAX = 254  # the longest an email address can be
 SESSION_STUDENT_ID = 'flyover_session'
 ENROLLMENT_TERMS = {None: 'Choose a term', 'fall_2026': 'Fall 2026',
                     'spring_2027': 'Spring 2027'}
+ENROLLMENT_PRIORITIES = {
+    None: "I don't know yet", '0': 'Priority 0', '0.5': 'Priority .5',
+    '0.75': 'Priority .75', '1': 'Priority 1', '1.1': 'Priority 1.1',
+    '1.2': 'Priority 1.2', '1.3': 'Priority 1.3', '1.4': 'Priority 1.4',
+    '2': 'Priority 2', '3': 'Priority 3',
+    'open_by_appointment': 'Open enrollment by appointment', 'open': 'Open enrollment',
+}
 
 
 def valid_email(email: str) -> bool:
@@ -90,6 +97,11 @@ def render_signin(api_url: str) -> None:
                     'Enrollment term', list(ENROLLMENT_TERMS),
                     format_func=ENROLLMENT_TERMS.get, key='flyover_signin_term',
                     help='Choose the semester these classes belong to.')
+                priority = st.selectbox(
+                    'Enrollment priority', list(ENROLLMENT_PRIORITIES),
+                    format_func=ENROLLMENT_PRIORITIES.get, key='flyover_signin_priority',
+                    help='Use the priority listed in eServices. We show your group’s date range; '
+                         'check eServices for your exact appointment.')
                 enrolled = st.date_input(
                     'Enrollment date (optional)', value=None, key='flyover_signin_enrollment',
                     help='The day you enrolled in classes. Only used to work out your tuition '
@@ -99,11 +111,11 @@ def render_signin(api_url: str) -> None:
             st.caption('No names, document numbers or uploads.')
             if submitted:
                 _sign_in(api_url, email.strip(), school_id, schools, arrival, visa, ssn,
-                         enrolled, term)
+                         enrolled, term, priority)
 
 
 def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: str,
-             ssn: str, enrolled=None, term=None) -> None:
+             ssn: str, enrolled=None, term=None, priority=None) -> None:
     # The password is never kept: drop the widget's value whatever happens next.
     st.session_state.pop('flyover_signin_password', None)
     if not valid_email(email):
@@ -117,7 +129,7 @@ def _sign_in(api_url: str, email: str, school_id, schools: dict, arrival, visa: 
                else 'School not listed',
                'visa_type': visa, 'arrival_date': arrival.isoformat(), 'has_ssn': ssn == 'Yes',
                'enrollment_date': enrolled.isoformat() if enrolled else None,
-               'enrollment_term': term}
+               'enrollment_term': term, 'enrollment_priority': priority}
     try:
         with st.spinner('Building your workflow…'):
             workflow = client.generate_workflow(api_url, {}, changes)

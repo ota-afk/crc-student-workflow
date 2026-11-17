@@ -650,6 +650,28 @@ The August mock explicitly selects Fall 2026. A calculated deadline carries its 
 verification status. `past_due` is `as_of > due_on`. Reminder emails include a known date.
 A deadline never changes the task status.
 
+## Registration priority periods
+
+Profiles accept optional `enrollment_priority`. The supported values are `0`, `0.5`,
+`0.75`, `1`, `1.1`–`1.4`, `2`, `3`, `open_by_appointment` and `open`.
+The student supplies their assigned priority. The engine does not classify them.
+
+A rule may contain `registration: {"term": "spring_2027", "periods": {...}}`.
+Each period contains `starts_on` and `ends_on` (null for an open-ended period). A range
+cannot end before it starts. Priority 1 sublevels use the published aggregate Priority 1
+period. Spring data is sourced; the Fall record currently has an empty period map and
+retains the source for the general enrollment timeline.
+
+The CRC fee task returns `registration_window` for the selected semester, containing
+`term`, `priority`, `starts_on`, `ends_on`, `needs`, `rule_id`, `source_url` and
+`verification_status`. A missing priority with a sourced table gives `needs: "enrollment_priority"`.
+An unavailable table gives `needs: "published_period"` even before a priority is entered; both dates
+remain null. No selected semester gives a null window. The same rule is in task sources.
+
+Flyover displays this information beside Profile setup and on the tuition checklist, with
+its recorded verification status and eServices link. A group range never supplies an exact
+personal appointment or replaces `enrollment_date`, and does not create task blockers.
+
 ## Reminder emails (STU-D07-BE-reminders)
 
 **Status: on main once this merges.** Demo design chosen by the owner: Resend holds each

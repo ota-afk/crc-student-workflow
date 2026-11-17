@@ -14,6 +14,7 @@ from .contract import (
     Citation,
     EnrollmentTerm,
     NextAction,
+    RegistrationWindow,
     Source,
     StudentProfile,
     Task,
@@ -80,8 +81,10 @@ def _for_school(
     for task in rules.tasks:
         applicable = [
             rule for rule in applicable_rules(rules, task, school_id)
-            if enrollment_term is None or rule.deadline is None
-            or rule.deadline.term in (None, enrollment_term)
+            if (enrollment_term is None or rule.deadline is None
+                or rule.deadline.term in (None, enrollment_term))
+            and (enrollment_term is None or rule.registration is None
+                 or rule.registration.term == enrollment_term)
         ]
         # Empty = only other schools' rules, so this task is not part of this workflow.
         if applicable:
@@ -198,8 +201,10 @@ def _resolve_task(
 
     visit = _before_you_go(rules, task)
     offices = [_office(rules.office(office_id), as_of) for office_id in task.offices]
+    registration = _registration_window(task_rules, profile)
     if task.id in completed:
-        return _task(task, "Completed", sources=sources, visit=visit, offices=offices)
+        return _task(task, "Completed", sources=sources, visit=visit, offices=offices,
+                     registration_window=registration)
     due = _due(task_rules, profile, as_of)
 
     # Kept in file order, so next_action always points at the same first prerequisite.
@@ -229,6 +234,33 @@ def _resolve_task(
         visit=visit,
         offices=offices,
         due=due,
+        registration_window=registration,
+    )
+
+
+def _registration_window(
+    task_rules: list[Rule], profile: StudentProfile,
+) -> RegistrationWindow | None:
+    rule = next(
+        (rule for rule in task_rules if rule.registration
+         and rule.registration.term == profile.enrollment_term),
+        None,
+    )
+    if rule is None:
+        return None
+    priority = profile.enrollment_priority
+    group = '1' if priority and priority.startswith('1.') else priority
+    period = rule.registration.periods.get(group)
+    return RegistrationWindow(
+        term=rule.registration.term,
+        priority=priority,
+        starts_on=period.starts_on if period else None,
+        ends_on=period.ends_on if period else None,
+        needs=(None if period else 'published_period'
+               if not rule.registration.periods else 'enrollment_priority'),
+        rule_id=rule.rule_id,
+        source_url=rule.source_url,
+        verification_status=rule.verification_status,
     )
 
 
@@ -330,6 +362,7 @@ def _task(
     visit: BeforeYouGo | None = None,
     offices: list[TaskOffice] | None = None,
     due: TaskDue | None = None,
+    registration_window: RegistrationWindow | None = None,
 ) -> Task:
     return Task(
         id=task.id,
@@ -344,4 +377,5 @@ def _task(
         sources=sources,
         offices=offices or [],
         due=due,
+        registration_window=registration_window,
     )

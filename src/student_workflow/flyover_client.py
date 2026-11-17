@@ -14,7 +14,7 @@ from .schools import School
 # student_id and school_verified must never reach it.
 ASSISTANT_PROFILE_FIELDS = ('institution', 'visa_type', 'arrival_date', 'has_ssn', 'school_id',
                             'completed_tasks', 'awaiting_reply', 'enrollment_date',
-                            'enrollment_term')
+                            'enrollment_term', 'enrollment_priority')
 
 
 def _headers() -> dict[str, str]:

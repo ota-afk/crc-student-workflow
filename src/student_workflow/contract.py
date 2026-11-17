@@ -15,6 +15,10 @@ MAX_ASSISTANT_QUESTION_CHARS = 500
 Status = Literal['Blocked', 'Ready', 'In Progress', 'Completed']
 Priority = Literal['Required', 'Recommended', 'Optional']
 EnrollmentTerm = Literal['fall_2026', 'spring_2027']
+RegistrationPriority = Literal[
+    '0', '0.5', '0.75', '1', '1.1', '1.2', '1.3', '1.4', '2', '3',
+    'open_by_appointment', 'open',
+]
 
 
 class NextAction(BaseModel):
@@ -108,6 +112,17 @@ class TaskDue(BaseModel):
     past_due: bool | None = None
 
 
+class RegistrationWindow(BaseModel):
+    term: EnrollmentTerm
+    priority: RegistrationPriority | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    needs: Literal['enrollment_priority', 'published_period'] | None = None
+    rule_id: str
+    source_url: str | None = None
+    verification_status: Literal['verified', 'needs_verification']
+
+
 class Task(BaseModel):
     id: str
     title: str
@@ -123,6 +138,7 @@ class Task(BaseModel):
     offices: list[TaskOffice] = []
     # None = no deadline applies (or the task is completed).
     due: TaskDue | None = None
+    registration_window: RegistrationWindow | None = None
 
 
 class StudentProfile(BaseModel):
@@ -142,6 +158,7 @@ class StudentProfile(BaseModel):
     # None = not given. Only used to work out enrollment-based deadlines (CRC fees).
     enrollment_date: date | None = None
     enrollment_term: EnrollmentTerm | None = None
+    enrollment_priority: RegistrationPriority | None = None
 
 
 class Workflow(BaseModel):
@@ -177,6 +194,7 @@ class AssistantProfile(BaseModel):
     # Accepted so a profile from a workflow response can be sent back as-is (deadlines only).
     enrollment_date: date | None = None
     enrollment_term: EnrollmentTerm | None = None
+    enrollment_priority: RegistrationPriority | None = None
 
 
 # Where in Flyover the question was asked. A display hint only; see docs/contract.md.

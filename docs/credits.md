@@ -291,3 +291,8 @@
   semester-specific payment rule, profile semester choice and source notes. Regression
   checks cover both payment cutoffs, missing semester inputs and the sign-in workflow.
   The Spring source records await human review.
+
+- ENG registration priority (Nov 17, 2026): Codex added student-supplied priority levels,
+  CRC's Spring 2027 registration periods, the Fall timeline with empty historical group
+  periods, API source attribution and profile/checklist guidance. Regression checks retain
+  group ranges and keep them separate from actual registration and fee calculations.
