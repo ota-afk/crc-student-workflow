@@ -124,3 +124,6 @@
   and compatibility checks against the existing BeforeYouGo model. Current source
   retrieval is recorded separately from the August demo dates. Codex also prepared the cited rule entries and ran integration checks. Human review
   of the visit details and frontend citation rendering remain pending.
+- STU-D05-BE-docs-status (Nov 16 2026): AI assistance (Claude Code) updated the status wording
+  in `docs/contract.md`, `README.md`, `docs/deploy.md` and `docs/release-checklist.md` after
+  #20, #21 and #22 merged. Documentation only. Pending the BE owner's review.

@@ -16,13 +16,14 @@ Status labels used below:
 
 State on 2026-11-16 (check `git log origin/main` and the PRs for anything newer):
 
-| Ticket | Where | Commit | State |
+| Ticket | Where | Merge commit | State |
 | --- | --- | --- | --- |
-| Resolver, school search (STU-D02-BE) | `main` | `a405852` | On main |
-| Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `0666b1c` | In review |
-| Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21, builds on #20 | `781e231` | In review |
-| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22, builds on #21 | `fcb6dc5` | In review |
-| Cited visit details (STU-D05-BE-before-you-go) | PR #23, builds on #22 | `22f2cda` | In review |
+| Resolver, school search (STU-D02-BE) | PR #13 | `e094490` | On main |
+| Live endpoints, API key, rate limit (STU-D03-BE) | PR #20 | `e0798da` | On main |
+| Smoke test, CI end-to-end job, Render setup (STU-D04-BE) | PR #21 | `bb914ac` | On main |
+| Warm-up, key audit, release checklist and shared rate allowance (STU-D05-BE) | PR #22 | `f84654f` | On main |
+| Cited visit details (STU-D05-BE-before-you-go) | PR #23 | not merged | In review |
+| Deploy to Render | `docs/deploy.md` | | Not deployed yet |
 
 ## Ground rules that shape the API
 
@@ -39,16 +40,16 @@ From the build plan:
 
 | Method and path | Status | What it does |
 | --- | --- | --- |
-| `GET /health` | On main | Returns `{"status": "ok"}`. In review (#20): no API key and no rate limit, so hosts and warm-up pings can call it. |
-| `GET /workflow` | On main (mock only) | The fixed demo student from the mock file. On main, `USE_MOCK=false` returns `501`. In review (#20): `USE_MOCK=false` runs the mock's demo profile and "as of" date through the live engine. |
+| `GET /health` | On main | Returns `{"status": "ok"}`. No API key and no rate limit, so hosts and warm-up pings can call it. |
+| `GET /workflow` | On main | The fixed demo student. `USE_MOCK=true` (the local default): the mock file. `USE_MOCK=false`: the mock's demo profile and "as of" date run through the live engine. |
 | `GET /schools?q=&limit=20` | On main | Searches ENG's California F-1 school CSV (`data/schools/sevp_schools_ca.csv`, merged in #14) by name or city. `503` only if that file can't be read. |
-| `POST /workflow` | In review (#20) | Takes a profile, returns that student's computed workflow. Always the live engine. On main it returns `405`. |
-| `POST /tasks/{task_id}/resolve` | In review (#20) | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`). |
-| `POST /tasks/{task_id}/complete` | In review (#20) | "Mark done": adds the task to the student's completed tasks. |
+| `POST /workflow` | On main | Takes a profile, returns that student's computed workflow. Always the live engine. |
+| `POST /tasks/{task_id}/resolve` | On main | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`). |
+| `POST /tasks/{task_id}/complete` | On main | "Mark done": adds the task to the student's completed tasks. |
 
-There is no `/api/` prefix. In review (#20): every endpoint except `/health` needs the API key
-header and counts toward the rate limit (see "Access" below). No AI or assistant route exists on
-any BE branch (see "AI integration").
+There is no `/api/` prefix. Every endpoint except `/health` needs the API key header (when the
+server sets `API_KEY`) and counts toward the rate limit (see "Access" below). No AI or assistant
+route exists on any BE branch (see "AI integration").
 
 ## The Workflow response
 
@@ -85,12 +86,12 @@ it to `"1.0"`.
 | `arrival_date` | date string | Required |
 | `has_ssn` | boolean | Required |
 | `completed_tasks` | array of strings (task IDs), at most 1,000 | `[]` |
-| `awaiting_reply` | array of strings (task IDs), at most 1,000; set by `POST /tasks/{id}/resolve` (in review, #20) | `[]` |
+| `awaiting_reply` | array of strings (task IDs), at most 1,000; set by `POST /tasks/{id}/resolve` | `[]` |
 | `school_id` | string or null | `null` |
 | `school_verified` | boolean, computed by the resolver | `false` |
 
-In review (#20): a profile with a key not in this table is rejected (`422`), so a typo like
-`"completed_task"` fails loudly instead of being ignored. On main, unknown keys are ignored.
+A profile with a key not in this table is rejected (`422`), so a typo like `"completed_task"`
+fails loudly instead of being ignored.
 `awaiting_reply` lists the tasks whose office the student has written to and is waiting on. A
 task cannot be in both `completed_tasks` and `awaiting_reply`.
 
@@ -204,7 +205,7 @@ remains a separate FE integration step.
 
 ## POST /workflow
 
-**Status: in review (PR #20).** On `main`, `POST /workflow` returns `405`.
+**Status: on main (PR #20).**
 
 The dashboard sends the profile it keeps in `st.session_state` and gets that student's computed
 workflow back. `POST /workflow` always runs the live engine on `data/rules/rules.json`;
@@ -361,7 +362,7 @@ student never sees our errors described as their mistake.
 
 ## Task actions
 
-**Status: in review (PR #20).** Not on `main`.
+**Status: on main (PR #20).**
 
 Both take the same request body as `POST /workflow`. Code decides every status; the client
 never sends one.
@@ -465,24 +466,23 @@ Returns a Workflow. Real answer for step 3, trimmed the same way:
 
 ## Access: API key and rate limit
 
-**Status: in review (PRs #20, #21, and an uncommitted change on `feature/STU-D05-BE`).** On
-`main` there is no key check and no rate limit.
+**Status: on main (PRs #20, #21 and #22).** The deployed API isn't running yet.
 
 - **API key (#20).** When the server's `API_KEY` setting is not empty, every endpoint except
-  `/health` needs the header `X-API-Key: <that value>`, or it returns `401`. FastAPI's own
-  pages (`/docs`, `/redoc`, `/openapi.json`) stay open: they show the API's shape, never any
-  data, and `/docs` still needs the key to call an endpoint. When `API_KEY` is empty (local
-  development and tests), the check is off and the server logs a warning at startup. The
-  deployed API must set it. FE sends the header from its own `API_KEY` setting; the dashboard
-  on `main` doesn't yet. The key lives in each host's secret settings, never in code or a page.
+  `/health` needs the header `X-API-Key: <that value>`, or it returns `401`. FastAPI's own pages
+  (`/docs`, `/redoc`, `/openapi.json`) stay open: they show the API's shape, never any data, and
+  `/docs` still needs the key to call an endpoint. When `API_KEY` is empty (local development and
+  tests), the check is off and the server logs a warning at startup. The deployed API must set it.
+  FE sends the header from its own `API_KEY` setting; the dashboard on `main` doesn't yet, so a
+  deployed dashboard gets `401` until it does. The key lives in each host's secret settings, never
+  in code or a page.
 - **Rate limit.** `RATE_LIMIT` (default `60/minute`), over it `429`; `/health` is exempt and
   keeps answering after the limit is reached.
   - Requests with the right key (the dashboard's server) share one allowance; every other
     request is counted by client address, so requests without the key can't use up the
     dashboard's allowance (#21).
   - The allowance is shared across **all** endpoints and task IDs, so changing the path or the
-    task ID doesn't give a fresh allowance (working tree on `feature/STU-D05-BE`, not pushed
-    yet; before it, each URL had its own allowance).
+    task ID doesn't give a fresh allowance (#22; before it, each URL had its own allowance).
   - An invalid `RATE_LIMIT` stops the API at startup instead of failing every request (#20).
 
 ## Readiness: what "Ready" means
@@ -496,10 +496,10 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
   details. ENG has a draft with visit details for the check-in and DMV tasks. The backend can
   read that shape once this branch merges; before that, the current models reject it, so it
   must not merge first.
-- **No request field says which documents the student has.** FE's PR #16 (open) keeps a local
-  checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness uses
-  checkboxes like "I have my passport". The `document` blocker type exists in the model, but the
-  resolver never produces it.
+- **No request field says which documents the student has.** The dashboard (FE's #16, on `main`)
+  keeps a local checklist (`documents_on_hand`) that never reaches the API, and the plan's readiness
+  uses checkboxes like "I have my passport". The `document` blocker type exists in the model, but
+  the resolver never produces it.
 - So **`Ready` means only this**: every prerequisite in `rules.json` is completed and no timing
   rule is waiting. It says nothing about documents or an office's requirements. Missing
   guidance, `null`, or an empty list is **not** proof of readiness, and FE shows "Not verified"
@@ -520,8 +520,9 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
 
 **Status: not integrated.** What exists and what's missing, by branch.
 
-As of 2026-11-16. Nothing here is on `main`, and **no AI route exists on any BE branch**:
-"Resolve blocker" returns `email_draft: null`, and the backend makes no OpenAI calls.
+As of 2026-11-16. The AI module (#15) isn't on `main`; FE's parts (#16) are. **No AI route
+exists on `main` or any BE branch**: "Resolve blocker" returns `email_draft: null`, and the
+backend makes no OpenAI calls.
 
 | Plan item | Where | State |
 | --- | --- | --- |
@@ -531,9 +532,9 @@ As of 2026-11-16. Nothing here is on `main`, and **no AI route exists on any BE 
 | Timeout | #15: `timeout=30` on the OpenAI client it creates | Exists in #15. |
 | One retry | #15 sets `max_retries=0` | **Missing** (the plan asks for one retry). |
 | Cited explanations and the citation validator | No branch | **Missing.** |
-| `generate_email()` | No branch. FE's #16 shows a fixed local template with placeholders (`data/mock/email.mock.json`), with no API call | **Missing.** |
+| `generate_email()` | No branch. The dashboard (#16, on `main`) shows a fixed local template with placeholders (`data/mock/email.mock.json`), with no API call | **Missing.** |
 | Caching of AI explanations | No branch | **Missing** (the plan's only allowed cache). |
-| Assistant route | No BE route. FE's #16 calls only an explicitly set `ASSISTANT_ENDPOINT` (no default) when `ASSISTANT_MODE=live` | **Not agreed.** |
+| Assistant route | No BE route. The dashboard (#16, on `main`) calls only an explicitly set `ASSISTANT_ENDPOINT` (no default) when `ASSISTANT_MODE=live` | **Not agreed.** |
 
 **Decisions for AI, FE and BE** (no route or schema is accepted yet):
 
@@ -688,7 +689,7 @@ is available.
 
 ## Dependency resolver
 
-**Status: on main.** The API calls it in review (#20); on `main` nothing calls it yet.
+**Status: on main.** The API calls it on every workflow request (#20).
 
 `src/student_workflow/engine.py`:
 
@@ -793,6 +794,9 @@ unreadable rules file raises the corresponding file error.
   returns `email_draft: null`.
 
 ## Changelog
+
+- 2026-11-16, STU-D05-BE-docs-status: #20, #21 and #22 are merged, so every "in review" label
+  for them now says "on main". No API or model change.
 
 - 2026-11-16, STU-D03-BE review fix: count duplicate task IDs in one pass and cap each
   `completed_tasks` and `awaiting_reply` list at 1,000 items. Larger lists return `422`

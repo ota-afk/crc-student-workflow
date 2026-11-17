@@ -4,11 +4,10 @@ A dashboard that shows an international student at Cosumnes River College which 
 are done, ready, in progress or blocked, and what to do next. A FastAPI backend serves the
 workflow and a Streamlit dashboard displays it.
 
-**Status (2026-11-16):** `main` has the resolver, ENG's rules and school search. The live
-workflow endpoints, API key, rate limit, CI end-to-end test and deploy setup are in open pull
-requests #20, #21 and #22 (merge in that order). Nothing is deployed yet. This README describes
-the code once those merge; [docs/contract.md](docs/contract.md) marks what is on `main`, in
-review, or proposed.
+**Status (2026-11-16):** `main` has the resolver, ENG's rules, school search, the live
+workflow endpoints, the API key, the rate limit, the CI end-to-end test and the deploy setup
+(#20, #21 and #22). Cited visit details are in review (#23). Nothing is deployed yet.
+[docs/contract.md](docs/contract.md) marks what is on `main`, in review, or proposed.
 
 How it works:
 
