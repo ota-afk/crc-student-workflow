@@ -1,4 +1,7 @@
-"""Flyover's demo sign-in, against the real API in process (test_live_api's Bridge)."""
+"""Flyover's first screen, "Use your own details" path, against the real API in process.
+
+The "Try the CRC demo" path has its own file, test_flyover_demo.py.
+"""
 
 from datetime import date
 from pathlib import Path
@@ -31,13 +34,12 @@ def first_screen() -> AppTest:
     return AppTest.from_file(str(APP), default_timeout=30).run()
 
 
-def sign_in(app: AppTest, email='student@example.com', password='anything', ssn='Yes',
+def sign_in(app: AppTest, email='student@example.com', ssn='Yes',
             arrival=date(2026, 8, 11)) -> AppTest:
     app.text_input(key='flyover_signin_email').input(email)
-    app.text_input(key='flyover_signin_password').input(password)
     app.date_input(key='flyover_signin_arrival').set_value(arrival)
     app.radio(key='flyover_signin_ssn').set_value(ssn)
-    next(b for b in app.button if b.label == 'Sign in and start').click().run()
+    next(b for b in app.button if b.label == 'Start with my details').click().run()
     assert not app.exception
     return app
 
@@ -54,11 +56,28 @@ def test_a_malformed_email_is_refused(live):
     assert 'flyover_account' not in app.session_state
 
 
-def test_any_password_works_and_is_never_kept(live):
-    app = sign_in(first_screen(), password='hunter2')
+def test_the_first_screen_asks_for_no_password(live):
+    app = first_screen()
+    assert not [w for w in app.text_input if w.type == 'password']
+    assert 'Password' not in [w.label for w in app.text_input]
+
+
+def test_own_details_keep_the_email_in_the_session(live):
+    app = sign_in(first_screen())
     assert app.session_state['flyover_account'] == {'email': 'student@example.com'}
-    assert 'flyover_signin_password' not in app.session_state
-    assert 'hunter2' not in str(live.calls)
+
+
+def test_own_details_are_worked_out_on_the_scenario_date(live):
+    # The reproduction: August inputs used November 17 as as_of and showed "Past due".
+    app = first_screen()
+    app.selectbox(key='flyover_signin_term').select('fall_2026')
+    app.date_input(key='flyover_signin_enrollment').set_value(date(2026, 8, 13))
+    app = sign_in(app)
+    assert app.session_state['flyover_data']['as_of'] == '2026-08-14'
+    assert live.posts()[-1][1]['as_of'] == '2026-08-14'  # sent explicitly, not the API default
+    app = open_checklist(app, 'task_crc_fee_payment')
+    assert 'Due today, Fri, Aug 14, 2026 · Double-checked by our team' in values(app.success)
+    assert not any('Past due' in v for v in values(app.warning))
 
 
 def test_sign_in_answers_carry_into_the_workflow(live):

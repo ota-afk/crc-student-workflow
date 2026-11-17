@@ -66,6 +66,9 @@ CHECKS = [
     ('quote footer', '.fly-quote footer', 'color', QUOTE, 4.5),
     ('step label', '.gate-step', 'color', None, 4.5),
     ('checklist note', '.fly-note', 'color', '.fly-note', 4.5),
+    ('demo notice', '.fly-demo-notice', 'color', '.fly-demo-notice', 4.5),
+    ('handoff demo line', '.fly-doc .fly-doc-scenario', 'color',
+     '.fly-doc .fly-doc-scenario', 4.5),
 ]
 
 

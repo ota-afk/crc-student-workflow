@@ -42,7 +42,8 @@ def app_with(monkeypatch, payload=None):
     # These tests drive the page with a controlled payload, so the first load shows it as
     # given. The real fresh start (a POST with empty progress) is tested in test_flyover.py
     # and against the real API in test_flyover_live_api.py.
-    monkeypatch.setattr(flyover_client, 'fetch_fresh_workflow', flyover_client.fetch_workflow)
+    monkeypatch.setattr(flyover_client, 'start_demo',
+                        lambda api_url, profile, as_of: flyover_client.fetch_workflow(api_url))
     app = signed_in_app(APP)
     assert not app.exception
     return app

@@ -369,16 +369,22 @@ def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
                    for v in values(app.markdown))  # never claims an appointment is required
 
 
-def test_free_times_are_matched_against_published_office_hours(live):
+def test_free_times_never_match_hours_that_are_not_confirmed(live):
     app = add_free_time(signed_in_app(APP), 'Monday', (7, 0), (9, 30))
     captions = values(app.caption)
     assert 'Your free times: Monday 7:00 AM–9:30 AM.' in captions
-    # Admissions & Records opens at 08:00 on Mondays (Fall 2026 hours, in effect on the demo date).
-    assert any(c.startswith("Your free times overlap CRC Admissions and Records Office's "
-                            'published hours: Monday 8:00 AM–9:30 AM.') for c in captions)
+    # Admissions & Records' front-desk hours are not advisor availability (and not verified).
+    assert any(c.startswith("CRC Admissions and Records Office: Hours for this date aren't "
+                            'confirmed.') and 'International Student Advisor' in c
+               for c in captions)
     # The International Students Office publishes none, and the notice says so.
-    assert ('CRC International Students Office publishes no hours: check with the office '
-            'before you go.') in captions
+    assert any(c.startswith("CRC International Students Office: Hours for this date aren't "
+                            'confirmed.') for c in captions)
+    assert not any('overlap' in c for c in captions)
+    # Each office's own page is offered instead.
+    assert '[Official page: CRC International Students Office](https://crc.losrios.edu/' \
+           'student-resources/support-services/international-students-office)' in values(
+               app.markdown)
 
 
 def test_a_backwards_free_time_is_refused(live):
@@ -522,10 +528,12 @@ def test_the_checklist_explains_not_verified_once(live):
     assert len(notes) == 1
 
 
-def test_an_office_without_hours_says_so_without_a_time_zone(live):
+def test_an_office_without_hours_says_so_and_links_its_page(live):
     app = open_checklist(signed_in_app(APP), 'task_school_checkin')
-    assert 'No hours published' in values(app.markdown)
-    assert 'No hours published (Pacific time)' not in values(app.markdown)
+    assert "**Hours for this date aren't confirmed** (August 14, 2026)." in values(app.markdown)
+    assert ('The office publishes no in-person hours we can use. Check the official office '
+            'page before visiting.') in values(app.caption)
+    assert not any('(Pacific time)' in v for v in values(app.markdown) if 'No hours' in v)
 
 
 @pytest.mark.parametrize(('url', 'label'), [
