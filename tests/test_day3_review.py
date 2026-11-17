@@ -50,17 +50,25 @@ def test_task_details_labels_blocker_and_date_independently_of_source(monkeypatc
     assert ('Not verified' in unlock) is (status != 'verified')
 
 
-def test_live_assistant_without_agreed_endpoint_makes_no_request(monkeypatch):
+def test_live_assistant_uses_the_api_route_not_an_old_endpoint_setting(monkeypatch):
+    # POST /assistant is agreed (#32), so a leftover ASSISTANT_ENDPOINT is ignored.
     monkeypatch.setenv('ASSISTANT_MODE', 'live')
-    monkeypatch.delenv('ASSISTANT_ENDPOINT', raising=False)
+    monkeypatch.setenv('API_URL', 'http://localhost:8000')
+    monkeypatch.setenv('ASSISTANT_ENDPOINT', 'https://elsewhere.example/assistant')
     calls = []
-    monkeypatch.setattr(requests, 'post', lambda *a, **kw: calls.append(a))
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return FakeResponse({'answer': 'Ask the office.', 'steps': [], 'sources': [],
+                             'verified': False, 'contact': None, 'task_id': None,
+                             'is_mock': False})
+
+    monkeypatch.setattr(requests, 'post', post)
     app = run_dashboard(monkeypatch, base_payload())
     app.chat_input[0].set_value('What next?').run()
-    assert calls == []
     assert not app.exception
-    assert len(app.chat_message) == 1
-    assert any('not configured' in v for v in values(app.info))
+    assert calls == ['http://localhost:8000/assistant']
+    assert len(app.chat_message) == 2
 
 
 def test_assistant_shows_active_task_and_keeps_old_answer_context(monkeypatch):

@@ -1,7 +1,6 @@
 """Task detail and assistant views for the existing Streamlit dashboard."""
 
 import html
-import os
 
 import requests
 import streamlit as st
@@ -166,7 +165,9 @@ def render_task_details(tasks: list[dict], is_mock: bool, api_url: str) -> str |
 
 
 def render_assistant(profile: dict, task_id: str | None, api_url: str, mode: str,
-                     task_title: str | None = None) -> None:
+                     task_title: str | None = None, as_of: str | None = None) -> None:
+    # profile and as_of come from the workflow on screen, so after "Mark done" or
+    # "Resolve blocker" the next answer already knows about that progress.
     st.subheader('Process assistant')
     context = task_title or 'No task selected'
     st.caption('Active task: ' + context)
@@ -175,22 +176,22 @@ def render_assistant(profile: dict, task_id: str | None, api_url: str, mode: str
     st.caption('For immigration status or work authorization, contact your school’s DSO.')
     if mode == 'mock':
         st.info('Chat preview: replies are fixed sample text. Live AI is not connected.')
-    elif mode == 'live' and not os.getenv('ASSISTANT_ENDPOINT'):
-        st.info('Live assistant is not configured. Its endpoint and answer format '
-                'still need BE/AI agreement; use the sample preview for now.')
     history = st.session_state.setdefault('assistant_history', [])
     if st.button('Clear conversation', key='clear_chat'):
         history.clear()
     question = st.chat_input('Ask about your next step', max_chars=500)
     error = False
+    timed_out = False
     if question and question.strip():
         history.append({'role': 'user', 'text': question, 'task_title': context})
         try:
             with st.spinner('Getting an answer…'):
-                answer = ask_assistant(question, task_id, profile, api_url, mode,
-                                       endpoint=os.getenv('ASSISTANT_ENDPOINT'))
+                answer = ask_assistant(question, task_id, profile, api_url, mode, as_of)
             history.append({'role': 'assistant', 'answer': answer.model_dump(mode='json'),
                             'task_title': context})
+        except requests.Timeout:
+            # Its own message: on the free host the API may still be waking up.
+            error = timed_out = True
         except (requests.RequestException, ValueError, OSError):
             error = True
         # Bound memory in a long-running browser session.
@@ -214,6 +215,9 @@ def render_assistant(profile: dict, task_id: str | None, api_url: str, mode: str
             if answer['contact']:
                 st.write('Who to contact: ' + answer['contact'])
             render_sources(answer['sources'])
-    if error:
+    if timed_out:
+        st.error('The assistant took too long to answer. The service may be starting up: '
+                 'wait a minute and ask again. Your checklist is unchanged.')
+    elif error:
         st.error('Could not get an answer. Try your question again, or use the '
                  'task details and official sources. Your checklist is unchanged.')

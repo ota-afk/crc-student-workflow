@@ -354,5 +354,6 @@ with detail_tab:
     render_email_preview(next((t for t in tasks if t['id'] == selected_task), None))
 
 with assistant_tab:
+    # The latest profile and date of the workflow on screen, so answers match what is shown.
     render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'),
-                     titles.get(selected_task))
+                     titles.get(selected_task), as_of=data.get('as_of'))
