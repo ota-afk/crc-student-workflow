@@ -194,3 +194,8 @@
   Airshow section is now the template handoff only. Files: `flyover.py`, `flyover_art.py`,
   `flyover_client.py`, `style.css` (FE's, under the team's advance approval of the v2 plan),
   tests and READMEs.
+
+- STU-D06-FE-chat-loading (Nov 17 2026): AI assistance (Claude Code) moved the AI Help chat's
+  request out of the Send callback into the redraw, under an "Airshow is thinking…" spinner,
+  and made the question box multi-line (`src/student_workflow/flyover.py`). Tests in
+  `tests/test_flyover_live_api.py`.

@@ -49,7 +49,7 @@ def open_checklist(app: AppTest, task_id: str) -> AppTest:
 
 def ask(app: AppTest, question: str) -> str:
     """Ask in the AI Help dropdown and return the newest answer's text."""
-    app.text_input(key='flyover_question').input(question)
+    app.text_area(key='flyover_question').input(question)
     next(b for b in app.button if b.label == 'Send').click().run()
     assert not app.exception
     history = app.session_state.get('flyover_popup_history', [])
@@ -105,7 +105,7 @@ def test_airshow_timeout_shows_a_helpful_message(live, monkeypatch):
     assert not any('internal timeout details' in v for v in values(app.error))
     assert 'flyover_popup_history' not in app.session_state
     # The unsent question stays in the box so it can be sent again.
-    assert app.text_input(key='flyover_question').value == 'What next?'
+    assert app.text_area(key='flyover_question').value == 'What next?'
 
 
 def confetti_shown(app: AppTest) -> bool:
@@ -213,3 +213,37 @@ def test_chat_history_is_bounded(live, monkeypatch):
         ask(app, f'Question {number}?')
     assert [e['question'] for e in app.session_state['flyover_popup_history']] == [
         'Question 1?', 'Question 2?']
+
+
+def test_question_shows_once_and_is_not_repeated_on_rerun(live):
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    ask(app, 'What next?')
+    asked = [v for v in values(app.markdown) if v == '**You:** What next?']
+    assert len(asked) == 1
+    app.run()
+    assert len([v for v in values(app.markdown) if v == '**You:** What next?']) == 1
+    assert len(app.session_state['flyover_popup_history']) == 1
+    assert len(chat_bodies(live)) == 1  # no second paid request
+
+
+def test_answer_is_fetched_under_the_thinking_spinner(live, monkeypatch):
+    import contextlib
+
+    import streamlit
+
+    from student_workflow import flyover_client
+    spinning, seen = [], []
+
+    @contextlib.contextmanager
+    def spinner(text, **kwargs):
+        spinning.append(text)
+        yield
+        spinning.pop()
+
+    real = flyover_client.ask_airshow
+    monkeypatch.setattr(streamlit, 'spinner', spinner)
+    monkeypatch.setattr(flyover_client, 'ask_airshow',
+                        lambda *a, **k: seen.append(list(spinning)) or real(*a, **k))
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    ask(app, 'What next?')
+    assert seen == [['Airshow is thinking…']]

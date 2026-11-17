@@ -109,27 +109,55 @@ def _context_key(data: dict, page_context: str, task_id: str | None) -> str:
                       sort_keys=True)
 
 
-def _send_chat(api_url: str, page_context: str, task_id: str | None) -> None:
-    """Send callback: ask POST /assistant; clear the box only after an answer arrives."""
+def _send_chat(page_context: str, task_id: str | None) -> None:
+    """Send callback: only record the question. The request runs during the redraw, so the
+    question shows at once and a spinner can say Airshow is thinking (a callback can't draw)."""
     st.session_state.pop('flyover_chat_error', None)
     question = (st.session_state.get('flyover_question') or '').strip()
     if not question:
         return
-    data = st.session_state['flyover_data']
-    try:
-        answer = client.ask_airshow(api_url, data, question, task_id, page_context)
-    except requests.Timeout:
-        # The question stays in the box so the student can send it again.
-        st.session_state['flyover_chat_error'] = 'timeout'
+    st.session_state['flyover_chat_pending'] = {'question': question,
+                                                'page_context': page_context, 'task_id': task_id}
+    st.session_state['flyover_question'] = ''  # put back below if the answer fails
+
+
+def _ask_pending(data: dict, api_url: str) -> None:
+    """Answer the recorded question, under a spinner, before the input box is drawn."""
+    pending = st.session_state.pop('flyover_chat_pending', None)
+    if pending is None:
         return
-    except (requests.RequestException, ValueError):
-        st.session_state['flyover_chat_error'] = 'failed'
+    st.markdown('**You:** ' + esc(pending['question']))
+    try:
+        with st.spinner('Airshow is thinking…'):
+            answer = client.ask_airshow(api_url, data, pending['question'], pending['task_id'],
+                                        pending['page_context'])
+    except (requests.RequestException, ValueError) as error:
+        st.session_state['flyover_chat_error'] = (
+            'timeout' if isinstance(error, requests.Timeout) else 'failed')
+        # The box isn't drawn yet this run, so the unsent question can go back into it.
+        st.session_state['flyover_question'] = pending['question']
         return
     history = st.session_state.setdefault('flyover_popup_history', [])
-    history.append({'question': question,
-                    'context': _context_key(data, page_context, task_id), **answer})
+    history.append({'question': pending['question'], **answer,
+                    'context': _context_key(data, pending['page_context'], pending['task_id'])})
     del history[:-CHAT_LIMIT]  # bounded: a long session never grows without limit
-    st.session_state['flyover_question'] = ''
+    st.session_state['flyover_chat_answered'] = True  # the next lines draw it; no repeat
+
+
+def _chat_entry(entry: dict, current: str, *, show_question: bool = True) -> None:
+    if show_question:
+        st.markdown('**You:** ' + esc(entry['question']))
+    if entry['context'] != current:
+        st.caption('Earlier answer, before your latest progress or a different step.')
+    if not entry['verified'] or not all(source_verified(s) for s in entry['sources']):
+        st.warning('Not verified. Confirm with the office.')
+    st.markdown(entry['answer'])
+    for number, step in enumerate(entry['steps'], 1):
+        st.write(f'{number}. {step}')
+    if entry['contact']:
+        st.write('Who to contact: ' + entry['contact'])
+    if entry['sources']:
+        st.html(f'<div class="fly-sheet">{_source_rows(entry["sources"])}</div>')
 
 
 def _clear_chat() -> None:
@@ -149,19 +177,14 @@ def _chat(data: dict, api_url: str, page: str) -> None:
     st.caption('Answers come from your workflow and our sources. Do not include your name, '
                'SSN or document numbers.')
     with st.container(key='fly_chat_log'):
-        for entry in st.session_state.get('flyover_popup_history', []):
-            st.markdown('**You:** ' + esc(entry['question']))
-            if entry['context'] != current:
-                st.caption('Earlier answer, before your latest progress or a different step.')
-            if not entry['verified'] or not all(source_verified(s) for s in entry['sources']):
-                st.warning('Not verified. Confirm with the office.')
-            st.markdown(entry['answer'])
-            for number, step in enumerate(entry['steps'], 1):
-                st.write(f'{number}. {step}')
-            if entry['contact']:
-                st.write('Who to contact: ' + entry['contact'])
-            if entry['sources']:
-                st.html(f'<div class="fly-sheet">{_source_rows(entry["sources"])}</div>')
+        history = st.session_state.get('flyover_popup_history', [])
+        for entry in history:
+            _chat_entry(entry, current)
+        # A just-sent question: shown at once, answered under the spinner, then drawn here.
+        _ask_pending(data, api_url)
+        if st.session_state.pop('flyover_chat_answered', False):
+            _chat_entry(st.session_state['flyover_popup_history'][-1], current,
+                        show_question=False)
     if (error := st.session_state.get('flyover_chat_error')) == 'timeout':
         st.error('Airshow took too long to answer. The service may be starting up: wait a '
                  'minute and send again. Your progress has been kept.')
@@ -169,10 +192,11 @@ def _chat(data: dict, api_url: str, page: str) -> None:
         st.error('Airshow could not answer right now. Send again, or use your checklist and its '
                  'sources. Your progress has been kept.')
     with st.form('flyover_chat_form', border=False):
-        st.text_input('Your question', max_chars=500, key='flyover_question',
-                      placeholder='For example: why is my California ID blocked?')
+        # Several lines, so a longer question is easy to read back before sending.
+        st.text_area('Your question', max_chars=500, key='flyover_question', height=110,
+                     placeholder='For example: why is my California ID blocked?')
         st.form_submit_button('Send', type='primary', on_click=_send_chat,
-                              args=(api_url, page_context, task_id))
+                              args=(page_context, task_id))
     st.button('Clear conversation', key='flyover_chat_clear', on_click=_clear_chat,
               type='tertiary')
 
