@@ -65,7 +65,7 @@ def test_view_checklist_opens_the_checklist_tab_with_the_same_task(monkeypatch):
     assert not app.exception
     assert app.session_state['flyover_page'] == 'checklist'
     assert app.selectbox(key='flyover_checklist_pick').value == chosen
-    assert app.button_group(key='flyover_tab').value == 'checklist'
+    assert len(app.button_group) == 0
     assert app.selectbox(key='flyover_goto').value == 'checklist'
 
 
@@ -251,8 +251,8 @@ def test_prerequisite_opens_documents_and_sources_and_advances_quote(monkeypatch
     assert not app.exception
     assert app.session_state['flyover_quote'] == before + 1
     html_text = str([e.value for e in app.get('html')])
-    assert 'Needs first' in html_text and 'Our sources' in html_text
-    assert 'Not verified' in html_text
+    assert 'Needs first' in html_text and 'Selected step' in html_text
+    assert 'Not verified' not in html_text
 
 
 def test_airshow_handoff_is_labeled_template_and_clears_on_change(monkeypatch):
@@ -265,7 +265,7 @@ def test_airshow_handoff_is_labeled_template_and_clears_on_change(monkeypatch):
     assert handoff['title'] == 'Handoff for your DMV clerk'
     assert any(h == 'Questions to ask' for h, _ in handoff['sections'])
     html_text = str([e.value for e in app.get('html')])
-    assert 'Not verified' in html_text and 'not by AI' in html_text
+    assert 'Not verified' not in html_text and 'not by AI' in html_text
     app.selectbox(key='flyover_pro').select('Bank officer').run()
     assert 'flyover_handoff' not in app.session_state
 
@@ -513,23 +513,24 @@ def test_reopening_a_prerequisite_names_the_completed_task_that_needs_it(live):
     assert status_of(app, DMV) != 'Completed'
 
 
-def test_tabs_and_go_to_share_one_page_and_one_task(live):
+def test_go_to_navigates_without_duplicate_tabs_and_keeps_the_selected_task(live):
     app = choose(signed_in_app(APP), DMV)
     assert [o for o in app.selectbox(key='flyover_goto').options] == [
         'Workflow and readiness', 'Checklist', 'Alerts', 'Profile', 'Office handoff',
         'Updates and credits']
-    app.button_group(key='flyover_tab').set_value('checklist').run()
+    assert len(app.button_group) == 0
+    go_to(app, 'checklist')
     assert app.session_state['flyover_page'] == 'checklist'
     assert app.selectbox(key='flyover_goto').value == 'checklist'
     assert app.selectbox(key='flyover_checklist_pick').value == DMV
-    go_to(app, 'alerts')
-    assert app.button_group(key='flyover_tab').value == 'alerts'
     go_to(app, 'profile')
-    assert app.button_group(key='flyover_tab').value is None  # not one of the tabs
+    assert not app.exception
+    assert app.selectbox(key='flyover_goto').value == 'profile'
     for page, heading in [('handoff', 'Handoff for your visit'),
                           ('updates', 'Updates and credits'), ('alerts', 'Alerts')]:
         go_to(app, page)
         assert not app.exception and heading in values(app.subheader)
+        assert len(app.button_group) == 0
     go_to(app, 'workflow')
     assert app.selectbox(key='flyover_choose').value == DMV  # kept across every page
 

@@ -28,7 +28,7 @@ from .flyover_appointments import (
     visit_hours,
 )
 from .flyover_art import ASSETS, banner, flight_map, flight_scene, logo, svg_asset
-from .flyover_checklist import document_groups, fact_sources, task_actions
+from .flyover_checklist import document_groups, task_actions
 from .flyover_scenario import (
     DEMO_PROFILE,
     SCENARIO_AS_OF,
@@ -53,7 +53,7 @@ from .flyover_state import (
     task_queue,
 )
 from .flyover_tour import tour_script
-from .frontend import safe_url, source_verified
+from .frontend import safe_url
 from .frontend_state import sync_profile_context
 
 PILLS = {'Completed': ('done', '✓'), 'In Progress': ('progress', '◐'),
@@ -102,7 +102,6 @@ DESTINATIONS = {
     'handoff': 'Office handoff',
     'updates': 'Updates and credits',
 }
-TABS = ('workflow', 'checklist', 'alerts')  # the sibling tabs under the header
 # Older page names (saved sessions, Replay tutorial) -> the destination they now mean.
 PAGE_ALIASES = {'home': 'workflow', 'readiness': 'workflow', 'assistant': 'handoff'}
 # What POST /assistant hears as page_context (a display hint; see the contract).
@@ -146,10 +145,9 @@ def _pick(widget: str) -> None:
 
 
 def _goto(widget: str) -> None:
-    """Callback for the header's Go to and the sibling tabs (they write the same page)."""
+    """Navigate from the header's Go to selector."""
     if chosen := st.session_state.get(widget):
         go(chosen)
-    # None: the active tab was pressed again. Stay; the next run shows it selected again.
 
 
 def selected_task_id(tasks: list[dict]) -> str | None:
@@ -246,15 +244,6 @@ def _header(page: str):
     return panel
 
 
-def _tabs(page: str) -> None:
-    """Workflow and readiness, Checklist and Alerts as sibling tabs; same page as Go to."""
-    st.session_state['flyover_tab'] = page if page in TABS else None
-    with st.container(key='flyover_tabs'):
-        st.segmented_control('Sections', TABS, key='flyover_tab', format_func=DESTINATIONS.get,
-                             on_change=_goto, args=('flyover_tab',),
-                             label_visibility='collapsed')
-
-
 def _chat_context(data: dict, page: str) -> tuple[str, str | None]:
     """(page_context, task_id) for the dropdown: the page it is opened on and the chosen task."""
     return PAGE_CONTEXT.get(page, 'readiness'), selected_task_id(data['workflow'])
@@ -315,8 +304,6 @@ def _chat_entry(entry: dict, current: str, *, show_question: bool = True) -> Non
     if entry['context'] != current:
         st.caption('Earlier answer, before your latest progress or a different step.')
     st.markdown(f'**Airshow:** {airshow_intro(entry)}')
-    if not entry['verified'] or not all(source_verified(s) for s in entry['sources']):
-        st.warning('Not verified. Confirm with the office.')
     st.markdown(entry['answer'])  # the API's cited answer, unchanged
     for number, step in enumerate(entry['steps'], 1):
         st.write(f'{number}. {step}')
@@ -733,28 +720,6 @@ def _office_link(office: dict) -> str:
     return f'<span class="fly-office-src">{label}</span>'
 
 
-SOURCE_UNAVAILABLE = 'Source unavailable. Confirm with the office.'
-UNREVIEWED = 'Confirm this detail with the office.'
-MORE_INFO = 'more info included here'
-
-
-def _more_info(rows_html: str) -> str:
-    """The evidence disclosure: opens in place (native <details>, keyboard and touch friendly)."""
-    return (f'<div class="fly-sheet"><details class="fly-more"><summary>{MORE_INFO}</summary>'
-            f'<div class="fly-sheet">{rows_html}</div></details></div>')
-
-
-def _office_evidence(office: dict) -> str:
-    """The office record's own evidence: the source's words, when it was read, and its state."""
-    verified = office.get('verification_status') == 'verified'
-    state = ('<span class="fly-tag ok">Verified</span>' if verified
-             else '<span class="fly-tag">Not verified</span>')
-    when = (f'Retrieved {esc(long_date(office["retrieved_on"]))}' if office.get('retrieved_on')
-            else '') + ('' if verified else f' · {UNREVIEWED}')
-    return (f'<div class="fly-src"><div>{_office_link(office)}<small>{when}</small>'
-            f'<small>“{esc(office.get("evidence") or "")}”</small></div>{state}</div>')
-
-
 def _appointment_notice(tasks: list[dict], as_of: str) -> None:
     """In-app notice when the current or next step has sourced appointment guidance."""
     guidance = first_with_guidance(task_queue(tasks))
@@ -767,8 +732,7 @@ def _appointment_notice(tasks: list[dict], as_of: str) -> None:
     task = next((t for t in tasks if t['id'] == guidance['task_id']), {})
     with st.container(key='fly_appt_notice'):
         st.markdown(f'**Appointment information for your next step:** {guidance["title"]}')
-        st.markdown(guidance['text'])  # ENG's sourced wording, unchanged
-        st.html(_more_info(_source_rows(fact_sources(task, 'appointment_rules') or [])))
+        _visit_fact(task, 'Appointments', 'appointment_rules', guidance['text'])
         # The same action links as the checklist, named for where they go.
         _task_action_links(task)
         if windows:
@@ -838,13 +802,11 @@ def _workflow(data: dict, api_url: str, boarding: dict | None = None) -> None:
                           args=('checklist', task_id), icon=':material/checklist:')
         with st.container(key='fly_gate_notes'):
             if note := due_note(task, data['as_of']):
-                getattr(st, note[0])(note[1])
+                getattr(st, note[0])(note[1] + _due_links(task))
             if task.get('next_action'):
                 st.info(task['next_action']['text'])
             for blocker in task.get('blockers') or []:
                 st.warning(blocker['explanation'])
-            if not task.get('sources') or not all(source_verified(s) for s in task['sources']):
-                st.caption('Not verified. Confirm with the office. Completing a step does not confirm eligibility.')
             if task['status'] == 'Blocked':
                 _resolve_section(task, api_url)
                 other_ready = [t for t in tasks if t['status'] in ('Ready', 'In Progress')]
@@ -859,9 +821,8 @@ def _workflow(data: dict, api_url: str, boarding: dict | None = None) -> None:
 def _office_hours(task: dict, as_of: str) -> None:
     """Compact office rows, shared by the "Before you go" preview and the Checklist tab.
 
-    Hours only when confirmed for the workflow's date; otherwise the reason and, for offices
-    that publish hours for another date, a dated reference. Each office gets its own
-    "View <office> hours source" link and evidence, even when several serve one task.
+    Hours only when confirmed for the workflow's date; otherwise show a dated reference.
+    Each office name links directly to its source page.
     """
     offices = task.get('offices') or []
     if not offices:
@@ -870,7 +831,8 @@ def _office_hours(task: dict, as_of: str) -> None:
     st.markdown('#### Office hours')
     for office in offices:
         with st.container():  # unkeyed: the preview and checklist may show the same task
-            st.markdown(f'**{office["name"]}**')
+            st.markdown(f'**{office["name"]}**' + _source_tags([office.get('source_url')]),
+                        unsafe_allow_html=True)
             if office.get('address'):
                 st.caption(office['address'])
             check = visit_hours(office, as_of)
@@ -891,14 +853,12 @@ def _office_hours(task: dict, as_of: str) -> None:
                 # date and verification state. No free-time match is worked out from these.
                 with st.expander('Reference only: the hours this office published'):
                     st.caption(f'{office["period_note"]} Retrieved '
-                               f'{long_date(office["retrieved_on"])} · '
-                               f'{"Verified" if office["verification_status"] == "verified" else "Not verified"}.')
+                               f'{long_date(office["retrieved_on"])}.')
                     st.write(hours_summary(office) + ' (Pacific time)')
                     for closure in office.get('closures') or []:
                         st.caption(f'Listed closure · {long_date(closure["date"])}: '
                                    f'{closure["note"]}')
-            st.html(f'<div class="fly-sheet">{_office_link(office)}'
-                    f'{_more_info(_office_evidence(office))}</div>')
+
 
 
 def _task_action_links(task: dict) -> None:
@@ -911,8 +871,8 @@ def _task_action_links(task: dict) -> None:
 
 def _visit_fact(task: dict, label: str, field: str, value: str) -> None:
     """A visit fact as sourced, with its evidence one click away (never a repeated badge)."""
-    st.markdown(f'**{label}:** {value}')  # ENG's sourced wording (it may contain a link)
-    st.html(_more_info(_source_rows(fact_sources(task, field) or [])))
+    st.markdown(f'**{label}:** {value}' + _fact_tags(task, field, value),
+                unsafe_allow_html=True)
 
 
 def _registration_info(task: dict) -> None:
@@ -931,9 +891,7 @@ def _registration_info(task: dict) -> None:
                  if end and end != window['starts_on'] else start)
         label = ENROLLMENT_PRIORITIES[window['priority']]
         text = f'{label} · {term} registration ' + ('begins ' if end is None else 'period: ') + dates + '.'
-    verification = ('Double-checked by our team' if window['verification_status'] == 'verified'
-                    else 'Not verified')
-    st.info(text + ' ' + verification + '. Check your exact appointment date and time in '
+    st.info(text + ' Check your exact appointment date and time in '
             '[eServices](https://ps.losrios.edu/). Enter the date you actually register '
             'separately to calculate your payment deadline.')
     if url := safe_url(window.get('source_url')):
@@ -954,7 +912,7 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         _status_control(data, task, api_url, 'flyover_checklist_status')
     _registration_info(task)
     if note := due_note(task, data['as_of']):
-        getattr(st, note[0])(note[1])
+        getattr(st, note[0])(note[1] + _due_links(task))
     for blocker in task.get('blockers') or []:
         st.warning(blocker['explanation'])
         if blocker.get('unlocks_on'):
@@ -968,7 +926,8 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
         key = f'flyover_doc:{task["id"]}:{document}'
         if key not in st.session_state:
             st.session_state[key] = selected.get(document, False)
-        selected[document] = st.checkbox(document, key=key)
+        selected[document] = st.checkbox(document + _fact_links(task, 'required_documents', document),
+                                         key=key)
     if documents:
         st.caption('Checked documents are your inventory, not a readiness or eligibility decision.')
     else:
@@ -988,25 +947,20 @@ def _checklist(data: dict, task: dict, api_url: str) -> None:
             _record_update(task, result, api_url)
             st.rerun()
     _reminder_section(data, task, api_url)
-    details, sources = st.columns([1, 1], gap='large')
-    with details:
-        st.markdown('#### Before you visit')
-        missing = []
-        for label, field in VISIT_FACTS:
-            if not (value := guide.get(field)):
-                missing.append(label)
-                continue
-            _visit_fact(task, label, field, value)
-        _office_hours(task, data['as_of'])
-        if missing:
-            # One line for everything not on file, instead of the same warning four times.
-            st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
-                    'Confirm with the office.</p>')
-    with sources:
-        st.markdown('#### Where this information comes from')
-        st.html(_more_info(_source_rows(task.get('sources') or [])))
+    st.markdown('#### Before you visit')
+    missing = []
+    for label, field in VISIT_FACTS:
+        if not (value := guide.get(field)):
+            missing.append(label)
+            continue
+        _visit_fact(task, label, field, value)
+    _office_hours(task, data['as_of'])
+    if missing:
+        # One line for everything not on file, instead of the same warning four times.
+        st.html(f'<p class="fly-note">Not on file yet: {esc(", ".join(missing))}. '
+                'Confirm with the office.</p>')
     for warning in guide.get('warnings') or []:
-        st.warning(warning)
+        st.warning(warning + _fact_links(task, 'warnings', warning))
 
 
 PACIFIC = ZoneInfo('America/Los_Angeles')
@@ -1166,7 +1120,7 @@ def _resolve_section(task: dict, api_url: str, where: str = '') -> None:
     if email.get('task_id') != task['id']:
         return
     if draft := email.get('draft'):
-        st.warning('Draft email. Not verified. Fill in the placeholders, review it, and send it '
+        st.warning('Draft email. Fill in the placeholders, review it, and send it '
                    'yourself. Nothing has been sent.')
         st.code(f'Subject: {draft["subject"]}\n\n{draft["body"]}', language=None, wrap_lines=True)
     else:
@@ -1211,34 +1165,49 @@ def source_label(url: str | None) -> str:
     return f'{site} · {words[:1].upper()}{words[1:]}' if words else site
 
 
-def _source_rows(sources: list[dict]) -> str:
-    """Evidence rows: the source's title, its link (plain text if missing or unsafe) and date.
+def _source_tags(urls: list[str | None]) -> str:
+    """Compact source links; never emit an unsafe or duplicate URL."""
+    links = dict.fromkeys(link for url in urls if (link := safe_url(url)))
+    return ''.join(
+        f' <a class="fly-source-tag" href="{esc(url)}" target="_blank" '
+        f'rel="noopener noreferrer" title="{esc(source_label(url))}" '
+        f'aria-label="Source: {esc(source_label(url))}">Source ↗</a>' for url in links)
 
-    A reviewed source keeps its real verified date; one awaiting review says to confirm with
-    the office; no source at all says so. Same signature and HTML as before for every caller.
-    """
-    rows = []
-    for source in sources:
-        url = safe_url(source.get('url'))
-        label = esc(source_label(source.get('url')))
-        link = (f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">{label}</a>'
-                if url else f'<span>{label}</span>')
-        if source_verified(source):
-            tag = '<span class="fly-tag ok">Verified</span>'
-            when = ('Double-checked by our team on ' + esc(source['last_verified'])
-                    if source.get('last_verified') else 'Double-checked by our team')
-        else:
-            tag = '<span class="fly-tag">Not verified</span>'
-            when = UNREVIEWED
-        rows.append(f'<div class="fly-src"><div>{link}<small>{when}</small></div>{tag}</div>')
-    return ''.join(rows) or f'<p class="fly-muted">{SOURCE_UNAVAILABLE}</p>'
+
+def _fact_urls(task: dict, field: str, text: str) -> list[str]:
+    """Match this exact fact's rule IDs to the task's source URLs."""
+    guide = task.get('before_you_go') or {}
+    rules = {c['rule_id'] for c in guide.get('citations') or []
+             if c.get('field') == field and c.get('text') == text}
+    return list(dict.fromkeys(url for source in task.get('sources') or []
+                              if source.get('rule_id') in rules
+                              and (url := safe_url(source.get('url')))))
+
+
+def _due_links(task: dict) -> str:
+    rule_id = (task.get('due') or {}).get('rule_id')
+    return ''.join(f' [Source ↗]({url})' for source in task.get('sources') or []
+                   if source.get('rule_id') == rule_id and (url := safe_url(source.get('url'))))
+
+
+def _fact_tags(task: dict, field: str, text: str) -> str:
+    return _source_tags(_fact_urls(task, field, text))
+
+
+def _fact_links(task: dict, field: str, text: str) -> str:
+    # Checkbox and alert labels support Markdown links, rather than raw HTML.
+    return ''.join(f' [Source ↗]({url})' for url in _fact_urls(task, field, text))
+
+
+def _source_rows(sources: list[dict]) -> str:
+    return _source_tags([source.get('url') for source in sources])
 
 
 def _preview_group(group: dict, kind: str) -> str:
     """One task in the preview: its title and status, then its own documents."""
     task = group['task']
     items = ''.join(
-        f'<li><span>{esc(doc)}'
+        f'<li><span>{esc(doc)}{_fact_tags(task, "required_documents", doc)}'
         + (f'<small>Also needed for: {esc(", ".join(group["shared"][doc]))}</small>'
            if doc in group['shared'] else '') + '</span></li>'
         for doc in group['documents'])
@@ -1258,10 +1227,7 @@ def _prereq_dialog(task: dict, by_id: dict) -> None:
                 *(_preview_group(group, 'Needs first') for group in groups[1:])]
     if len(groups) == 1:
         sections.append('<p class="fly-muted">No other step has to come first.</p>')
-    sources = list({s.get('rule_id'): s for group in groups
-                    for s in group['task'].get('sources') or []}.values())
-    st.html(f'<div class="fly-sheet"><div class="fly-needs">{"".join(sections)}</div>'
-            f'<h4>Our sources</h4>{_more_info(_source_rows(sources))}</div>')
+    st.html(f'<div class="fly-sheet"><div class="fly-needs">{"".join(sections)}</div></div>')
     _task_action_links(task)
     _office_hours(task, st.session_state['flyover_data']['as_of'])
     if st.button('Open full checklist', key='flyover_prereq_full', type='primary',
@@ -1358,7 +1324,7 @@ def _focus_card(task: dict, kind: str) -> None:
             # In Progress means waiting on an office, never that the task is done.
             st.caption('Waiting on an office.')
         if note := due_note(task, st.session_state['flyover_data']['as_of']):
-            st.caption(note[1])
+            st.caption(note[1] + _due_links(task))
         if kind == 'now':
             if task.get('next_action'):
                 st.caption(task['next_action']['text'])
@@ -1559,7 +1525,7 @@ def _handoff_text(doc: dict, markdown: bool) -> str:
         items = [clean(item) for item in items]
         lines += [('- ' if markdown else '• ') + item for item in items] if len(items) > 1 else items
         lines.append('')
-    lines.append('Drafted from a template. Not verified. Confirm every requirement with the office.')
+    lines.append('Drafted from a template. Confirm every requirement with the office.')
     return '\n'.join(lines)
 
 
@@ -1612,7 +1578,7 @@ def _assistant(data: dict, api_url: str) -> None:
                            '<ul>' + ''.join(f'<li>{esc(i)}</li>' for i in items) + '</ul>')
                            for h, items in doc['sections'])
             st.html(f'<article class="fly-doc"><div class="fly-doc-top"><h3>{esc(doc["title"])}</h3>'
-                    f'<span class="fly-tag">⚠ Preview · Not verified</span></div>'
+                    f'<span class="fly-tag">Preview</span></div>'
                     f'<p class="fly-doc-scenario">{esc(doc.get("scenario", ""))}</p>{body}'
                     '<p class="fine">Drafted from a template on this page, not by AI. '
                     'Never add document numbers. Confirm every requirement with the office.</p></article>')
@@ -1650,7 +1616,7 @@ def render_app() -> None:
         render_signin(api_url)
         _tour('signin')
         return
-    # One page id, normalised once, drives the header, the tabs and the dispatch below.
+    # One page id, normalised once, drives the header and the dispatch below.
     page = st.session_state['flyover_page'] = destination(st.session_state.get('flyover_page'))
     panel = _header(page)
     if 'flyover_data' not in st.session_state:
@@ -1669,15 +1635,12 @@ def render_app() -> None:
     sync_profile_context(data['student_profile'])
     with panel:
         _chat(data, api_url, page)
-    _tabs(page)
     # Shown once per confirmed completion (set in _record_update), then consumed.
     boarding = st.session_state.pop('flyover_boarding', None)
     if page == 'workflow':
         _profile(data, api_url)
         if data.get('is_mock'):
-            st.warning('Sample data. Not verified. Do not rely on it.')
-        elif data['student_profile'].get('school_verified') is not True:
-            st.caption('School-specific guidance is not verified. Confirm requirements with your DSO.')
+            st.warning('Sample data. Do not rely on it.')
         _workflow(data, api_url, boarding)
         _readiness(data, api_url)
     else:

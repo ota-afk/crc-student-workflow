@@ -364,7 +364,7 @@ def test_appointment_notice_shows_sourced_text_for_the_next_step(live):
     # School check-in is first (Required) and has CRC's appointment guidance.
     assert notice_shown(app)
     assert any('schedule an in-person or phone appointment' in v for v in values(app.markdown))
-    assert any('Not verified' in v for v in values(app.caption))
+    assert not any('Not verified' in v for v in values(app.caption))
     assert not any('required' in v.lower() and 'appointment' in v.lower()
                    for v in values(app.markdown))  # never claims an appointment is required
 
@@ -436,11 +436,7 @@ def test_sourced_visit_details_open_their_evidence_in_place(live):
     hours = [v for v in values(app.markdown) if v.startswith('**Hours:**')]
     assert len(hours) == 1 and 'badge' not in hours[0]  # no repeated badge on the fact
     assert 'DMV office finder' in hours[0]  # ENG's sourced wording, link included
-    # Its evidence: the cited rule's page (field + text matched), unreviewed, in place.
-    assert ('<details class="fly-more"><summary>more info included here</summary>'
-            '<div class="fly-sheet"><div class="fly-src"><div><a href="https://www.dmv.ca.gov/'
-            'portal/locations/"') in page_html(app)
-    assert 'Confirm this detail with the office.' in page_html(app)
+    assert 'fly-source-tag' in hours[0] and 'portal/locations/' in hours[0]
 
 
 def test_airshow_greets_an_empty_chat(live):
@@ -515,37 +511,60 @@ def test_checklist_lists_the_tasks_offices_with_their_hours(live):
     app = open_checklist(signed_in_app(APP), DMV)
     shown = values(app.markdown)
     assert '#### Office hours' in shown
-    assert '**California DMV, Sacramento South**' in shown
-    assert 'View California DMV, Sacramento South hours source</a>' in page_html(app)
-    assert 'View California DMV, Sacramento (Broadway) hours source</a>' in page_html(app)
+    assert any(v.startswith('**California DMV, Sacramento South**') and 'fly-source-tag' in v
+               for v in shown)
+    assert 'California DMV, Sacramento South' in ' '.join(values(app.markdown)) and 'fly-source-tag' in ' '.join(values(app.markdown))
+    assert 'California DMV, Sacramento (Broadway)' in ' '.join(values(app.markdown)) and 'fly-source-tag' in ' '.join(values(app.markdown))
     assert ('Mon–Tue 8:00 AM–5:00 PM · Wed 9:00 AM–5:00 PM · Thu–Fri 8:00 AM–5:00 PM '
             '(Pacific time)') in shown
 
 
-def test_sources_have_readable_names_not_rule_ids(live):
+def test_phone_links_to_its_exact_official_source_without_a_separate_panel(live):
     app = open_checklist(signed_in_app(APP), 'task_school_checkin')
-    html = ' '.join(values(app.get('html')))
-    assert 'Cosumnes River College · International students office' in html
-    assert 'Confirm this detail with the office.' in html  # awaiting review
-    assert 'rule_crc_arrival_reporting<' not in html and 'Source date' not in html
+    shown = values(app.markdown)
+    phone = next(value for value in shown if value.startswith('**Phone:**'))
+    assert '(916) 691-7411' in phone
+    assert 'fly-source-tag' in phone and 'Source ↗</a>' in phone
+    task = next(t for t in app.session_state['flyover_data']['workflow']
+                if t['id'] == 'task_school_checkin')
+    phone_rules = {c['rule_id'] for c in task['before_you_go']['citations'] if c['field'] == 'phone'}
+    expected = {s['url'] for s in task['sources'] if s['rule_id'] in phone_rules}
+    assert expected and all(url in phone for url in expected)
+    assert not any('Where this information comes from' in value for value in shown)
+    assert 'Not verified' not in ' '.join(shown + values(app.caption) + values(app.get('html')))
+    assert any(c['verification_status'] == 'needs_verification'
+               for c in task['before_you_go']['citations'])
 
 
-def test_the_old_not_verified_sentence_is_gone(live):
-    app = open_checklist(signed_in_app(APP), DMV)
-    assert 'means our team hasn' not in page_html(app)
-    assert ':orange-badge[Not verified]' not in ' '.join(values(app.markdown))
-    assert 'more info included here' in page_html(app)
+def test_source_links_match_the_field_and_text_and_reject_unsafe_urls():
+    from student_workflow.flyover import _fact_tags
+    task = {'before_you_go': {'citations': [
+        {'field': 'phone', 'text': '123', 'rule_id': 'phone'},
+        {'field': 'phone', 'text': '456', 'rule_id': 'other'},
+        {'field': 'fees', 'text': '123', 'rule_id': 'fee'},
+        {'field': 'phone', 'text': '123', 'rule_id': 'unsafe'},
+    ]}, 'sources': [
+        {'rule_id': 'phone', 'url': 'https://crc.losrios.edu/contact'},
+        {'rule_id': 'other', 'url': 'https://crc.losrios.edu/other'},
+        {'rule_id': 'fee', 'url': 'https://crc.losrios.edu/fees'},
+        {'rule_id': 'unsafe', 'url': 'javascript:alert(1)'},
+    ]}
+    links = _fact_tags(task, 'phone', '123')
+    assert 'https://crc.losrios.edu/contact' in links
+    assert '/other' not in links and '/fees' not in links and 'javascript:' not in links
+    assert _fact_tags(task, 'hours', '123') == ''
+
 
 
 def test_an_office_without_hours_says_so_and_links_its_page(live):
     app = open_checklist(signed_in_app(APP), 'task_school_checkin')
     assert '**No hours published**' in values(app.markdown)  # International Students Office
-    assert 'View CRC International Students Office hours source</a>' in page_html(app)
+    assert 'CRC International Students Office' in ' '.join(values(app.markdown)) and 'fly-source-tag' in ' '.join(values(app.markdown))
     assert ('The office publishes no in-person hours we can use. Check the official office '
             'page before visiting.') in values(app.caption)
     # Admissions & Records is its own record, with its own source.
-    assert '**CRC Admissions and Records Office**' in values(app.markdown)
-    assert 'View CRC Admissions and Records Office hours source</a>' in page_html(app)
+    assert any(v.startswith('**CRC Admissions and Records Office**') for v in values(app.markdown))
+    assert 'CRC Admissions and Records Office' in ' '.join(values(app.markdown)) and 'fly-source-tag' in ' '.join(values(app.markdown))
     assert not any('(Pacific time)' in v for v in values(app.markdown) if 'No hours' in v)
 
 

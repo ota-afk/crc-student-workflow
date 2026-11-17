@@ -82,7 +82,8 @@ def test_the_demo_sends_its_scenario_date_explicitly(live):
 
 def test_demo_tuition_is_due_today_on_august_14(live):
     app = checklist(demo(), FEE)
-    assert 'Due today, Fri, Aug 14, 2026 · Double-checked by our team' in values(app.success)
+    assert any(v.startswith('Due today, Fri, Aug 14, 2026 · Double-checked by our team')
+               and '[Source ↗]' in v for v in values(app.success))
     assert not any('Past due' in v for v in values(app.warning))
 
 
@@ -116,9 +117,8 @@ def test_august_dmv_checklist_links_the_office_without_a_november_time(live):
     app = checklist(demo(), DMV)
     shown = values(app.markdown)
     assert "**Hours for this date aren't confirmed** (August 14, 2026)." in shown
-    assert ('href="https://www.dmv.ca.gov/portal/field-office/sacramento-south/" '
-            'target="_blank" rel="noopener noreferrer">View California DMV, Sacramento South '
-            'hours source</a>') in ' '.join(values(app.get('html')))
+    assert any('href="https://www.dmv.ca.gov/portal/field-office/sacramento-south/"' in value
+               and 'fly-source-tag' in value for value in shown)
     captions = values(app.caption)
     assert any(c.startswith('The published hours have no date range, so they may not apply '
                             'on August 14, 2026.') for c in captions)
