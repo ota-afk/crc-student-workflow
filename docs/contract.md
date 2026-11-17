@@ -847,7 +847,7 @@ unreadable rules file raises the corresponding file error.
 
 `map_intent(text, tasks)` in `src/student_workflow/ai_assistant.py` turns a
 student's sentence into one task ID. `tasks` is a list of dicts with `id`,
-`title` and optionally `high_risk` (bool). It returns an `IntentResult`:
+`title` and `high_risk` (bool, required; a missing or non-bool value returns `error`). It returns an `IntentResult`:
 
 | Field | Type | Meaning |
 |-------|------|---------|

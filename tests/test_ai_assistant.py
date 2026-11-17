@@ -12,8 +12,8 @@ from openai import OpenAIError
 from student_workflow.ai_assistant import map_intent
 
 TASKS = [
-    {'id': 'task_school_checkin', 'title': 'Complete school check-in'},
-    {'id': 'task_dmv_id', 'title': 'Apply for California REAL ID'},
+    {'id': 'task_school_checkin', 'title': 'Complete school check-in', 'high_risk': False},
+    {'id': 'task_dmv_id', 'title': 'Apply for California REAL ID', 'high_risk': False},
 ]
 
 
@@ -93,7 +93,7 @@ def test_opt_out_is_not_a_work_question():
 
 def test_high_risk_task_becomes_dso_referral():
     tasks = [
-        {'id': 'task_school_checkin', 'title': 'Complete school check-in'},
+        {'id': 'task_school_checkin', 'title': 'Complete school check-in', 'high_risk': False},
         {'id': 'task_dmv_id', 'title': 'Apply for California REAL ID', 'high_risk': True},
     ]
     result = map_intent('I want a California ID', tasks, client=FakeClient('task_dmv_id'), model='x')
@@ -187,4 +187,34 @@ def test_only_malformed_tasks_is_no_match():
     client = FakeClient('task_x')
     result = map_intent('I want a California ID', [{'id': 'task_x'}], client=client, model='x')
     assert result.outcome == 'no_match'
+    assert client.calls == []
+
+
+def test_lowercase_im_with_a_name_is_refused():
+    client = FakeClient('task_dmv_id')
+    result = map_intent("i'm Jane Doe, how do I get a DMV ID?", TASKS, client=client, model='x')
+    assert 'rephrase' in result.message
+    assert client.calls == []
+
+
+def test_name_label_is_refused():
+    client = FakeClient('task_dmv_id')
+    result = map_intent('Name: Jane Doe. How do I get a DMV ID?', TASKS, client=client, model='x')
+    assert 'rephrase' in result.message
+    assert client.calls == []
+
+
+def test_missing_high_risk_flag_is_an_error():
+    tasks = [{'id': 'task_dmv_id', 'title': 'Apply for California REAL ID'}]
+    client = FakeClient('task_dmv_id')
+    result = map_intent('I want a California ID', tasks, client=client, model='x')
+    assert result.outcome == 'error'
+    assert client.calls == []
+
+
+def test_none_high_risk_flag_is_an_error():
+    tasks = [{'id': 'task_dmv_id', 'title': 'Apply for California REAL ID', 'high_risk': None}]
+    client = FakeClient('task_dmv_id')
+    result = map_intent('I want a California ID', tasks, client=client, model='x')
+    assert result.outcome == 'error'
     assert client.calls == []

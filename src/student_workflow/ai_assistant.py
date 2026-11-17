@@ -47,7 +47,8 @@ NAME_REGEXES = [
     re.compile(r'\bmy name is\b', re.IGNORECASE),
     re.compile(r'\bcall me\b', re.IGNORECASE),
     # Case-sensitive on purpose: "I'm Jane" is a name, "I'm trying" is not.
-    re.compile(r"\bI(?:['\u2019]m| am) [A-Z][a-z]+"),
+    re.compile(r"(?i:\bi(?:['\u2019]m| am)) [A-Z][a-z]+"),
+    re.compile(r'\bname\s*[:=-]', re.IGNORECASE),
 ]
 
 DSO_MESSAGE = (
@@ -123,8 +124,10 @@ def map_intent(
 ) -> IntentResult:
     """Map text to a task ID.
 
-    tasks is a list of dicts with 'id' and 'title', and optionally
-    'high_risk' (bool). Tasks missing an id or title are skipped.
+    tasks is a list of dicts with 'id', 'title' and 'high_risk' (a real
+    bool, required). Tasks missing an id or title are skipped. If any other
+    task has a missing or non-bool high_risk, the result is 'error' and the
+    model is not called.
     """
     if is_high_risk(text):
         return IntentResult(outcome='dso_referral', message=DSO_MESSAGE)
@@ -135,6 +138,8 @@ def map_intent(
     valid = [t for t in tasks if t.get('id') and t.get('title')]
     if not cleaned or not valid:
         return IntentResult(outcome='no_match', message=NO_MATCH_MESSAGE)
+    if any(not isinstance(t.get('high_risk'), bool) for t in valid):
+        return IntentResult(outcome='error', message=ERROR_MESSAGE)
 
     model = model or os.getenv('OPENAI_MODEL')
     if not model:
@@ -173,7 +178,7 @@ def map_intent(
     if choice is None or choice.task_id not in allowed:
         return IntentResult(outcome='no_match', message=NO_MATCH_MESSAGE)
 
-    high_risk_ids = {t['id'] for t in valid if t.get('high_risk')}
+    high_risk_ids = {t['id'] for t in valid if t['high_risk']}
     if choice.task_id in high_risk_ids:
         return IntentResult(outcome='dso_referral', message=DSO_MESSAGE)
     return IntentResult(outcome='matched', task_id=choice.task_id)
