@@ -38,9 +38,10 @@ school does not verify its requirements; unverified school context is labeled
 **Not verified for your school** with a DSO reminder.
 
 Visa type, arrival date and the has-SSN yes/no choice prepare a session-only draft.
-There is no real-ID field. **Generate workflow** remains disabled and the page
-says these edits are not applied to the current workflow. No profile is POSTed
-against a guessed interface. This does not claim completed onboarding.
+There is no real-ID field. Once a school (or "My school is not listed") is chosen,
+**Generate workflow** sends the draft to `POST /workflow` (see `docs/contract.md`) and the
+dashboard shows the returned workflow. The draft's `state` is not sent (the API profile has
+no such field) and progress starts empty.
 
 When the confirmed workflow profile changes school, institution, synthetic user,
 visa, arrival date or has-SSN context, old inventory, document widget values, chat

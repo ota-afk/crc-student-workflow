@@ -14,7 +14,7 @@ def directory_app(monkeypatch, result=SCHOOLS):
     app = run_dashboard(monkeypatch, payload)
     calls = []
 
-    def get(url, *, params=None, timeout):
+    def get(url, *, params=None, timeout, headers=None):
         if url.endswith('/schools'):
             calls.append((params, timeout))
             if isinstance(result, Exception):
@@ -39,7 +39,7 @@ def test_search_select_school_does_not_post_or_replace_current_workflow(monkeypa
     assert calls == [({'q': 'Cosumnes', 'limit': 20}, 10)]
     assert app.session_state['onboarding_draft']['school_id'] == 'crc'
     assert any('Not verified for your school' in x for x in values(app.warning))
-    assert app.button(key='generate_workflow').disabled
+    assert not app.button(key='generate_workflow').disabled  # a school is chosen
     assert posts == []
     assert app.checkbox[0].value
     app.run()

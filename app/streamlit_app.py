@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from student_workflow.contract import Workflow
 from student_workflow.frontend import safe_url, source_verified
+from student_workflow.frontend_api import api_get
 from student_workflow.frontend_email import render_email_preview
 from student_workflow.frontend_onboarding import render_onboarding
 from student_workflow.frontend_state import open_task, sync_profile_context
@@ -55,7 +56,11 @@ STATUS_STYLES = {
 
 
 def load_workflow() -> dict[str, Any]:
-    response = requests.get(f'{API_URL}/workflow', timeout=10)
+    # After "Generate workflow" or a task action, the dashboard holds the latest workflow
+    # (the API is stateless) and shows it instead of the demo workflow.
+    if held := st.session_state.get('workflow_data'):
+        return held
+    response = api_get(f'{API_URL}/workflow')
     response.raise_for_status()
     return Workflow.model_validate(response.json()).model_dump(mode='json', exclude_unset=True)
 
@@ -113,6 +118,10 @@ except (requests.RequestException, ValueError):
     st.button('Retry')  # Clicking any button reruns the script.
     st.stop()
 
+# One "as of" date per session, sent on every request so the whole session agrees on today.
+if data.get('as_of'):
+    st.session_state.setdefault('session_as_of', data['as_of'])
+
 if data.get('is_mock'):
     st.warning('Sample data. Not verified. Do not rely on it.')
 
@@ -122,6 +131,7 @@ if 'flash_message' in st.session_state:
 
 profile = data.get('student_profile') or {}
 sync_profile_context(profile)
+st.session_state['workflow_profile'] = profile  # sent back with each task action
 if profile.get('school_verified') is not True:
     st.warning('Not verified for your school. Confirm school-specific requirements with your DSO.')
 tasks = data.get('workflow') or []
@@ -340,9 +350,8 @@ with readiness_tab:
     render_readiness()
 
 with detail_tab:
-    selected_task = render_task_details(tasks, bool(data.get('is_mock')))
-    render_email_preview(next((t for t in tasks if t['id'] == selected_task), None),
-                         profile, data.get('as_of', ''), titles)
+    selected_task = render_task_details(tasks, bool(data.get('is_mock')), API_URL)
+    render_email_preview(next((t for t in tasks if t['id'] == selected_task), None))
 
 with assistant_tab:
     render_assistant(profile, selected_task, API_URL, os.getenv('ASSISTANT_MODE', 'mock'),

@@ -91,7 +91,10 @@ def test_confirmed_school_change_resets_inventory_chat_and_drafts(monkeypatch):
     app = select_dmv(run_dashboard(monkeypatch, payload))
     app.checkbox[0].check().run()
     app.chat_input[0].set_value('What next?').run()
-    app.button(key='preview_email').click().run()
+    app.session_state['api_email_draft'] = {
+        'task_id': 'task_dmv_id', 'subject': 'Question', 'body': 'Hello'}
+    app.run()
+    assert len(app.code) == 1
     payload['student_profile']['school_id'] = 'different-school'
     payload['student_profile']['institution'] = 'Different School'
     app.run()
@@ -128,5 +131,6 @@ def test_readiness_dialog_keeps_document_inventory_separate_from_status(monkeypa
     assert not app.exception
     assert any('Blocked' in x for x in values(app.warning))
     assert any('does not confirm eligibility' in x for x in values(app.info))
-    assert app.button(key='resolve_task').disabled
+    # Blocked: the blocker can be resolved, but the task cannot be marked done.
+    assert not app.button(key='resolve_task').disabled
     assert app.button(key='complete_task').disabled

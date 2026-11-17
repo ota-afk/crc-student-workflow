@@ -6,6 +6,7 @@ import requests
 import streamlit as st
 
 from .frontend import search_school_directory
+from .frontend_api import ApiError, post_workflow
 
 
 def clear_school_selection() -> None:
@@ -25,6 +26,32 @@ def _search(api_url: str) -> None:
         st.session_state.pop('school_search_error', None)
     except (requests.RequestException, ValueError):
         st.session_state['school_search_error'] = True
+
+
+def _generate(api_url: str, profile: dict) -> None:
+    """Send the chosen profile to POST /workflow and keep the answer for the session."""
+    draft = st.session_state.get('onboarding_draft')
+    if not draft:
+        return
+    # Only these fields exist in the API profile: no "state", and progress starts empty.
+    request_profile = {
+        'student_id': profile.get('student_id') or 'student_001',  # a made-up label, never real
+        'institution': draft['institution'], 'visa_type': draft['visa_type'],
+        'arrival_date': draft['arrival_date'], 'has_ssn': draft['has_ssn'],
+        'completed_tasks': [], 'awaiting_reply': [],
+        'school_id': draft['school_id'], 'school_verified': draft['school_verified'],
+    }
+    try:
+        with st.spinner('Generating your workflow…'):
+            workflow = post_workflow(api_url, request_profile,
+                                     st.session_state.get('session_as_of'))
+    except ApiError as error:
+        st.session_state['generate_error'] = str(error)
+        return
+    st.session_state.pop('generate_error', None)
+    st.session_state['workflow_data'] = workflow
+    st.session_state.pop('api_email_draft', None)
+    st.session_state['flash_message'] = 'Workflow generated for your profile.'
 
 
 def render_onboarding(profile: dict, api_url: str) -> None:
@@ -70,6 +97,7 @@ def render_onboarding(profile: dict, api_url: str) -> None:
         st.session_state['onboarding_draft'] = {
             'state': 'CA', 'school_id': school['school_id'] if school else None,
             'institution': school['institution'] if school else 'School not listed',
+            'school_verified': bool(school and school['school_verified'] is True),
             'visa_type': visa.strip(), 'arrival_date': arrival.isoformat(),
             'has_ssn': has_ssn == 'Yes',
         }
@@ -85,6 +113,11 @@ def render_onboarding(profile: dict, api_url: str) -> None:
             st.info('Choose an arrival date before preparing your profile.')
         elif not visa.strip():
             st.info('Enter your visa type before preparing your profile.')
-    st.button('Generate workflow', key='generate_workflow', disabled=True)
-    st.info('Profile changes are not applied yet: workflow generation is awaiting backend '
-            'integration. The current workflow and checked documents remain unchanged.')
+    st.button('Generate workflow', key='generate_workflow',
+              disabled='onboarding_draft' not in st.session_state,
+              on_click=_generate, args=(api_url, profile))
+    if message := st.session_state.get('generate_error'):
+        st.error(message + ' Your current workflow and checked documents have not changed.')
+    else:
+        st.caption('Generating replaces the workflow shown with one built from this profile. '
+                   'Your checked documents are reset when the profile changes.')

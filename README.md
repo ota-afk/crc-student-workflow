@@ -87,10 +87,16 @@ an inventory summary without changing task status.
 
 ### Day 4: email preview and deployment preparation
 
-In **Task details**, select a blocked task and click **Preview sample email draft**.
-Copy the subject and body with the copy icon, replace placeholders in your own mail
-app, and confirm the recipient. This is a labeled template preview; it does not
-send email or resolve a blocker. Changing task/profile context clears stale drafts.
+In **Task details**, select a blocked task and click **Resolve blocker**. The dashboard
+calls the live API, which marks the office as written to and returns an email draft. Copy
+the subject and body with the copy icon, replace placeholders in your own mail app, and
+confirm the recipient. The draft is labeled unverified; nothing is sent. **Mark done**
+completes a Ready or In Progress task (for example, the proof-of-residency task unblocks
+the DMV task). **Generate workflow** (Profile tab) sends the chosen school, visa, arrival
+date and SSN yes/no to the API and shows the workflow it returns. The API stores nothing,
+so the dashboard keeps the profile and one `as_of` date for the session and sends them on
+every request. Set `API_KEY` in the dashboard's environment to the same value as the API.
+Changing the profile clears old drafts.
 See [Day 4 status and Render settings](docs/day-4-frontend.md) for deployment
 preparation and the missing live backend dependencies.
 
