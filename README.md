@@ -54,8 +54,10 @@ API_URL=http://127.0.0.1:8001 uv run --locked streamlit run app/flyover_app.py -
 ```
 
 Open [Flyover](http://127.0.0.1:8502). `.streamlit/config.toml` supplies the light theme
-and palette. The original dashboard remains at `app/streamlit_app.py` (Render still runs that
-one); its setup and Day 3/4 preview behavior are documented below. After editing files under
+and palette. Render runs Flyover at the live dashboard link
+(https://crc-workflow-dashboard.onrender.com). The original dashboard remains at
+`app/streamlit_app.py` for local runs; its setup and Day 3/4 preview behavior are documented
+below. After editing files under
 `src/`, restart Streamlit: it does not reload those modules on its own.
 
 Flyover has two pages. Page 1 is profile setup over the travel banner and the workflow, one
