@@ -29,6 +29,16 @@ def schools_path() -> Path:
     return Path(os.getenv('SCHOOLS_PATH', str(default)))
 
 
+def api_key() -> str:
+    # '' = no key set, so the X-API-Key check is off (local development and tests only).
+    return os.getenv('API_KEY', '').strip()
+
+
+def rate_limit() -> str:
+    # slowapi's format, e.g. '60/minute'. Read on every request, so tests can lower it.
+    return os.getenv('RATE_LIMIT', '60/minute').strip()
+
+
 def cors_origins() -> list[str]:
     raw = os.getenv('CORS_ORIGINS', 'http://localhost:8501')
     return [origin.strip() for origin in raw.split(',') if origin.strip()]

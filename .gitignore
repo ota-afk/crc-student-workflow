@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 *.egg-info/
 .env
+# The live API_URL and API_KEY for scripts/smoke_test.py, kept apart from .env (docs/deploy.md).
+.env.smoke
 .streamlit/secrets.toml
 data/cache/
 .pytest_cache/
