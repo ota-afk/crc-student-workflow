@@ -117,7 +117,11 @@ SENSITIVE_REGEXES = [
 ENGLISH_WORDS = {
     "i", "i'm", 'the', 'to', 'my', 'can', 'do', 'how', 'what', 'where', 'when',
     'is', 'are', 'get', 'want', 'need', 'apply', 'for', 'of', 'in', 'and',
-    'please', 'does', 'should',
+    'please', 'does', 'should', 'about', 'with', 'you', 'your', 'will', 'would',
+    'could', 'have', 'has', 'this', 'that', 'there', 'tell', 'write', 'give',
+    'show', 'help', 'find', 'make', 'take', 'it', 'be', 'an', 'we', 'they',
+    'from', 'if', 'or', 'not', 'was', 'any', 'some', 'who', 'why', 'which',
+    'poem', 'today', 'tomorrow', 'open', 'pay', 'check', 'report', 'am',
 }
 
 DSO_MESSAGE = (

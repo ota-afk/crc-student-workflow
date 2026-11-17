@@ -304,3 +304,11 @@ def test_work_questions_in_other_languages_get_dso_referral(question):
     result = map_intent(question, TASKS, client=client, model='x')
     assert result.outcome == 'dso_referral'
     assert client.calls == []
+
+
+def test_ordinary_english_is_not_refused_as_unsupported():
+    client = FakeClient('none')
+    result = map_intent('write me a poem about cats', TASKS, client=client, model='x')
+    assert result.outcome == 'no_match'
+    assert 'English' not in result.message
+    assert len(client.calls) == 1
