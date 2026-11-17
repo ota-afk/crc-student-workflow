@@ -73,12 +73,14 @@ def test_failed_status_update_keeps_current_workflow(monkeypatch):
     assert not any('private internal' in text for text in values(app.error))
 
 
-def test_ai_button_opens_honestly_labeled_preview(monkeypatch):
+def test_ai_button_opens_airshow_with_the_template_honestly_labeled(monkeypatch):
     app = app_with(monkeypatch)
     app.button(key='flyover_ai').click().run()
     assert not app.exception
     assert app.session_state['flyover_page'] == 'readiness'
-    assert any('Live AI is not connected' in text for text in values(app.info))
+    assert 'Ask Airshow' in values(app.subheader)
+    # The handoff is still a page template, and says so.
+    assert any('not by AI' in text for text in values(app.info))
 
 
 def test_empty_workflow_never_implies_readiness(monkeypatch):
@@ -222,7 +224,7 @@ def test_airshow_handoff_is_labeled_template_and_clears_on_change(monkeypatch):
     assert handoff['title'] == 'Handoff for your DMV clerk'
     assert any(h == 'Questions to ask' for h, _ in handoff['sections'])
     html_text = str([e.value for e in app.get('html')])
-    assert 'Not verified' in html_text and 'Live AI is not connected' in html_text
+    assert 'Not verified' in html_text and 'not by AI' in html_text
     app.selectbox(key='flyover_pro').select('Bank officer').run()
     assert 'flyover_handoff' not in app.session_state
 
