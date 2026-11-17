@@ -29,5 +29,5 @@ All nine evidence excerpts match retained official HTML/PDF sources. The CRC fee
 
 - **Reviewers:** check source excerpts and task wording, including the added DSO task. Update human checker fields only after the checks are actually completed.
 - **FE/AI:** show official recommendation/source labels and apply DSO referral behavior. Recommendations displayed beside REAL ID must retain the DHS source's driver's-license context. These UI behaviors are not implemented by the data change.
-- **BE:** add optional enrollment_date and a separate deadline field. For the agreed demo, August 13 enrollment means August 14 payment due under the existing CRC rule. Missing enrollment_date must not fall back to arrival_date. No executable wait/deadline field is added here.
-- **Day 3:** connect the resolver to the workflow API and add visit details. The current API still serves the mock; updating rules.json makes the data available to the resolver but does not switch the dashboard to live data.
+- **BE proposal, pending team and contract agreement:** add optional `enrollment_date` and a separate deadline field. For the agreed demo, August 13 enrollment means August 14 payment due under the existing CRC rule. Missing enrollment_date must not fall back to arrival_date. No executable wait/deadline field is added here.
+- **Day 3:** add the [cited visit details](day3-before-you-go.md) served by the live workflow API.

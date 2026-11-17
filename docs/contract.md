@@ -44,7 +44,7 @@ From the build plan:
 | `GET /workflow` | On main | The fixed demo student. `USE_MOCK=true` (the local default): the mock file. `USE_MOCK=false`: the mock's demo profile and "as of" date run through the live engine. |
 | `GET /schools?q=&limit=20` | On main | Searches ENG's California F-1 school CSV (`data/schools/sevp_schools_ca.csv`, merged in #14) by name or city. `503` only if that file can't be read. |
 | `POST /workflow` | On main | Takes a profile, returns that student's computed workflow. Always the live engine. |
-| `POST /tasks/{task_id}/resolve` | On main | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`). |
+| `POST /tasks/{task_id}/resolve` | On main, draft in review | "Resolve blocker": marks the blocked task's next action as awaiting a reply (`In Progress`) and returns a draft when available. |
 | `POST /tasks/{task_id}/complete` | On main | "Mark done": adds the task to the student's completed tasks. |
 
 There is no `/api/` prefix. Every endpoint except `/health` needs the API key header (when the
@@ -384,8 +384,8 @@ every pull request.
 
 ### `POST /tasks/{task_id}/resolve` ("Resolve blocker")
 
-Returns `{"workflow": Workflow, "email_draft": null}`. Real answer for step 2, trimmed to the
-profile and the two demo tasks' status fields:
+Returns the full `Workflow` and an optional `EmailDraft`. This step 2 example shows the profile
+and two demo task statuses:
 
 ```json
 {
@@ -414,7 +414,10 @@ profile and the two demo tasks' status fields:
       }
     ]
   },
-  "email_draft": null
+  "email_draft": {
+    "subject": "Request for guidance: Apply for a California REAL ID card",
+    "body": "Dear [Office or DSO],\n\nI am working on this task: Apply for a California REAL ID card. My checklist shows a pending step:\nGather residency evidence for California REAL ID\n\nCould you confirm the applicable requirements, the next step, and the right office to contact?\n\nThank you,\n[Your Name]\n[Student ID]"
+  }
 }
 ```
 
@@ -428,10 +431,11 @@ profile and the two demo tasks' status fields:
   to, the student waits); or when its next action is itself `Blocked` (a chain: c needs b, b
   needs a, so the student resolves b first). ENG's rules have no chain today. A task blocked by
   both a prerequisite and a date can be resolved; the date still holds.
-- `email_draft` is always `null`: no draft exists, because AI's `generate_email()` doesn't
-  exist on any branch. FE shows "Email draft not available yet", never a made-up draft, and a
-  draft never means an email was sent. **Proposed, pending AI and FE agreement:** the field
-  becomes an object once AI, FE and BE agree on its fields.
+- In this review branch, `email_draft` is `{"subject": string, "body": string}` or `null`.
+  The API builds the draft from the blocked task and its current next-action prerequisite.
+  If a draft is unavailable, including a drafting error or timeout, the API returns the
+  updated workflow with `email_draft: null`. The student reviews, completes, and sends
+  the draft. The explicit resolve request controls progress.
 
 ### `POST /tasks/{task_id}/complete` ("Mark done")
 
@@ -518,11 +522,8 @@ The plan's readiness check ("Are you ready, and when will you be?") isn't fully 
 
 ## AI integration
 
-**Status: not integrated.** What exists and what's missing, by branch.
-
-As of 2026-11-16. The AI module (#15) isn't on `main`; FE's parts (#16) are. **No AI route
-exists on `main` or any BE branch**: "Resolve blocker" returns `email_draft: null`, and the
-backend makes no OpenAI calls.
+**Status: draft integration in review.** This branch connects the local placeholder
+template to "Resolve blocker". The assistant route and its HTTP response remain to be agreed.
 
 | Plan item | Where | State |
 | --- | --- | --- |
@@ -531,19 +532,18 @@ backend makes no OpenAI calls.
 | High-risk referral | #15: `is_high_risk(text)` patterns give `dso_referral`; so does a matched task with `high_risk: true` | Exists in #15. A task without `high_risk` counts as not high risk (review asked for the opposite). The API doesn't pass `high_risk` from the rules yet. |
 | Timeout | #15: `timeout=30` on the OpenAI client it creates | Exists in #15. |
 | One retry | #15 sets `max_retries=0` | **Missing** (the plan asks for one retry). |
-| Cited explanations and the citation validator | No branch | **Missing.** |
-| `generate_email()` | No branch. The dashboard (#16, on `main`) shows a fixed local template with placeholders (`data/mock/email.mock.json`), with no API call | **Missing.** |
+| Cited explanations and the citation validator | `src/student_workflow/ai_day3.py` | Available to BE as a helper. The assistant route is pending. |
+| `generate_email()` | `src/student_workflow/ai_day3.py` | "Resolve blocker" returns its placeholder draft in this review branch. |
 | Caching of AI explanations | No branch | **Missing** (the plan's only allowed cache). |
 | Assistant route | No BE route. The dashboard (#16, on `main`) calls only an explicitly set `ASSISTANT_ENDPOINT` (no default) when `ASSISTANT_MODE=live` | **Not agreed.** |
 
-**Decisions for AI, FE and BE** (no route or schema is accepted yet):
+**Open assistant decisions for AI, FE and BE:**
 
 - The assistant route's name (no `/api/` prefix) and request: which profile fields reach the
   model. FE's client sends `institution`, `visa_type`, `arrival_date`, `has_ssn` and
   `school_id`; never `student_id`.
 - The answer shape. FE's #16 proposes an `AssistantAnswer` (answer, steps, sources with
   verification state, `verified`, contact, task ID, `is_mock`); AI and BE haven't agreed.
-- The email draft's fields, and what `resolve` returns while the model is down.
 - Where `high_risk` comes from. BE's proposal: the API fills it from the rules each task cites,
   and a missing flag never counts as safe.
 - Where the timeout, the one retry and the explanation cache live (AI's module or the API).
@@ -790,8 +790,7 @@ unreadable rules file raises the corresponding file error.
   Proposed, pending FE agreement.
 - **Readiness inputs.** See "Readiness" above: visit details from ENG, and whether the profile
   carries the student's document checkboxes.
-- **AI routes and shapes.** See "AI integration" above. Until they're agreed, `resolve`
-  returns `email_draft: null`.
+- **Assistant route and response.** See "AI integration" above.
 
 ## Changelog
 
