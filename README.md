@@ -61,12 +61,20 @@ and palette. Render runs Flyover at the live dashboard link
 below. After editing files under
 `src/`, restart Streamlit: it does not reload those modules on its own.
 
-Flyover has two pages. Page 1 is profile setup over the travel banner and the workflow, one
-step at a time: the step title flips in like a departures board, the status in the centre
-saves to the live API, and the three-piece flight map fills in behind it. Page 2 (Next or
-View checklist) has Readiness and Before you take off (task left, status centre,
-prerequisite right; a prerequisite opens its documents and sources), a quote card, a
-scroll-driven flight into Airshow, and the handoff template with .txt/.md export. A blocked
+Flyover's sticky header has a labelled **Go to** selector with six destinations: Workflow
+and readiness, Checklist, Alerts, Profile, Office handoff, and Updates and credits. The first
+three are also sibling tabs under the header, and both controls set the same page. One
+selected task follows you across every page: pick it in **Choose a task** (or "Your checklist")
+and View checklist, Open full checklist and the profile shortcut all open the Checklist tab
+with it. Workflow and readiness holds profile setup over the travel banner, the selected step
+(its title flips in like a departures board after a completion, its status saves to the live
+API, and the three-piece flight map fills in behind it), Readiness with completed history, and
+Before you take off with every unfinished task (task left, status centre, prerequisite right,
+then **Edit status**; a prerequisite opens its documents and sources). Each Edit status saves
+against its own task; a completed task offers **Reopen task** (refused, with a link, while a
+completed task still depends on it), and after a completion the next suggested task is offered,
+not switched to. Office handoff has a scroll-driven flight into Airshow and the handoff
+template with .txt/.md export. A blocked
 task's checklist has **Resolve blocker** (`POST /tasks/{task_id}/resolve`), which shows the
 API's email draft and marks the missing step as waiting on an office.
 Statuses and prerequisites remain backend-authoritative. Applying a new profile requires
@@ -113,12 +121,13 @@ office with no published hours gets "check with the office"; Flyover never books
 The notice can be dismissed; the same text stays in the task's checklist.
 
 The **AI Help** logo in the header opens a dropdown chat (Airshow) right below it, on either
-page, without leaving the page. It calls `POST /assistant` with the workflow's `as_of` and
-progress, the task in view, and `page_context` (`journey` on page 1, `readiness` on page 2),
+page, without leaving it. It calls `POST /assistant` with the workflow's `as_of` and
+progress, the selected task, and `page_context` (`journey` on Workflow and readiness,
+`airshow` on Office handoff, `readiness` elsewhere),
 so an answer reflects "Resolve blocker" and "Mark done"; it never sends `student_id`. The
 last 10 questions stay in the dropdown for the session; answers from before a progress change
 are marked "Earlier answer". A timeout shows its own message and keeps the unsent question.
-The Airshow section at the bottom of page 2 is separate: a handoff drafted from a local
+The Office handoff page is separate: a handoff drafted from a local
 template, not by AI, and labeled that way. Verification warnings and official sources remain
 visible. Generated-art provenance and prompts are in
 [`app/assets/flyover/README.md`](app/assets/flyover/README.md).
