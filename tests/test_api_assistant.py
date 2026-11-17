@@ -126,21 +126,66 @@ def test_invalid_selection_profile_and_auth_are_rejected(workflow_request, provi
     assert provider.clients == []
 
 
-def test_missing_key_and_provider_failure_return_safe_answer(workflow_request, provider,
-                                                              monkeypatch):
-    body = assistant_body(workflow_request)
-    with monkeypatch.context() as settings:
-        settings.delenv('OPENAI_API_KEY')
-        assert ask(body).answer == ai_assistant.ERROR_MESSAGE
-        assert provider.clients == []
+def _is_selected_step_answer(answer):
+    return (answer.task_id == DMV and answer.answer.startswith('Task status: Blocked.')
+            and answer.answer.endswith(assistant.SELECTED_STEP_NOTE) and answer.sources)
 
+
+def test_missing_key_falls_back_to_the_selected_step(workflow_request, provider, monkeypatch):
+    monkeypatch.delenv('OPENAI_API_KEY')
+    assert _is_selected_step_answer(ask(assistant_body(workflow_request)))
+    assert provider.clients == []
+
+
+def test_provider_failure_is_retried_once_then_falls_back(workflow_request, provider):
     def fail(_kind):
         raise OpenAIError('private provider error')
 
     provider.before_parse = fail
-    fallback = ask(body)
-    assert fallback.answer == ai_assistant.ERROR_MESSAGE
-    assert not fallback.verified and not fallback.sources and not fallback.is_mock
+    answer = ask(assistant_body(workflow_request))
+    assert _is_selected_step_answer(answer)
+    assert len(provider.calls) == 2  # the first try and one retry
+    assert 'private provider error' not in answer.answer
+
+
+def test_a_retry_that_succeeds_gives_the_normal_answer(workflow_request, provider):
+    tries = []
+
+    def fail_once(_kind):
+        tries.append(_kind)
+        if len(tries) == 1:
+            raise OpenAIError('cold start')
+
+    provider.before_parse = fail_once
+    answer = ask(assistant_body(workflow_request))
+    assert answer.task_id == DMV
+    assert assistant.SELECTED_STEP_NOTE not in answer.answer
+
+
+def test_without_a_selected_step_the_failure_says_so(workflow_request, provider, monkeypatch):
+    monkeypatch.delenv('OPENAI_API_KEY')
+    answer = ask(assistant_body(workflow_request, task_id=None))
+    assert answer.answer == ai_assistant.ERROR_MESSAGE
+    assert not answer.verified and not answer.sources and not answer.is_mock
+
+
+@pytest.mark.parametrize(('question', 'expected'), [
+    ('Can I work off campus?', ai_assistant.DSO_MESSAGE),
+    ('My name is Jane and I need help.', ai_assistant.REPHRASE_MESSAGE),
+])
+def test_fallback_still_runs_the_question_checks(workflow_request, provider, monkeypatch,
+                                                 question, expected):
+    # As if the model call timed out before map_intent's own checks could answer.
+    monkeypatch.setattr(assistant, 'map_intent', lambda *a, **k: None)
+    answer = ask(assistant_body(workflow_request, question=question))
+    assert answer.answer == expected
+    assert answer.task_id is None and not answer.sources
+
+
+def test_fallback_is_framed_for_the_page(workflow_request, provider, monkeypatch):
+    monkeypatch.delenv('OPENAI_API_KEY')
+    answer = ask({**assistant_body(workflow_request), 'page_context': 'journey'})
+    assert answer.answer.startswith(assistant.PAGE_LEADS['journey'] + ' Task status:')
 
 
 def test_waiting_for_intent_is_bounded(workflow_request, provider, monkeypatch):
@@ -154,7 +199,8 @@ def test_waiting_for_intent_is_bounded(workflow_request, provider, monkeypatch):
     provider.before_parse = block_intent
     monkeypatch.setattr(assistant, 'INTENT_TIMEOUT', 0.25)
     try:
-        assert ask(assistant_body(workflow_request)).answer == ai_assistant.ERROR_MESSAGE
+        # Both tries time out, so the answer falls back to the selected step.
+        assert _is_selected_step_answer(ask(assistant_body(workflow_request)))
         assert entered.is_set() and not finished.is_set()
     finally:
         release.set()

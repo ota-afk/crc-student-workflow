@@ -112,8 +112,9 @@ def ask_airshow(api_url: str, data: dict, question: str, task_id: str | None,
         # Where the question was asked ("journey" or "readiness"); a display hint, see the
         # contract. Omitted rather than sent as null, so an older API never sees the key.
         body['page_context'] = page_context
-    # 10 seconds, like the other dashboard: the API keeps its model calls inside that budget.
+    # The API answers within about 8 seconds even with a retry; 15 leaves room for the network
+    # and a just-woken server, so a slow first answer isn't cut off at the dashboard.
     response = requests.post(f'{api_url.rstrip("/")}/assistant', json=body,
-                             headers=_headers(), timeout=10)
+                             headers=_headers(), timeout=15)
     response.raise_for_status()
     return AssistantAnswer.model_validate(response.json()).model_dump(mode='json')
