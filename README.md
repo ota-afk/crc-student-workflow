@@ -61,10 +61,9 @@ below. After editing files under
 `src/`, restart Streamlit: it does not reload those modules on its own.
 
 Flyover's sticky header has a labelled **Go to** selector with six destinations: Workflow
-and readiness, Checklist, Alerts, Profile, Office handoff, and Updates and credits. The first
-three are also sibling tabs under the header, and both controls set the same page. One
+and readiness, Checklist, Alerts, Profile, Office handoff, and Updates and credits. One
 selected task follows you across every page: pick it in **Choose a task** (or "Your checklist")
-and View checklist, Open full checklist and the profile shortcut all open the Checklist tab
+and View checklist, Open full checklist and the profile shortcut all open the Checklist page
 with it. Workflow and readiness holds profile setup over the travel banner, the selected step
 (its title flips in like a departures board after a completion, its status saves to the live
 API, and the three-piece flight map fills in behind it), Readiness with completed history, and

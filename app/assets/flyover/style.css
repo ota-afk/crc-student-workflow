@@ -393,7 +393,7 @@ html, body, #root, .stApp, [data-testid="stAppViewContainer"] { overflow:clip!im
   color:#4A544E!important; opacity:1!important; }
 .stApp [data-testid="stHeaderActionElements"] { display:none!important; }
 
-/* ---- Navigation and task rows (guide Part 1): Go to, sibling tabs, Edit status ---- */
+/* ---- Navigation and task rows (guide Part 1): Go to, Edit status ---- */
 /* Go to: its label sits beside the select, so the header keeps its height. */
 .st-key-flyover_header [data-testid="stColumn"]:nth-child(2) { justify-content:flex-end; }
 .st-key-flyover_goto { width:100%!important; max-width:340px; }
@@ -401,17 +401,6 @@ html, body, #root, .stApp, [data-testid="stAppViewContainer"] { overflow:clip!im
 .st-key-flyover_goto [data-testid="stWidgetLabel"] { margin:0; min-height:0; flex:0 0 auto; }
 .st-key-flyover_goto [data-testid="stWidgetLabel"] p { font-weight:800; font-size:.9rem; color:var(--flyover-ink); white-space:nowrap; }
 .st-key-flyover_goto [data-testid="stSelectbox"] > div:last-child { flex:1 1 auto; min-width:0; }
-/* The sibling tabs: one row, the active one filled in deep sage (ivory on #3D6350 is 6.9:1). */
-.st-key-flyover_tabs { margin-top:14px; align-items:center; }
-.st-key-flyover_tabs [data-testid="stButtonGroup"] > div { flex-wrap:wrap; justify-content:center; }
-.st-key-flyover_tabs button[role="radio"] { min-height:44px; padding:0 18px; background:#FFFFFF;
-  color:var(--flyover-ink); border-color:#C9D3C6; font-weight:700; }
-.st-key-flyover_tabs button[role="radio"][aria-checked="true"] { background:#3D6350; color:#F7F4EF; border-color:#3D6350; }
-.st-key-flyover_tabs button[role="radio"][aria-checked="true"] p { color:#F7F4EF; }
-/* Hover keeps the same contrast: an outline, never a paler fill. */
-.st-key-flyover_tabs button[role="radio"]:hover { border-color:var(--flyover-ink); color:var(--flyover-ink); }
-.st-key-flyover_tabs button[role="radio"][aria-checked="true"]:hover { background:#3D6350; color:#F7F4EF; border-color:var(--flyover-ink); }
-.st-key-flyover_tabs button[role="radio"]:focus-visible { outline:3px solid var(--flyover-ink); outline-offset:2px; }
 /* Choose a task sits between the progress line and the gate; the Checklist's own status
    control stays a compact select, not a full-width bar. */
 .st-key-flyover_choose_box { max-width:720px; }
@@ -427,8 +416,6 @@ html, body, #root, .stApp, [data-testid="stAppViewContainer"] { overflow:clip!im
   .st-key-flyover_header [data-testid="stColumn"]:nth-child(2) { order:4; flex:1 1 100%!important;
     width:100%!important; min-width:100%!important; justify-content:stretch; }
   .st-key-flyover_goto { max-width:none; }
-  .st-key-flyover_tabs button[role="radio"] { padding:0 10px; font-size:.85rem; }
-  .st-key-flyover_tabs [data-testid="stButtonGroup"] > div { flex-wrap:nowrap; }
   /* Rows: the title gets its own line; status, prerequisite and Edit share the next one. */
   .fly-thead { display:none; }
   [class*="st-key-fly_row_"] [data-testid="stHorizontalBlock"] { flex-wrap:wrap!important; row-gap:8px; }
@@ -463,3 +450,12 @@ html, body, #root, .stApp, [data-testid="stAppViewContainer"] { overflow:clip!im
   .fly-needs .fly-group-title { flex-basis:100%; }
   .fly-sheet .fly-src { flex-wrap:wrap; }
 }
+
+/* Source links sit beside the detail they support. */
+.stApp a.fly-source-tag, .st-key-fly_checklist [data-testid="stCheckbox"] a {
+  display:inline-block; padding:2px 8px; margin-left:6px; border:1px solid #C9D3C6;
+  border-radius:999px; background:#EEF3ED; color:#3D6350; font-size:.8rem;
+  font-weight:600; text-decoration:none; vertical-align:middle;
+}
+.stApp a.fly-source-tag:hover { text-decoration:underline; border-color:#3D6350; }
+.stApp a.fly-source-tag:focus-visible { outline:3px solid #3D6350; outline-offset:2px; }

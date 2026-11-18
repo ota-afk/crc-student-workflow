@@ -16,7 +16,6 @@ from test_streamlit import values
 
 from student_workflow.api import app as api_app
 from student_workflow.flyover import (
-    SOURCE_UNAVAILABLE,
     _office_link,
     _source_rows,
     source_label,
@@ -118,9 +117,9 @@ def test_source_rows_keep_verified_dates_and_say_when_to_confirm():
          'verification_status': 'verified'},
         {'rule_id': 'b', 'url': 'javascript:alert(1)', 'last_verified': None,
          'verification_status': 'needs_verification'}])
-    assert 'Double-checked by our team on 2026-11-12' in html
-    assert '<span>Official source</span><small>Confirm this detail with the office.</small>' in html
-    assert _source_rows([]) == f'<p class="fly-muted">{SOURCE_UNAVAILABLE}</p>'
+    assert 'fly-source-tag' in html and 'https://crc.losrios.edu/fees' in html
+    assert 'javascript:' not in html and 'verified' not in html.lower()
+    assert _source_rows([]) == ''
 
 
 # ---- Actions from the real API data ----
@@ -167,7 +166,8 @@ def test_preview_groups_real_id_then_its_residency_prerequisite(live):
     assert 'Gather residency evidence for California REAL ID' in page[needs:]
     assert 'Bring two different printed California address documents' in page[selected:needs]
     assert 'Schedule a DMV visit' in [b.label for b in app.get('link_button')]
-    assert 'View California DMV, Sacramento (Broadway) hours source</a>' in page
+    assert any('California DMV, Sacramento (Broadway)' in value and 'fly-source-tag' in value
+               for value in values(app.markdown))
     # AppTest reruns the whole app for a dialog's button, so reopen the dialog first.
     app.session_state['flyover_prereq_open'] = DMV
     app.button(key='flyover_prereq_full').click().run()

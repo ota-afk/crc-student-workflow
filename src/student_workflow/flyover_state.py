@@ -105,4 +105,4 @@ def due_note(task: dict, as_of: str) -> tuple[str, str] | None:
              else f'Due {when} (in {days} days)')
     if due['verification_status'] == 'verified':
         return 'success', label + ' · Double-checked by our team'
-    return 'info', label + ' · Not verified'
+    return 'info', label

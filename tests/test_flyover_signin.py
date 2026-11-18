@@ -76,7 +76,8 @@ def test_own_details_are_worked_out_on_the_scenario_date(live):
     assert app.session_state['flyover_data']['as_of'] == '2026-08-14'
     assert live.posts()[-1][1]['as_of'] == '2026-08-14'  # sent explicitly, not the API default
     app = open_checklist(app, 'task_crc_fee_payment')
-    assert 'Due today, Fri, Aug 14, 2026 · Double-checked by our team' in values(app.success)
+    assert any(v.startswith('Due today, Fri, Aug 14, 2026 · Double-checked by our team')
+               and '[Source ↗]' in v for v in values(app.success))
     assert not any('Past due' in v for v in values(app.warning))
 
 
@@ -125,7 +126,8 @@ def test_an_enrollment_date_at_sign_in_shows_the_tuition_deadline(live):
 
 def test_without_an_enrollment_date_flyover_asks_for_it(live):
     app = open_checklist(sign_in(first_screen()), 'task_crc_fee_payment')
-    assert 'Choose your enrollment term in Profile setup to see when tuition is due.' in values(app.info)
+    assert any(v.startswith('Choose your enrollment term in Profile setup to see when tuition is due.')
+               for v in values(app.info))
 
 
 def test_spring_term_and_due_date_survive_sign_in_and_profile_edits(live):
@@ -141,7 +143,7 @@ def test_spring_term_and_due_date_survive_sign_in_and_profile_edits(live):
     assert any('Dec 14, 2026 to Dec 16, 2026' in value for value in values(app.info))
     assert app.selectbox(key='flyover_term').value == 'spring_2027'
     app = open_checklist(app, 'task_crc_fee_payment')
-    assert any('Jan 8, 2027' in value and 'Not verified' in value
+    assert any('Jan 8, 2027' in value and 'Not verified' not in value
                for value in values(app.info))
 
 

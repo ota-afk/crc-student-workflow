@@ -28,8 +28,8 @@ TOUR_STEPS = [
      ('This is the step to do now, most important first. Set Status to In Progress while you '
      "wait on an office, and Completed when it's done. Completion is self-reported."), 'rounded'),
     ('.st-key-flyover_checklist', 'Open the checklist',
-     ('See the documents to bring and visit details with their sources. "Not verified" means '
-     'confirm with the office. A blocked step has Resolve blocker, which drafts an email you '
+     ('See the documents to bring and visit details with a source link beside each detail. '
+     'Confirm with the office. A blocked step has Resolve blocker, which drafts an email you '
      'review and send yourself.'), 'rounded'),
     ('.st-key-flyover_ai', 'Ask AI Help',
      ("Ask about the step you're on. Answers come from your workflow and our sources. Don't "
